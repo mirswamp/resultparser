@@ -1,0 +1,84 @@
+=============================================
+Bhaskar Pratap (bhaskar@cs.wisc.edu)
+University of Wisconsin - Madison
+=============================================
+
+-----------------------------
+Result Parser Code Management
+-----------------------------
+
+I) Git Repository =>
+
+Master: /p/swamp/gits/resultparser
+Clone Steps:
+
+1) git clone <username>@<cs machine name>:/p/swamp/gits/resultparser
+2) Make changes
+    git add <files>
+3) Commit changes
+    git commit -m “Message”
+4) Add new tag
+    git tag <Version Number>
+5) Push the changes and the tag.
+    git push origin
+    git push origin --tags
+
+II) Creating release bundle =>   
+
+1) Goto resultparser/util
+2) Invoke create_release_bundle.sh as follows:
+    Option 1: ./create_release_bundle.sh <output directory>
+        - Creates a resultparser-<version>.tar in the output directory
+        - Uses the last tag from git tag as the version number
+
+    Option 2: ./create_release_bundle.sh <output directory> <version number>
+        - Creates a resultparser-<version>.tar in the output directory
+        - Uses the version number provided in the parameter.
+
+
+III) Adding new parser =>
+
+1) Goto resultparser/scripts
+2) Create new script for the parser, keeping the input parameters same as in the other existing parsers.
+3) Add the new mapping for tool name & parser script to parsers.txt file similar to existing tools. (tool_name#package::sub_routine)
+4) Add the line "use package_name" similar to other tools
+
+
+IV) Uploading a new version of the parser to SWAMP and UW CS AFS /p/swamp =>
+1) In the resultparser-<version>.tar that is created following step II into SWAMP Googl Drive => SWAMP => UW Team => Software, and inform MIR
+2) Upload a copy of resultparser-<version>.tar into UW CS AFS => /p/swamp/releases
+
+
+V) Description
+
+1) resultparser.pl - top level script called for parsing results. uses functions in individual perl modules of respective tools to parse results.
+2) tool.pm         - perl modules that contains functions for parsing respective tool's outputs.
+3) BugInstance.pm  - library module that is used to create objects for each bug report. Has all methods to set all fields of SCARF. Used inside each parser.
+4) buLocation.pm   - helper library module that is used inside BugInstance.pm to set location details.
+5) bugMethod.pm    - helper library module that is used inside BugInstance.pm to set method details.
+6) tool.pm         - perl modules called inside resultparser to parse raw results.
+7) scarf_csv.pl	   - script to convert scarf format xml to  csv file. Input file is first argument, output file is second argument.
+8) diff_scarf.pl   - script to compare two scarf files. Comparison is based on input tag_elems. It checks if the scarf files are same by comparing elements of scarf files based on tag_elems option. 
+
+VI) Algorithm
+
+1) basic checks for directories and files.
+2) assessment summary function is called to read data of assessments from assessment summary file.
+3) Based on tool name in assessment summary file, parsing function is determined with the help of parsers.txt. hash mapping from tool nam and function name is created.
+4) A hash map is maintained in resultparser for bug instances. tag is bugId and value is pointer of bugInstance.
+5) For each assessment of assessment summary file, corresponding parsing function is called, all the bugs are collected in hash map.
+6) XML printer function is called at the end to print bug instances and group bugs based on bug group and bug code, byte count for each class is calculated with help of tell funtion in perl.
+7) XML twig library is used to read bug instances. Elements of each bug instance are stored in an array and this array is converted to one line in comma separated value file.
+8) Hash map is created for both the input XML files. Tag of hash map is based on input parameter tag_elems. Tags used are as follows based on tag_elems params
+   	1 - file_name
+	2 - file_name,start and end line numbers.
+	3 - file_name,start line, end line, start column, end column
+	4 - file_name,start line, end line, start column, end column, bugcode
+	5 - file_name,start line, end line, start column, end column, bugcode, bugmsg
+	6 - file_name,start line, end line, start column, end column, bugcode, bugmsg, assessment file
+	7 - file_name,start line, end line, start column, end column, bugcode, bugmsg, assessment file, location line in assessment file
+
+	Value of hash map is number of bug instances that have same tag. For each element in hash map of first file, the tag is searched in hash map of second file and 	their occurances is compared. At the end differences are printed in output file. If for given option of tag_elems appropriate elements are not in XML, the scrip	t exits with no children found error. Ex: if assessment file is not present in XML file and tag_elems option is 6, script throws error.
+ 
+
+
