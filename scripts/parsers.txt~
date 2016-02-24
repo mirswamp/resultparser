@@ -6,7 +6,7 @@ CHECKSTYLE#checkstyle-2
 FINDBUGS#findbugs::findbugs_parser
 PMD#pmd::pmd_parser
 CPPCHECK#cppcheck::cppcheck_parser
-GCC-WARN#gccwarn
+GCC-WARN#gccwarn::gccwarn_parser
 PYLINT#pylint::pylint_parser
 FLAWFINDER#flawfinder::flawfinder_parser
 HRL-TIF#hrltif::hrltif_parser
