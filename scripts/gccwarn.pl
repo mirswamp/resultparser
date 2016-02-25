@@ -158,9 +158,9 @@ sub register_bug {
 			$xmlWriterObj->writeBugObject($bugObject);
 			undef $bugObject;
 		}
+		$bugId++;
 		$bugObject = new bugInstance($bugId);
 		&register_bugpath($bug_report_line);
-		$bugId++;
 		$methodId   = 0;
 		$locationId = 0;
 		#print "Creating bug object";
