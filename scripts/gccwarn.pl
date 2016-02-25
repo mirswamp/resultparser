@@ -50,13 +50,11 @@ foreach my $input_file (@input_file_arr) {
     $trace_start_line=1;
     $locationId=0;
     $methodId=0;
-    $function = "";
-    $fn_file = "";
     
 	my $input = new IO::File("<$input_file");
+	my $fn_flag = -1;
     LINE:
 	while ( my $line = <$input> ) {
-		print "Processing".$input_file."\n";
 		chomp($line);
 		$current_line_no = $.;
 		if ( $line eq $prev_line ) {
@@ -66,18 +64,21 @@ foreach my $input_file (@input_file_arr) {
 			$prev_line = $line;
 		}
 		my $valid = &validate_line($line);
-		#print "*****".$valid."****";
 		if ( $valid eq "function" ) {
 			my @tokens = util::split_string($line);
 			$fn_file = $tokens[0];
 			$function = $tokens[1];
 			$function =~ /‘(.*)’/;
 			$function = $1;
+			$fn_flag = 1;
 		} elsif ( $valid ne "invalid" ) {
-			#print "BEFORE PARSE";
+			if($fn_flag==1){
+				$fn_flag = -1;
+			}else{
+				$function = "";
+				$fn_file = "";
+			}
 			&parse_line( $current_line_no, $line, $function, $fn_file );
-			#print "OVER HERE AFTER PARSE";
-			#print "####".$function;
 		}
 	}
 	&register_bugpath($current_line_no);
@@ -86,13 +87,14 @@ $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
 sub parse_line {
-	my ( $bug_report_line, $line, $function, $fn_line ) = @_;
+	my ( $bug_report_line, $line, $function, $fn_file ) = @_;
 	my @tokens = util::split_string($line);
 	my $num_of_tokens = @tokens;
 	my ( $file, $line_no, $col_no, $bug_group, $message );
 	my $flag = 1;
-	#print "NUM OF TOKENS".$num_of_tokens;
 	if ( $num_of_tokens eq 5 ) {
+		print "Tokens : ".$tokens[0];
+		print "/n";
 		$file      = util::AdjustPath( $package_name, $cwd, $tokens[0] );
 		$line_no   = $tokens[1];
 		$col_no    = $tokens[2];
@@ -115,7 +117,7 @@ sub parse_line {
 	if ( $flag ne 0 ) {
 		$bug_group = util::trim($bug_group);
 		$message   = util::trim($message);
-		&register_bug( $bug_report_line, $function, $fn_line, $file, $line_no,
+		&register_bug( $bug_report_line, $function, $fn_file, $file, $line_no,
 			$col_no, $bug_group, $message );
 	}
 }
@@ -161,7 +163,10 @@ sub register_bug {
 		$locationId = 0;
 		#print "Creating bug object";
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath($input_file);
+		#print "Package Name : ".$package_name;
+		#print "CWD : ".$cwd;
+		#print util::AdjustPath($package_name, $cwd, $input_file);
+		$bugObject->setBugReportPath(util::AdjustPath($package_name, $cwd, $input_file));
 		if ( $function ne '' ) {
 			$bugObject->setBugMethod( ++$methodId, "", $function, "true" );
 		}
