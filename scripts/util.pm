@@ -127,6 +127,7 @@ sub parseSummary {
 	return @parsed_summary;
 }
 =cut
+
 sub split_string {
 	my ($str) = @_;
 	$str =~ s/::+/~#~/g;
@@ -146,6 +147,7 @@ sub split_string {
 	}
 	return (@ret);
 }
+
 
 sub trim
 {

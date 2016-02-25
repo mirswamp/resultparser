@@ -52,6 +52,8 @@ foreach my $input_file (@input_file_arr) {
     $methodId=0;
     
 	my $input = new IO::File("<$input_file");
+	#open(my $input, "<:encoding(UTF-8)", "$input_file")
+    #|| die "can't open UTF-8 encoded filename: $!";
 	my $fn_flag = -1;
     LINE:
 	while ( my $line = <$input> ) {
@@ -94,7 +96,7 @@ sub parse_line {
 	my $flag = 1;
 	if ( $num_of_tokens eq 5 ) {
 		print "Tokens : ".$tokens[0];
-		print "/n";
+		print "\n";
 		$file      = util::AdjustPath( $package_name, $cwd, $tokens[0] );
 		$line_no   = $tokens[1];
 		$col_no    = $tokens[2];
@@ -182,13 +184,52 @@ sub register_bug {
 
 sub parse_message {
 	my ($message) = @_;
+	print "MESSAGE : ".$message."\n";
+	my $temp = $message;
 	my $orig_msg  = $message;
 	my $code      = $message;
+	
 	if ( defined($code) ) {
 		$code =~ /(.*)\[(.*)\]$/;
 		$message = $1;
 		$code    = $2;
 	}
+	
+	if(!defined $code or $code eq ""){
+		$code = $temp;
+		$code =~ s/(?: \d+)? of ‘.*?’//g;
+	}
+	
+	if($code eq ""){
+		$code = $temp;
+		$code =~ s/^".*?" //;
+	}
+	
+	if($code eq ""){
+		$code = $temp;
+		$code =~ s/ ".*?"//g;
+	}
+	
+	if($code eq ""){
+		$code = $temp;
+		$code =~ s/(?: to) ‘.*?’//g;
+	}
+	
+	if($code eq ""){
+		$code = $temp;
+		$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
+	}
+	
+	if($code eq ""){
+		$code = $temp;
+		$code =~ s/^(#(?:warning|error)) .*/$1/;
+	}
+	
+	if($code eq ""){
+		$code = $temp;
+		$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
+	}
+	
 
 	if ( ( defined $message ) && ( $message ne '' ) ) {
 		$bugObject->setBugMessage($message);
