@@ -83,7 +83,9 @@ foreach my $input_file (@input_file_arr) {
 			&parse_line( $current_line_no, $line, $function, $fn_file );
 		}
 	}
-	&register_bugpath($current_line_no);
+	if(defined $bugObject){
+	   &register_bugpath($current_line_no);
+	}
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -95,8 +97,6 @@ sub parse_line {
 	my ( $file, $line_no, $col_no, $bug_group, $message );
 	my $flag = 1;
 	if ( $num_of_tokens eq 5 ) {
-		print "Tokens : ".$tokens[0];
-		print "\n";
 		$file      = util::AdjustPath( $package_name, $cwd, $tokens[0] );
 		$line_no   = $tokens[1];
 		$col_no    = $tokens[2];
@@ -111,7 +111,6 @@ sub parse_line {
 		$message   = $tokens[3];
 	}
 	else {
-
 		#bad line. hence skipping.
 		$flag = 0;
 	}
@@ -127,7 +126,7 @@ sub parse_line {
 sub register_bugpath {
 	my ($bug_report_line) = @_;
 	my ( $bugLineStart, $bugLineEnd );
-	if ( $bugId > 0 ) {    #Store the information for prev bug trace
+	if ( $bugId > 0 ) {    
 		if ( $trace_start_line eq $bug_report_line - 1 ) {
 			$bugLineStart = $trace_start_line;
 			$bugLineEnd   = $trace_start_line;
@@ -163,11 +162,7 @@ sub register_bug {
 		&register_bugpath($bug_report_line);
 		$methodId   = 0;
 		$locationId = 0;
-		#print "Creating bug object";
 		$bugObject->setBugBuildId($build_id);
-		#print "Package Name : ".$package_name;
-		#print "CWD : ".$cwd;
-		#print util::AdjustPath($package_name, $cwd, $input_file);
 		$bugObject->setBugReportPath(util::AdjustPath($package_name, $cwd, $input_file));
 		if ( $function ne '' ) {
 			$bugObject->setBugMethod( ++$methodId, "", $function, "true" );
@@ -197,37 +192,14 @@ sub parse_message {
 	
 	if(!defined $code or $code eq ""){
 		$code = $temp;
-		$code =~ s/(?: \d+)? of ‘.*?’//g;
-	}
-	
-	if($code eq ""){
-		$code = $temp;
-		$code =~ s/^".*?" //;
-	}
-	
-	if($code eq ""){
-		$code = $temp;
-		$code =~ s/ ".*?"//g;
-	}
-	
-	if($code eq ""){
-		$code = $temp;
-		$code =~ s/(?: to) ‘.*?’//g;
-	}
-	
-	if($code eq ""){
-		$code = $temp;
+		$code =~ s/(?: \d+)? of ‘.*?‘/ /g;
+		$code =~ s/^".*?" / /;
+		$code =~ s/ ".*?"/ /g;
+		$code =~ s/(?: to) ‘.*?‘/ /g;
 		$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
-	}
-	
-	if($code eq ""){
-		$code = $temp;
 		$code =~ s/^(#(?:warning|error)) .*/$1/;
-	}
-	
-	if($code eq ""){
-		$code = $temp;
 		$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
+		print "Matched first regex \n";
 	}
 	
 
