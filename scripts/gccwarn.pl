@@ -51,6 +51,8 @@ foreach my $input_file (@input_file_arr) {
     $locationId=0;
     $methodId=0;
     
+   # my $filehandler = IO::File->new();
+    #$filehandler->open($input_file,'<:encoding(UTF-8)'); 
 	my $input = new IO::File("<$input_file");
 	#open(my $input, "<:encoding(UTF-8)", "$input_file")
     #|| die "can't open UTF-8 encoded filename: $!";
@@ -67,12 +69,16 @@ foreach my $input_file (@input_file_arr) {
 		}
 		my $valid = &validate_line($line);
 		if ( $valid eq "function" ) {
+			print "Its a function\n";
+			print $line."\n";
 			my @tokens = util::split_string($line);
 			$fn_file = $tokens[0];
 			$function = $tokens[1];
 			$function =~ /‘(.*)’/;
 			$function = $1;
 			$fn_flag = 1;
+			print $function;
+			#exit;
 		} elsif ( $valid ne "invalid" ) {
 			if($fn_flag==1){
 				$fn_flag = -1;
@@ -192,10 +198,11 @@ sub parse_message {
 	
 	if(!defined $code or $code eq ""){
 		$code = $temp;
-		$code =~ s/(?: \d+)? of ‘.*?‘/ /g;
+		$code =~ s/(?: \d+)? of ‘.*?’//g;
 		$code =~ s/^".*?" / /;
+		$code =~ s/‘.*?’//g;
 		$code =~ s/ ".*?"/ /g;
-		$code =~ s/(?: to) ‘.*?‘/ /g;
+		$code =~ s/(?: to) ‘.*?’/ /g;
 		$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
 		$code =~ s/^(#(?:warning|error)) .*/$1/;
 		$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
