@@ -69,16 +69,12 @@ foreach my $input_file (@input_file_arr) {
 		}
 		my $valid = &validate_line($line);
 		if ( $valid eq "function" ) {
-			print "Its a function\n";
-			print $line."\n";
-			my @tokens = util::split_string($line);
+			my @tokens = util::SplitString($line);
 			$fn_file = $tokens[0];
 			$function = $tokens[1];
 			$function =~ /‘(.*)’/;
 			$function = $1;
 			$fn_flag = 1;
-			print $function;
-			#exit;
 		} elsif ( $valid ne "invalid" ) {
 			if($fn_flag==1){
 				$fn_flag = -1;
@@ -98,7 +94,7 @@ $xmlWriterObj->addEndTag();
 
 sub parse_line {
 	my ( $bug_report_line, $line, $function, $fn_file ) = @_;
-	my @tokens = util::split_string($line);
+	my @tokens = util::SplitString($line);
 	my $num_of_tokens = @tokens;
 	my ( $file, $line_no, $col_no, $bug_group, $message );
 	my $flag = 1;
@@ -185,7 +181,6 @@ sub register_bug {
 
 sub parse_message {
 	my ($message) = @_;
-	print "MESSAGE : ".$message."\n";
 	my $temp = $message;
 	my $orig_msg  = $message;
 	my $code      = $message;
@@ -206,7 +201,6 @@ sub parse_message {
 		$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
 		$code =~ s/^(#(?:warning|error)) .*/$1/;
 		$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
-		print "Matched first regex \n";
 	}
 	
 

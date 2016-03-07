@@ -46,25 +46,26 @@ sub AdjustPath {
 }
 
 
-sub split_string {
-	my ($str) = @_;
-	$str =~ s/::+/~#~/g;
-	$str =~ /(['\x2018][^:]+:+[^:]+['\x2019])/;
-	my $temp = $1;
-	$str =~ s/‘[^:]+:+[^:]+’/~~&&~~/;
-	if ( defined($temp) ) {
-		$temp =~ s/:/~%%~/;
-	}
-	$str =~ s/~~&&~~/$temp/;
-	my @tokens = split( ':', $str );
-	my @ret;
-	foreach $a (@tokens) {
-		print "***".$a."\n";
-		$a =~ s/~#~/::/g;
-		$a =~ s/~%%~/:/g;
-		push( @ret, $a );
-	}
-	return (@ret);
+sub SplitString {
+    my ($str) = @_;
+    $str =~ s/::+/~#~/g;
+        $str  =~ /(‘[^:]+:+[^:]+’)/;
+        my $temp = $1;
+        $str =~ s/‘[^:]+:+[^:]+’/~~&&~~/;
+        if (defined ($temp))
+        {
+            $temp =~ s/:/~%%~/;
+        }
+        $str =~ s/~~&&~~/$temp/;
+    my @tokens = split(':',$str);
+    my @ret;
+    foreach $a (@tokens)
+    {
+       $a =~ s/~#~/::/g;
+           $a =~ s/~%%~/:/g;
+       push(@ret,$a);
+    }
+    return(@ret);
 }
 
 
