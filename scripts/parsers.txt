@@ -1,5 +1,5 @@
 ERROR-PRONE#errorprone::errorprone_parser
-CLANG-SA#clang::clang_parser
+CLANG-SA#clang
 PS-JTEST#PJtest::PJtest_parser
 PS-CTEST#PCtest::PCtest_parser
 CHECKSTYLE#checkstyle-2

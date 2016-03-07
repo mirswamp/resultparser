@@ -1,0 +1,92 @@
+-----------------------------------------------------
+resultparser version 2.1.6 (Fri Oct 9 12:13:18 2015 -0500)
+-----------------------------------------------------
+	Support to parse bandit JSON output, works with bandit versions greater than 8ba3536
+
+-----------------------------------------------------
+resultparser version 2.1.5 (Wed Sep 2 14:31:58 2015 -0500)
+-----------------------------------------------------
+	Output UTF-8 XML to match the UTF-8 declaration we provide!
+
+-----------------------------------------------------
+resultparser version 2.1.2 (Thu Jul 30 11:40:49 2015 -0500)
+-----------------------------------------------------
+    connect redlizard goanna
+    the code was present but connected to table of parsers
+
+-----------------------------------------------------
+resultparser version 2.1.1 (Fri Jul 17 12:25:03 CDT 2015)
+-------------------------------------------------------
+Update the android-lint parser to use AdjustPath to fix absolute paths.
+
+-----------------------------------------------------
+resultparser version 2.1.0 (Fri Jun 26 16:29:15 CDT 2015)
+-------------------------------------------------------
+Add ruby reek parser.
+
+-----------------------------------------------------
+resultparser version 2.0.9 (Thu Jun 18 10:06:15 CDT 2015)
+-------------------------------------------------------
+- For grammatech codesonar parser, added deescaping(decoding) of XML escape sequences for (>|"|') in message descriptions.
+
+-----------------------------------------------------
+resultparser version 2.0.8 (Wed Jun 17 16:32:00 CDT 2015)
+-------------------------------------------------------
+- Removed the 'keep_encoding' flag in Twig initializer from PCtest|PJtest|androidlint|redlizard
+
+-----------------------------------------------------
+resultparser version 1.2.1 (Tue Jan 26 17:01 CDT 2015)
+-------------------------------------------------------
+Added the parser for Flake8
+Made the toolname all lowercase for Pylint
+Fixed the bug in AndroidLint for file paths 
+
+-----------------------------------------------------
+resultparser version 1.2.0 (Tue Dec 22 16:47 CDT 2014)
+-------------------------------------------------------
+Added the parser for Bandit
+
+
+--------------------------------------------------------
+resultparser version 1.1.9 (Tue Dec 16 16:47 CDT 2014)
+-------------------------------------------------------
+Added the parser for AndroidLint
+
+-----------------------------------
+resultparser version 1.1.7 (Wed Dec 10 18:43 CDT 2014)
+----------------------------------
+Added the parsers for flawfinder and hrl-tif tools
+changed bugInstance.pm to accomodate more than one CWE for flawfinder
+
+-----------------------------------
+resultsparser version 1.1.6 (Tue Nov  20 14:38:46 CDT 2014)
+-----------------------------------
+Changed the OS dependency conf file. 
+
+-----------------------------------
+resultsparser version 1.1.5 (Tue Oct  28 14:19:46 CDT 2014)
+-----------------------------------
+Added parsers for ps-jtest and ps-ctest and updated parsers.txt. 
+
+
+-----------------------------------
+resultsparser version 1.1.2 (Wed Jul  9 17:19:46 CDT 2014)
+-----------------------------------
+
+Fixed a bug in GCC results parser. This caused the 'line number' of CWEs in the raw results to be not written to the parsed results.  This source for this bug was a line that got accidentally deleted in version 1.1.1. The fix was to add the line back. 
+
+-----------------------------------
+resultsparser version 1.1.1 (Mon Jul  7 22:28:03 CDT 2014)
+-----------------------------------
+
+    - Changed FixPath to AdjustPath
+    - Used AdjustPath in all parsers, even those where it is believed to always be an absolute path
+    - Removed debug statements
+    - Changed 'tar czf ...' to 'tar cf ...' since the output tar file has an extention of .tar
+
+-----------------------------------
+resultsparser version 1.1.0 (Thu July 3 19:45:13 UTC 2014)
+-----------------------------------
+
+    - Fixed Bugs JIRA issue UW-44: "Incorrect source file paths in parsed results files, because of this lines in the package source code are not highlighted in the SWAMP CodeDx viewer"
+

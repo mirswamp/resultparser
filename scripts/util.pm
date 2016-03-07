@@ -30,7 +30,7 @@ sub AdjustPath {
 	$baseDir = NormalizePath($baseDir);
 	$curDir  = NormalizePath($curDir);
 	$path    = NormalizePath($path);
-
+    
 	# if path is relative, prefix with current dir
 	if ( $path eq '.' ) {
 		$path = $curDir;
