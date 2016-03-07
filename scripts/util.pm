@@ -30,7 +30,7 @@ sub AdjustPath {
 	$baseDir = NormalizePath($baseDir);
 	$curDir  = NormalizePath($curDir);
 	$path    = NormalizePath($path);
-    
+
 	# if path is relative, prefix with current dir
 	if ( $path eq '.' ) {
 		$path = $curDir;
@@ -45,36 +45,31 @@ sub AdjustPath {
 	return $path;
 }
 
-
 sub SplitString {
-    my ($str) = @_;
-    $str =~ s/::+/~#~/g;
-        $str  =~ /(‘[^:]+:+[^:]+’)/;
-        my $temp = $1;
-        $str =~ s/‘[^:]+:+[^:]+’/~~&&~~/;
-        if (defined ($temp))
-        {
-            $temp =~ s/:/~%%~/;
-        }
-        $str =~ s/~~&&~~/$temp/;
-    my @tokens = split(':',$str);
-    my @ret;
-    foreach $a (@tokens)
-    {
-       $a =~ s/~#~/::/g;
-           $a =~ s/~%%~/:/g;
-       push(@ret,$a);
-    }
-    return(@ret);
+	my ($str) = @_;
+	$str =~ s/::+/~#~/g;
+	$str =~ /(‘[^:]+:+[^:]+’)/;
+	my $temp = $1;
+	$str =~ s/‘[^:]+:+[^:]+’/~~&&~~/;
+	if ( defined($temp) ) {
+		$temp =~ s/:/~%%~/;
+	}
+	$str =~ s/~~&&~~/$temp/;
+	my @tokens = split( ':', $str );
+	my @ret;
+	foreach $a (@tokens) {
+		$a =~ s/~#~/::/g;
+		$a =~ s/~%%~/:/g;
+		push( @ret, $a );
+	}
+	return (@ret);
 }
 
-
-sub trim
-{
-        my ($string) = @_;
-        $string =~ s/^ *//;
-        $string =~ s/ *$//;
-        return "$string";
+sub Trim {
+	my ($string) = @_;
+	$string =~ s/^ *//;
+	$string =~ s/ *$//;
+	return "$string";
 }
 
 1;
