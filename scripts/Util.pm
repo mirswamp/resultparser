@@ -175,8 +175,7 @@ sub BuildParserHash {
 	return $hash;
 }
 
-sub IsAbsolutePath
-{
+sub IsAbsolutePath {
 	my ($path) = @_;
 	if ( $path =~ m/^\/.*/g ) {
 		return 1;
@@ -194,6 +193,21 @@ sub TestPath {
 		open $fh, "<", $path or die "Cannot open file $path !!";
 	}
 	close($fh);
+}
+
+sub GetToolName {
+	my $assessment_summary_file = shift;
+	my $twig                    = XML::Twig->new(
+		twig_roots    => { 'assessment-summary' => 1 },
+		twig_handlers => { 'tool-type'          => \&ToolNameHandler }
+	);
+	my $tool_name = $twig->parsefile($assessment_summary_file);
+	return $tool_name;
+}
+
+sub ToolNameHandler {
+	my ( $tree, $elem ) = @_;
+	return $elem->text;
 }
 
 1;
