@@ -57,13 +57,12 @@ sub parseViolations {
 }
 
 sub getCppCheckBugObject() {
-	my $violation        = shift;
-	my $adjustedFilePath = util::AdjustPath( $package_name, $cwd, $file_path );
-	my $bugId            = shift;
-	my $bug_xpath        = shift;
-	my $bug_code         = $violation->att('id');
-	my $bug_severity     = $violation->att('severity');
-	my $bug_message      = $violation->att('msg');
+	my $violation           = shift;
+	my $bugId               = shift;
+	my $bug_xpath           = shift;
+	my $bug_code            = $violation->att('id');
+	my $bug_severity        = $violation->att('severity');
+	my $bug_message         = $violation->att('msg');
 	my $bug_message_verbose = $violation->att('verbose');
 
 	my $bugObject  = new bugInstance($bugId);
@@ -79,10 +78,9 @@ sub getCppCheckBugObject() {
 				$error_element->att('file') );
 			$lineno = $error_element->att('line');
 			$locationId++;
-			$bugObject->setBugLocation( locationId, "", $file, $lineno,
-				$lineno, "0", "0", $bug_message,
-				'true',  'true'
-			);
+			$bugObject->setBugLocation( $locationId, "",
+				util::AdjustPath( $package_name, $cwd, $file ),
+				$lineno, $lineno, "0", "0", $bug_message, 'true', 'true' );
 		}
 	}
 
