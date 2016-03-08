@@ -2,10 +2,10 @@ ERROR-PRONE#errorprone::errorprone_parser
 CLANG-SA#clang
 PS-JTEST#PJtest::PJtest_parser
 PS-CTEST#PCtest::PCtest_parser
-CHECKSTYLE#checkstyle-2
+CHECKSTYLE#checkstyle
 FINDBUGS#findbugs::findbugs_parser
 PMD#pmd::pmd_parser
-CPPCHECK#cppcheck::cppcheck_parser
+CPPCHECK#cppcheck
 GCC-WARN#gccwarn
 PYLINT#pylint::pylint_parser
 FLAWFINDER#flawfinder::flawfinder_parser
