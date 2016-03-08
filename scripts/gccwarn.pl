@@ -5,7 +5,7 @@ use Getopt::Long;
 use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
-use util;
+use Util;
 
 my (
 	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
@@ -69,7 +69,7 @@ foreach my $input_file (@input_file_arr) {
 		}
 		my $valid = &validate_line($line);
 		if ( $valid eq "function" ) {
-			my @tokens = util::SplitString($line);
+			my @tokens = Util::SplitString($line);
 			$fn_file = $tokens[0];
 			$function = $tokens[1];
 			$function =~ /‘(.*)’/;
@@ -94,19 +94,19 @@ $xmlWriterObj->addEndTag();
 
 sub parse_line {
 	my ( $bug_report_line, $line, $function, $fn_file ) = @_;
-	my @tokens = util::SplitString($line);
+	my @tokens = Util::SplitString($line);
 	my $num_of_tokens = @tokens;
 	my ( $file, $line_no, $col_no, $bug_group, $message );
 	my $flag = 1;
 	if ( $num_of_tokens eq 5 ) {
-		$file      = util::AdjustPath( $package_name, $cwd, $tokens[0] );
+		$file      = Util::AdjustPath( $package_name, $cwd, $tokens[0] );
 		$line_no   = $tokens[1];
 		$col_no    = $tokens[2];
 		$bug_group = $tokens[3];
 		$message   = $tokens[4];
 	}
 	elsif ( $num_of_tokens eq 4 ) {
-		$file      = util::AdjustPath( $package_name, $cwd, $tokens[0] );
+		$file      = Util::AdjustPath( $package_name, $cwd, $tokens[0] );
 		$line_no   = $tokens[1];
 		$col_no    = 0;
 		$bug_group = $tokens[2];
@@ -118,8 +118,8 @@ sub parse_line {
 	}
 
 	if ( $flag ne 0 ) {
-		$bug_group = util::trim($bug_group);
-		$message   = util::trim($message);
+		$bug_group = Util::trim($bug_group);
+		$message   = Util::trim($message);
 		&register_bug( $bug_report_line, $function, $fn_file, $file, $line_no,
 			$col_no, $bug_group, $message );
 	}
@@ -165,7 +165,7 @@ sub register_bug {
 		$methodId   = 0;
 		$locationId = 0;
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(util::AdjustPath($package_name, $cwd, $input_file));
+		$bugObject->setBugReportPath(Util::AdjustPath($package_name, $cwd, $input_file));
 		if ( $function ne '' ) {
 			$bugObject->setBugMethod( ++$methodId, "", $function, "true" );
 		}

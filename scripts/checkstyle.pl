@@ -5,7 +5,7 @@ use Getopt::Long;
 use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
-use util;
+use Util;
 
 my (
 	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
@@ -65,7 +65,7 @@ sub parseViolations {
 
 sub getCheckstyleBugObject() {
 	my $violation        = shift;
-	my $adjustedFilePath = util::AdjustPath( $package_name, $cwd, $file_path );
+	my $adjustedFilePath = Util::AdjustPath( $package_name, $cwd, $file_path );
 	my $bugId            = shift;
 	my $bug_xpath        = shift;
 	my $beginLine        = $violation->att('line');
@@ -88,7 +88,7 @@ sub getCheckstyleBugObject() {
 		$bug_xpath . "[" . $file_Id . "]" . "/error[" . $bugId . "]" );
 	$bugObject->setBugBuildId($build_id);
 	$bugObject->setBugReportPath(
-		util::AdjustPath( $package_name, $cwd, $input_file ) );
+		Util::AdjustPath( $package_name, $cwd, $input_file ) );
 	return $bugObject;
 }
 

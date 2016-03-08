@@ -5,7 +5,7 @@ use Getopt::Long;
 use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
-use util;
+use Util;
 
 my (
 	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
@@ -74,12 +74,12 @@ sub getCppCheckBugObject() {
 		my $lineno = "";
 		if ( $tag eq 'location' ) {
 			$file =
-			  util::AdjustPath( $package_name, $cwd,
+			  Util::AdjustPath( $package_name, $cwd,
 				$error_element->att('file') );
 			$lineno = $error_element->att('line');
 			$locationId++;
 			$bugObject->setBugLocation( $locationId, "",
-				util::AdjustPath( $package_name, $cwd, $file ),
+				Util::AdjustPath( $package_name, $cwd, $file ),
 				$lineno, $lineno, "0", "0", $bug_message, 'true', 'true' );
 		}
 	}
@@ -90,7 +90,7 @@ sub getCppCheckBugObject() {
 	$bugObject->setBugPath( $bug_xpath . "[" . $bugId . "]" );
 	$bugObject->setBugBuildId($build_id);
 	$bugObject->setBugReportPath(
-		util::AdjustPath( $package_name, $cwd, $input_file ) );
+		Util::AdjustPath( $package_name, $cwd, $input_file ) );
 	return $bugObject;
 }
 

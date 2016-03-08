@@ -5,7 +5,7 @@ use Getopt::Long;
 use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
-use util;
+use Util;
 
 my ($input_file, $output_file, $tool_name, $tool_version, $uuid, $package_name, $build_id, $cwd, $replace_dir, $file_path);
 my $violationId=0;
@@ -75,7 +75,7 @@ sub getFindBugsBugObject()
     my ($bugcode, $bugmsg, $severity, $category, $priority, $summary, $explanation, $error_line, @tokens,$length);
     
     my $bugObject = new bugInstance($bugId);
-    $bugObject->setBugReportPath(util::AdjustPath($input_file));
+    $bugObject->setBugReportPath(Util::AdjustPath($input_file));
     $bugObject->setBugBuildId($build_id);
     $bugObject->setBugSeverity($elem->att('priority'));
     $bugObject->setBugRank($elem->att('rank'));
@@ -107,7 +107,7 @@ sub getFindBugsBugObject()
     {
         if ($child_elem->gi eq "location")
         {
-            my $filepath = util::AdjustPath($package_name, $cwd, $child_elem->att('file'));
+            my $filepath = Util::AdjustPath($package_name, $cwd, $child_elem->att('file'));
             my $line_num = $child_elem->att('line');
             my $begin_col = $child_elem->att('column'); 
             my $end_col;

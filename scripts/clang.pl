@@ -4,7 +4,7 @@
 use Getopt::Long;
 use bugInstance;
 use xmlWriterObject;
-use util;
+use Util;
 
 my (
 	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
@@ -57,7 +57,7 @@ foreach my $input_file (@input_file_arr) {
 		foreach my $line (@lines) {
 			if ( $line =~ m/.*BUGFILE/ ) {
 				$BUGFILE =
-				  util::AdjustPath( $package_name, $cwd, bugLine($line) );
+				  Util::AdjustPath( $package_name, $cwd, bugLine($line) );
 			}
 			elsif ( $line =~ m/.*BUGDESC/ ) { $BUGDESC = bugLine($line); }
 			elsif ( $line =~ m/.*BUGTYPE/ ) { $BUGTYPE = bugLine($line); }

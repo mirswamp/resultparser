@@ -5,7 +5,7 @@ use Getopt::Long;
 use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
-use util;
+use Util;
 
 my (
 	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
@@ -90,7 +90,7 @@ sub getAndroidLintBugObject() {
 	foreach my $child_elem ( $elem->children ) {
 		if ( $child_elem->gi eq "location" ) {
 			my $filepath =
-			  util::AdjustPath( $package_name, $cwd, $child_elem->att('file') );
+			  Util::AdjustPath( $package_name, $cwd, $child_elem->att('file') );
 			my $line_num  = $child_elem->att('line');
 			my $begin_col = $child_elem->att('column');
 			my $end_col;

@@ -145,7 +145,8 @@ sub GetFileList {
 			$input, $cwd, $replace_dir
 		) = split( '~:~', $line );
 		if ( $print_flag == 1 ) {
-			print "--------------------------------------------------------------------------------------\n";
+			print
+"--------------------------------------------------------------------------------------\n";
 			print "UUID: $uuid\n";
 			print "PACKAGE_NAME: $package_name\n";
 			print "TOOL_NAME: $tool_name\n";
@@ -160,6 +161,39 @@ sub GetFileList {
 		push @input_file_arr, "$input";
 	}
 	return @input_file_arr;
+}
+
+sub BuildParserHash {
+	my ( $hash, $file ) = @_;
+	open( IN, "<$file" ) or die("Failed to open $file for reading");
+	for my $line (<IN>) {
+		chomp($line);
+		my ( $tool, $parser_function ) = split /#/, $line, 2;
+		$hash->{$tool} = $parser_function;
+	}
+	close(IN);
+	return $hash;
+}
+
+sub IsAbsolutePath
+{
+	my ($path) = @_;
+	if ( $path =~ m/^\/.*/g ) {
+		return 1;
+	}
+	return 0;
+}
+
+sub TestPath {
+	my ( $path, $mode ) = @_;
+	my $fh;
+	if ( $mode eq "W" ) {
+		open $fh, ">>", $path or die "Cannot open file $path !!";
+	}
+	elsif ( $mode eq "R" ) {
+		open $fh, "<", $path or die "Cannot open file $path !!";
+	}
+	close($fh);
 }
 
 1;
