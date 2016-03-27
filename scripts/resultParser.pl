@@ -7,6 +7,7 @@ use File::Basename;
 use XML::Twig;
 use IO qw(File);
 use XML::Writer;
+use Util;
 use Memory::Usage;
 
 my $current_dir = Cwd::cwd();
@@ -29,24 +30,24 @@ GetOptions(
            "report_summary_file=s" => \$report_summary_file
           ) or &usage() and die ("Error parsing command line arguments\n" );
 
-&usage() if defined ($help );
-&version() if defined ($version );
+usage() if defined ( $help );
+version() if defined ( $version );
 
 $out_dir = defined ($out_dir ) ? $out_dir : $current_dir;
 $summary_file = defined ($summary_file) ? $summary_file : "$current_dir/assessment_summary.xml";
 $in_dir = defined ($in_dir) ? $in_dir : $current_dir;
-$output_file = defined ($output_file ) ? ((Util::IsAbsolutePath($output_file ) eq 0 ) ? "$out_dir/$output_file":"$output_file" ) : "$out_dir/parsed_assessment_report.xml";
+$output_file = defined ($output_file ) ? ((Util::IsAbsolutePath( $output_file ) eq 0 ) ? "$out_dir/$output_file":"$output_file" ) : "$out_dir/parsed_assessment_report.xml";
 
-if ( defined ($weakness_count_file ) ) {
-    $weakness_count_file = (Util::IsAbsolutePath($weakness_count_file ) eq 0 ) ? "$out_dir/$weakness_count_file" : "$weakness_count_file";
-    Util::testPath($weakness_count_file ,"W" );
+if ( defined ( $weakness_count_file ) ) {
+    $weakness_count_file = ( Util::IsAbsolutePath($weakness_count_file ) eq 0 ) ? "$out_dir/$weakness_count_file" : "$weakness_count_file";
+    Util::TestPath($weakness_count_file ,"W" );
 } else {
     print "\nNo weakness count file, proceeding without the file\n";
 }
 
-if(defined($report_summary_file)) {
+if(defined( $report_summary_file)) {
     $report_summary_file = (Util::isAbsolutePath($report_summary_file ) eq 0) ? "$out_dir/$report_summary_file" : "$report_summary_file";
-    Util::testPath($report_summary_file ,"W" );
+    Util::TestPath($report_summary_file ,"W" );
 }
 
 print "SCRIPT_DIR: $script_dir\n";
@@ -56,46 +57,17 @@ print "INPUT_DIR: $in_dir\n";
 print "OUTPUT_DIR: $out_dir\n";
 print "OUTPUT_FILE: $output_file\n";
 
-my ($global_uuid ,$global_tool_name ,$global_tool_version );
-my @parsed_summary = Util::ParseSummaryFile($summary_file );
-my ($uuid ,$package_name ,$tool_name ,$tool_version ,$build_artifact_id ,$input ,$cwd, $replace_dir );
-my @input_file_arr;
+my $tool_name = Util::GetToolName($summary_file);
 
-
-my $print_flag = 1;
-foreach my $line (@parsed_summary )
-{
-    chomp($line );
-    ($uuid ,$package_name ,$tool_name ,$tool_version ,$build_artifact_id ,$input ,$cwd, $replace_dir ) = split('~:~' ,$line );
-    if($print_flag==1){
-    	print "--------------------------------------------------------------------------------------\n";
-		print "UUID: $uuid\n";
-		print "PACKAGE_NAME: $package_name\n";
-		print "TOOL_NAME: $tool_name\n";
-		print "TOOL_VERSION: $tool_version\n";
-		print "BUILD_ARTIFACT_ID: $build_artifact_id\n";
-		print "REPLACE_DIR: $replace_dir\n";
-		print "CWD: $cwd\n"; 
-		print "INPUT_FILES:";
-		$print_flag = 0;
-    }
-    print " ".$input;
-    push @input_file_arr, "$input";
-}
-print "\n";
-executeParser($uuid ,$package_name ,$tool_name ,$tool_version ,$build_artifact_id ,$input ,$cwd, $replace_dir, $input);
+executeParser($tool_name);
 $mu->record('After XML parsing');
 $mu->dump();
 
 sub executeParser
 {
-    my ($uuid,$package_name,$tool_name,$tool_version,$build_artifact_id,$input,$cwd,$replace_dir) = @_;
-    my @execString = ("perl",$tool_name.".pl", "--input_file=$in_dir/$input","--output_file=$output_file","--tool_name=$tool_name","--tool_version=$tool_version","--package_name=$package_name","--uuid=$uuid","--build_id=$build_artifact_id","--cwd=$cwd","--replace_dir=$replace_dir");
-    foreach my $input_file_name (@input_file_arr){
-        push @execString, "--input_file_arr=$in_dir/$input_file_name";
-    }
+    my ($tool_name) = @_;
+    my @execString = ("perl",$tool_name.".pl", "--tool_name=$tool_name","--summary_file=$summary_file", "--output_file=$output_file", "--input_dir=$in_dir");
     my $out = system(@execString);
-
 }
 
 #############################################################################################################################################################################################################################################

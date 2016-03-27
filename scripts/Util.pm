@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-package util;
+package Util;
 
 # NormalizePath - take a path and remove empty and '.' directory components
 #                 empty directories become '.'
@@ -76,6 +76,7 @@ sub Trim {
 	return "$string";
 }
 
+#TODO : Revamp this sub routine
 sub ParseSummaryFile {
 	my $summary_file = shift;
 	my $twig         = XML::Twig->new();
@@ -89,9 +90,6 @@ sub ParseSummaryFile {
 	my @pkg_dirs     = $twig->get_xpath('/assessment-summary/package-root-dir');
 	my $package_name = $pkg_dirs[0]->text;
 	$package_name =~ s/\/[^\/]*$//;
-
-	my @tool_names = $twig->get_xpath('/assessment-summary/tool-type');
-	my $tool_name  = $tool_names[0]->text;
 
 	my @tool_versions = $twig->get_xpath('/assessment-summary/tool-version');
 	my $tool_version  = $tool_versions[0]->text;
@@ -127,8 +125,7 @@ sub ParseSummaryFile {
 		push(
 			@parsed_summary,
 			join( "~:~",
-				$uuid,         $package_name,      $tool_name,
-				$tool_version, $build_artifact_id, $report[0]->text,
+				$uuid,         $package_name, $tool_version, $build_artifact_id, $report[0]->text,
 				$cwd[0]->text, $srcdir_path )
 		) if defined( $report[0] );
 	}
@@ -137,27 +134,17 @@ sub ParseSummaryFile {
 }
 
 sub GetFileList {
-	my @parsed_summary = shift;
+	my @parsed_summary = @_;
+	my $print_flag = 1;
+	my @input_file_arr;
+	my ($uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd, $replace_dir);
 	foreach my $line (@parsed_summary) {
 		chomp($line);
 		(
-			$uuid, $package_name, $tool_name, $tool_version, $build_artifact_id,
+			$uuid, $package_name, $tool_version, $build_artifact_id,
 			$input, $cwd, $replace_dir
 		) = split( '~:~', $line );
-		if ( $print_flag == 1 ) {
-			print
-"--------------------------------------------------------------------------------------\n";
-			print "UUID: $uuid\n";
-			print "PACKAGE_NAME: $package_name\n";
-			print "TOOL_NAME: $tool_name\n";
-			print "TOOL_VERSION: $tool_version\n";
-			print "BUILD_ARTIFACT_ID: $build_artifact_id\n";
-			print "REPLACE_DIR: $replace_dir\n";
-			print "CWD: $cwd\n";
-			print "INPUT_FILES:";
-			$print_flag = 0;
-		}
-		print " " . $input;
+		print "*** " . $input;
 		push @input_file_arr, "$input";
 	}
 	return @input_file_arr;
@@ -197,17 +184,48 @@ sub TestPath {
 
 sub GetToolName {
 	my $assessment_summary_file = shift;
+	my $tool_name = "";
 	my $twig                    = XML::Twig->new(
 		twig_roots    => { 'assessment-summary' => 1 },
-		twig_handlers => { 'tool-type'          => \&ToolNameHandler }
+		twig_handlers => { 'assessment-summary/tool-type'          => sub{
+			 my ( $tree, $elem ) = @_;
+             $tool_name = $elem->text;
+		} }
 	);
-	my $tool_name = $twig->parsefile($assessment_summary_file);
+	$twig->parsefile($assessment_summary_file);
+	if($tool_name eq ""){
+		die( "Error: Could not extract tool name from the summary file ");
+	}
 	return $tool_name;
 }
 
 sub ToolNameHandler {
 	my ( $tree, $elem ) = @_;
 	return $elem->text;
+}
+
+sub InitializeParser {
+	my $summary_file   = shift;
+	my @parsed_summary = ParseSummaryFile($summary_file);
+	my @input_file_arr = GetFileList(@parsed_summary);
+	my ($uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd, $replace_dir);
+
+	chomp( $parsed_summary[0] );
+	(
+		$uuid, $package_name, $tool_version, $build_artifact_id,
+		$input, $cwd, $replace_dir
+	) = split( '~:~', $parsed_summary[0] );
+
+	print "--------------------------------------------------------------------------------------\n";
+	print "UUID: $uuid\n";
+	print "PACKAGE_NAME: $package_name\n";
+	print "TOOL_VERSION: $tool_version\n";
+	print "BUILD_ARTIFACT_ID: $build_artifact_id\n";
+	print "REPLACE_DIR: $replace_dir\n";
+	print "CWD: $cwd\n";
+	print "\n";
+	return ( $uuid, $package_name, $build_artifact_id, $input, $cwd,
+		$replace_dir, $tool_version, @input_file_arr );
 }
 
 1;

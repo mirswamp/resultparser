@@ -8,36 +8,35 @@ use xmlWriterObject;
 use Util;
 
 my (
-	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
-	$package_name, $build_id,    $cwd,       $replace_dir,  $file_path
+    $input_dir,  $output_file,  $tool_name, $summary_file
 );
-my $violationId = 0;
-my $bugId       = 0;
-my $file_Id     = 0;
 
 GetOptions(
-	"input_file=s"     => \$input_file,
-	"output_file=s"    => \$output_file,
-	"tool_name=s"      => \$tool_name,
-	"tool_version=s"   => \$tool_version,
-	"package_name=s"   => \$package_name,
-	"uuid=s"           => \$uuid,
-	"build_id=s"       => \$build_id,
-	"cwd=s"            => \$cwd,
-	"replace_dir=s"    => \$replace_dir,
-	"input_file_arr=s" => \@input_file_arr
+    "input_dir=s"   => \$input_dir,
+    "output_file=s"  => \$output_file,
+    "tool_name=s"    => \$tool_name,
+    "summary_file=s" => \$summary_file
 ) or die("Error");
+
+my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser($summary_file);
+
+if( !$tool_name ) {
+    $tool_name = Util::GetToolName($summary_file);
+}
 
 my $twig = XML::Twig->new(
 	twig_roots    => { 'issues' => 1 },
 	twig_handlers => { 'issue'  => \&parseViolations }
 );
 
+my $bugId       = 0;
+my $file_Id     = 0;
+
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
-	$twig->parsefile($input_file);
+	$twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -84,7 +83,7 @@ sub getAndroidLintBugObject() {
 	$bugObject->setBugSuggestion($summary);
 	$bugObject->setBugPath( $bug_xpath . "[$bugId]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath($input_file);
+	$bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ));
 	my $location_num = 0;
 
 	foreach my $child_elem ( $elem->children ) {
