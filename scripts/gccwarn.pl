@@ -3,7 +3,6 @@
 #use strict;
 use Getopt::Long;
 use bugInstance;
-use XML::Twig;
 use xmlWriterObject;
 use Util;
 
