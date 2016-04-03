@@ -207,6 +207,19 @@ sub getBugPackage
 	return $self->{_package} if defined ($self->{_package});
 }
 
+sub setCWEInfo
+{
+    my ($self, $info) = @_;
+    $self->{_cwe}=$info if defined ($info);
+    return $self->{_cwe};
+}
+
+sub getCWEInfo
+{
+    my ($self) = @_;
+    return $self->{_cwe} if defined ($self->{_cwe});
+}
+
 sub printBugId
 {
 		my($self)=@_;
