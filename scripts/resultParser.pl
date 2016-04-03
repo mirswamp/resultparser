@@ -35,6 +35,7 @@ version() if defined ( $version );
 
 $out_dir = defined ($out_dir ) ? $out_dir : $current_dir;
 $summary_file = defined ($summary_file) ? $summary_file : "$current_dir/assessment_summary.xml";
+
 $in_dir = defined ($in_dir) ? $in_dir : $current_dir;
 $output_file = defined ($output_file ) ? ((Util::IsAbsolutePath( $output_file ) eq 0 ) ? "$out_dir/$output_file":"$output_file" ) : "$out_dir/parsed_assessment_report.xml";
 

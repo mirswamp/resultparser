@@ -47,6 +47,12 @@ sub setBugLocation
 		$self->{_bugLocationHash}{$bugLocationId}=$locationObject;
 }
 
+sub setBugColumn
+{
+	my ($self, $start_column, $end_column, $bugLocationId) = @_;
+	my $locationObject = $self->{_bugLocationHash}{$bugLocationId}->setBugColumn($start_column, $end_column);
+}
+
 sub setBugMethod
 {
 		my ($self,$methodId,$className,$methodName,$primary)=@_;
@@ -176,6 +182,17 @@ sub getBugBuildId
 		return $self->{_buildId} if defined ($self->{_buildId});		
 }
 
+sub setURLText
+{
+        my ($self, $url_txt)=@_;
+        $self->{_url}=$url_txt if defined ($url_txt);
+}
+
+sub getURLText
+{
+	my ($self) = @_;
+	return $self->{_url} if defined ($self->{_url});
+}
 
 sub printBugId
 {

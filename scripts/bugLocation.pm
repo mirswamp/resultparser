@@ -19,6 +19,13 @@ sub new
         return $self;
 }
 
+sub setBugColumn
+{
+	my ($self, $start_column, $end_column) = @_;
+    $self->{_beginColumn} = $start_column if defined ($start_column);
+    $self->{_endColumn} = $end_column if defined ($end_column);
+}
+
 sub printBugLocation
 {
 	my ($self)=@_;

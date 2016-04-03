@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 package Util;
+use XML::Twig;
 
 # NormalizePath - take a path and remove empty and '.' directory components
 #                 empty directories become '.'

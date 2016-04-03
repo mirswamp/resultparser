@@ -37,8 +37,8 @@ my $trace_start_line;
 my $suggested_message;
 my $current_line_no;
 my $not_mssg;
-my $first_report
-  ; #this variable is defined so that the first bug report of a file doesnot try to change the bug instance of its previous bug report.
+my $first_report; #this variable is defined so that the first bug report of a file doesnot try to change the bug instance of its previous bug report.
+my $input_text;
 
 foreach my $input_file (@input_file_arr) {
 	$not_message       = 0;
@@ -49,9 +49,11 @@ foreach my $input_file (@input_file_arr) {
 	$prev_msg          = "";
 	$prev_fn           = "";
 	$trace_start_line  = 1;
-	$input_text        = new IO::File("<$input_file");
+	$input_text        = new IO::File("<$input_dir/$input_file");
 	
-	my $temp_bug_instance;
+	my $temp_bug_object;
+    $input_text = defined ($input_text) ? $input_text : "";	
+    my $temp;
 
   LINE:
 	while ( my $line = <$input_text> ) {
@@ -74,15 +76,17 @@ foreach my $input_file (@input_file_arr) {
 		else {
 			$prev_line = $line;
 		}
-		ParseLine( $current_line_no, $line );
+		ParseLine( $current_line_no, $line, $input_file );
+		$temp = $line;
 	}
-
-	RegisterBugPath($current_line_no);
+	RegisterBugPath($current_line_no, $input_file);
 }
+$xmlWriterObj->writeSummary();
+$xmlWriterObj->addEndTag();
 
 sub ParseLine {
-	my ( $bug_report_line, $line ) = @_;
-	my @tokens        = Util::SplitString($line);
+	my ( $bug_report_line, $line, $input_file ) = @_;
+	my @tokens        = SplitString($line);
 	my $num_of_tokens = @tokens;
 	my ( $file, $line_no, $message, $severity, $code, $resolution_msg );
 	my $flag = 1;
@@ -110,23 +114,36 @@ sub ParseLine {
 		$flag              = 0;
 		$suggested_message = "";
 	}
+    elsif ( $line =~ m/^\s*see http:.*/i ) {
+        my $url_text = Util::Trim($line);
+        SetURLText($url_text);
+        $flag              = 0;
+    }
+    elsif ( $line =~ m/^\s*\^.*/i ) {
+        my $column = length $line;
+        $column = $column - 1;
+        $flag              = 0;
+        SetColumnNumber($column);
+    }
 	else {
 		$flag = 0;
 	}
 	if ( $flag ne 0 ) {
 		$message = Util::Trim($message);
+
 		$temp_bug_object = CreateBugObject( $bug_report_line, $file, $line_no, $message, $severity,
-			$code );
+			$code, $input_file );
 		$first_report = 0;
 	}
 }
 
-sub RegisterBugpath {
-	my ($bug_report_line) = @_;
-	if ($first_report) {
+sub RegisterBugPath {
+	my ($bug_report_line) = shift;
+	my $input_file = shift;
+	if ($first_report == 1) {
 		return;
 	}
-	if ( $xmlWriterObj->getBugId() > 0 )
+	if ( defined $temp_bug_object )
 	{ #Store the information for prev bug trace
 		my ( $bugLineStart, $bugLineEnd );
 		if ( $trace_start_line eq $bug_report_line - 1 ) {
@@ -140,20 +157,23 @@ sub RegisterBugpath {
 		$temp_bug_object
 		  ->setBugLine( $bugLineStart, $bugLineEnd );
 		$temp_bug_object->setBugBuildId($build_id);
-		$temp_bug_object->setBugReportPath($input_file);
+		$temp_bug_object->setBugReportPath("$input_dir/$input_file");
 		$trace_start_line = $bug_report_line;
 	}
-
+	
+	if(defined $temp_bug_object){
+          $xmlWriterObj->writeBugObject($temp_bug_object);
+    }
 }
 
 sub CreateBugObject {
-    my($bug_report_line,$file,$line_no,$message,$severity,$code) = @_;
+    my($bug_report_line,$file,$line_no,$message,$severity,$code, $input_file) = @_;
         #Store the information for prev bug trace
-        RegisterBugpath($bug_report_line);
+        RegisterBugPath($bug_report_line, $input_file);
                 
         #New Bug Instance
-        $methodId=0;
-        $locationId=0;
+        my $methodId=0;
+        my $locationId=0;
         my $bug_object = new bugInstance($xmlWriterObj->getBugId());
         $bug_object->setBugMessage($message);
         if (defined ($code) and $code ne '') {  $bug_object->setBugCode($code);}
@@ -166,8 +186,37 @@ sub CreateBugObject {
 
 sub SetResolutionMsg {
     my($res_msg)=@_;
-    if($xmlWriterObj->getBugId() > 0) {
-        temp_bug_object->setBugSuggestion($res_msg);
+    if(defined $temp_bug_object) {
+        $temp_bug_object->setBugSuggestion($res_msg);
     }
+}
+
+sub SetURLText {
+    my($url_txt)=@_;
+    if(defined $temp_bug_object) {
+        $temp_bug_object->setURLText($url_txt);
+    }
+}
+
+sub SetColumnNumber {
+    my($column)=@_;
+    if(defined $temp_bug_object) {
+        $temp_bug_object->setBugColumn($column, $column , 1);
+    }
+}
+
+sub SplitString
+{
+        my ($str) = @_;
+        $str =~ s/::+/~#~/g;
+        my @tokens = split(':',$str,4);
+        my @ret;
+        foreach $a (@tokens)
+        {
+#                print $a,"\n";
+                $a =~ s/~#~/::/g;
+                push(@ret,$a);
+        }
+        return(@ret);
 }
 
