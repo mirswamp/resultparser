@@ -194,6 +194,19 @@ sub getURLText
 	return $self->{_url} if defined ($self->{_url});
 }
 
+sub setBugPackage
+{
+        my ($self,$bugPackage)=@_;
+        $self->{_package}=$bugPackage if defined ($bugPackage);
+        return $self->{_package};
+}
+
+sub getBugPackage
+{
+	my ($self) = @_;
+	return $self->{_package} if defined ($self->{_package});
+}
+
 sub printBugId
 {
 		my($self)=@_;

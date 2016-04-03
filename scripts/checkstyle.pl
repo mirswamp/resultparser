@@ -26,8 +26,8 @@ my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, 
 
 my $twig = XML::Twig->new(
 	twig_roots         => { 'file'  => 1 },
-	start_tag_handlers => { 'file'  => \&setFileName },
-	twig_handlers      => { 'error' => \&parseViolations }
+	start_tag_handlers => { 'file'  => \&SetFileName },
+	twig_handlers      => { 'error' => \&ParseViolations }
 );
 
 
@@ -44,7 +44,7 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-sub setFileName {
+sub SetFileName {
 	my ( $tree, $element ) = @_;
 	$file_path = $element->att('name');
 	$element->purge() if defined($element);
@@ -52,19 +52,19 @@ sub setFileName {
 
 }
 
-sub parseViolations {
+sub ParseViolations {
 	my ( $tree, $elem ) = @_;
 
 	my $bug_xpath = $elem->path();
 
 	my $bugObject =
-	  getCheckstyleBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
+	  GetCheckstyleBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
 	$elem->purge() if defined($elem);
 
 	$xmlWriterObj->writeBugObject($bugObject);
 }
 
-sub getCheckstyleBugObject() {
+sub GetCheckstyleBugObject() {
 	my $violation        = shift;
 	my $adjustedFilePath = Util::AdjustPath( $package_name, $cwd, $file_path );
 	my $bugId            = shift;

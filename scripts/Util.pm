@@ -145,7 +145,7 @@ sub GetFileList {
 			$uuid, $package_name, $tool_version, $build_artifact_id,
 			$input, $cwd, $replace_dir
 		) = split( '~:~', $line );
-		print "*** " . $input;
+		print $input . "\n";
 		push @input_file_arr, "$input";
 	}
 	return @input_file_arr;
