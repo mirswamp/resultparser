@@ -116,16 +116,16 @@ sub getBugId
 sub writeSummary
 {
 	my ($self) = @_;
+	$self->{_writer}->startTag('BugSummary' ) ;
 	if(%count_hash)
 	{       
-        $self->{_writer}->startTag('BugSummary' ) ;
         foreach my $object (keys(%count_hash ) )
         {
             my ($code,$group ) = split ('~#~' ,$object );
             $self->{_writer}->emptyTag('BugCategory', 'group'=>"$group", 'code'=>"$code", 'count'=>$count_hash{$object }, 'bytes'=> $byteCountHash{$object});
         }
                 
-        $self->{_writer}->endTag();
 	}
+	        $self->{_writer}->endTag();
 }
 1;
