@@ -61,7 +61,7 @@ sub GetFlowObject() {
 	$bug_object->setBugLocation(1, "", $file, $startline, $endline, 0, 0, "", "true", "true");
 
 	$bug_object->setBugMessage($e->{"descr"});
-	$bug_object->setBugCode($e->{"level"});
+	$bug_object->setBugCode($e->{"descr"});
 	$bug_object->setBugSeverity($e->{"level"});
 	$bug_object->setBugGroup($e->{"level"});
 	return $bug_object;
