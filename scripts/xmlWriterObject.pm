@@ -5,6 +5,11 @@ use IO qw(File);
 
 my %byteCountHash;
 my %count_hash;
+my %metric_count_hash;
+my %metricValueSummationHash;
+my %metricSquareOfValuesHash;
+my %metricMinValueHash;
+my %metricMaxValueHash;
 my $bugId;
 
 sub new
@@ -101,6 +106,84 @@ sub writeBugObject
     #print "Done writing bug object".$bugId;
 }
 
+sub writeMetricObject
+{
+    my($self, $metricInstance) = @_;
+    my $file_name = ${$metricInstance}{"file"};
+    my $function_name = "";
+    my $class = "";
+    if(exists ${$metricInstance}{"function"}){
+        $function_name = ${$metricInstance}{"function"};
+    }
+    if(exists ${$metricInstance}{"class"}){
+        $class = ${$metricInstance}{"class"};
+    }
+    my $metricHash;
+    if(exists ${$metricInstance}{"metrics"}){
+        $metricHash = ${$metricInstance}{"metrics"};
+    }
+    else{
+        return;
+    }
+
+
+    foreach my $name (keys (%{$metricHash})){
+        if($name eq "location" or $name eq "file"){
+
+        }else{
+            $metricId++;
+            $writer->startTag('Metric','id'=>$metricId);
+
+            $writer->startTag('Location');
+            $writer->startTag('SourceFile');
+            #$writer->characters(${$metricInstance}{'SourceFile'});
+            $writer->characters($file_name);
+            $writer->endTag();
+            $writer->endTag();
+
+            if($class ne ""){
+                $writer->startTag('Class');
+                $writer->characters($class);
+                $writer->endTag();
+            }
+
+            if(exists ${$metricHash}{'function'}){
+                $writer->startTag('Method');
+                $writer->characters(${$metricHash}{'method'});
+                $writer->endTag();
+            }elsif($function_name ne ""){
+                $writer->startTag('Method');
+                $writer->characters($function_name);
+                $writer->endTag();
+            }
+            $writer->startTag('Type');
+            $writer->characters($name);
+            $writer->endTag();
+            $writer->startTag('Value');
+            $writer->characters(${$metricHash}{$name});
+            $writer->endTag();
+            $writer->endTag();
+            if($name ne "language" and exists $metric_count_hash{$name}){
+                $metricValueSummationHash{$name}+=${$metricHash}{$name};
+                $metric_count_hash{$name}+=1;
+                $metricSquareOfValuesHash{$name}+=${$metricHash}{$name}*${$metricHash}{$name};
+                if($metricMaxValueHash{$name}<${$metricHash}{$name}){
+                    $metricMaxValueHash{$name} = ${$metricHash}{$name};
+                }elsif($metricMinValueHash{$name}>${$metricHash}{$name}){
+                    $metricMinValueHash{$name} = ${$metricHash}{$name};
+                }
+            }elsif($name ne "language"){
+                $metricValueSummationHash{$name} = ${$metricHash}{$name};
+                $metric_count_hash{$name}=1;
+                $x = ${$metricHash}{$name};
+                $metricSquareOfValuesHash{$name} = $x*$x;
+                $metricMaxValueHash{$name} = ${$metricHash}{$name};
+                $metricMinValueHash{$name} = ${$metricHash}{$name};
+            }
+        }
+    }
+}
+
 sub getOutputFileReference
 {
 	my ($self) = @_;
@@ -116,9 +199,9 @@ sub getBugId
 sub writeSummary
 {
 	my ($self) = @_;
-	$self->{_writer}->startTag('BugSummary' ) ;
 	if(%count_hash)
 	{       
+		$self->{_writer}->startTag('BugSummary' ) ;
         foreach my $object (keys(%count_hash ) )
         {
             my ($code,$group ) = split ('~#~' ,$object );
@@ -126,6 +209,59 @@ sub writeSummary
         }
                 
 	}
-	        $self->{_writer}->endTag();
+	if(%metric_count_hash)
+    {       
+        $writer->startTag('MetricSummaries');
+        foreach my $summary (keys(%metricCountHash)){
+            $writer->startTag('MetricSummary');
+
+            $writer->startTag('Type');
+            $writer->characters($summary);
+            $writer->endTag();
+
+            $writer->startTag('Count');
+            $writer->characters($metricCountHash{$summary});
+            $writer->endTag();
+
+            $writer->startTag('Sum');
+            $writer->characters($metricValueSummationHash{$summary});
+            $writer->endTag();
+
+            $writer->startTag('SumOfSquares');
+            $writer->characters($metricSquareOfValuesHash{$summary});
+            $writer->endTag();
+
+            $writer->startTag('Minimum');
+            $writer->characters($metricMinValueHash{$summary});
+            $writer->endTag();
+
+            $writer->startTag('Maximum');
+            $writer->characters($metricMaxValueHash{$summary});
+            $writer->endTag();
+
+            $writer->startTag('Average');
+            my $count = $metricCountHash{$summary};
+            my $avg = 0;
+            if($count!=0){
+                $avg = $metricValueSummationHash{$summary}/$count;
+            }
+            $writer->characters(sprintf("%.2f",$avg));
+            $writer->endTag();
+
+            my $square_of_sum = $metricValueSummationHash{$summary}*$metricValueSummationHash{$summary};
+            my $denominator = ($metricCountHash{$summary}*$metricCountHash{$summary}-1);
+            my $stddev = 0;
+            if($denominator != 0){
+                $stddev = sqrt(($metricSquareOfValuesHash{$summary}*$metricCountHash{$summary} - $square_of_sum)/$denominator);
+            }
+            $writer->startTag('StandardDeviation');
+            $writer->characters(sprintf("%.2f",$stddev));
+            $writer->endTag();
+
+            $writer->endTag();
+        }
+                
+    }
+    $self->{_writer}->endTag();
 }
 1;
