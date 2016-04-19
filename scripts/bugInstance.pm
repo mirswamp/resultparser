@@ -207,6 +207,19 @@ sub getBugPackage
 	return $self->{_package} if defined ($self->{_package});
 }
 
+sub setBugPathLength
+{
+        my ($self,$bugPathLength)=@_;
+        $self->{_bugPathLength}=$bugPathLength if defined ($bugPathLength);
+        return $self->{_bugPathLength};
+}
+
+sub getBugPackage
+{
+    my ($self) = @_;
+    return $self->{_bugPathLength} if defined ($self->{_bugPathLength});
+}
+
 sub setCWEInfo
 {
     my ($self, $info) = @_;
@@ -218,6 +231,19 @@ sub getCWEInfo
 {
     my ($self) = @_;
     return $self->{_cwe} if defined ($self->{_cwe});
+}
+
+sub setBugPosition
+{
+    my ($self, $info) = @_;
+    $self->{_position}=$info if defined ($info);
+    return $self->{_position};
+}
+
+sub getBugPosition
+{
+    my ($self) = @_;
+    return $self->{_position} if defined ($self->{_position});
 }
 
 sub printBugId

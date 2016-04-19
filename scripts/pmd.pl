@@ -108,7 +108,7 @@ sub GetPmdBugObject() {
         Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) );
         $bugObject->setBugMethod(1,$class,$method,'true') if defined($method);
         $bugObject->setBugPackage($package);
-        $bugObject->setBugURL($externalInfoURL);
+        $bugObject->setURLText($externalInfoURL);
     return $bugObject;
 }
 

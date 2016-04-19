@@ -90,7 +90,7 @@ sub ParseLine {
 	my $num_of_tokens = @tokens;
 	my ( $file, $line_no, $message, $severity, $code, $resolution_msg );
 	my $flag = 1;
-	if ( $num_of_tokens eq 4 ) {
+	if ( $num_of_tokens eq 4 && !($line =~ m/^\s*Did you mean.*$/i) ) {
 		$file     = Util::AdjustPath( $package_name, $cwd, $tokens[0] );
 		$line_no  = $tokens[1];
 		$severity = Util::Trim( $tokens[2] );
@@ -181,6 +181,7 @@ sub CreateBugObject {
         
         $bug_object->setBugLocation(++$locationId,"",$file,$line_no,$line_no,0,0,"","true","true");
         
+        undef $temp_bug_object;
         return $bug_object;
 }
 

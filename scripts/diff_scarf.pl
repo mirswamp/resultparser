@@ -1,7 +1,7 @@
 #! /usr/bin/perl
 
 use strict;
-use Twig;
+use XML::Twig;
 use Data::Dumper;
 use Getopt::Long;
 use Switch;

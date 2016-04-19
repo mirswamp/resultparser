@@ -59,7 +59,7 @@ sub getAndroidLintBugObject() {
 	my $bug_xpath = shift;
 	my (
 		$bugcode, $bugmsg,      $severity,   $category, $priority,
-		$summary, $explanation, $error_line, @tokens,   $length
+		$summary, $explanation, $error_line, @tokens,   $length, $error_line_position, $url, $urls
 	);
 	$bugcode     = $elem->att('id');
 	$severity    = $elem->att('severity');
@@ -69,6 +69,10 @@ sub getAndroidLintBugObject() {
 	$summary     = $elem->att('summary');
 	$explanation = $elem->att('explanation');
 	$error_line  = $elem->att('errorLine2');
+	$error_line_position = $elem->att('errorLine1');
+	$url = $elem->att('url');
+	$urls = $elem->att('urls');
+	
 
 	if ( defined($error_line) ) {
 		@tokens = split( '(\~)', $error_line );
@@ -84,6 +88,8 @@ sub getAndroidLintBugObject() {
 	$bugObject->setBugPath( $bug_xpath . "[$bugId]" );
 	$bugObject->setBugBuildId($build_id);
 	$bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ));
+	$bugObject->setBugPosition($error_line_position);
+    $bugObject->setURLText($url." , ".$urls)  if defined ($url); 
 	my $location_num = 0;
 
 	foreach my $child_elem ( $elem->children ) {
