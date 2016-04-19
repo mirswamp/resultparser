@@ -214,7 +214,7 @@ sub setBugPathLength
         return $self->{_bugPathLength};
 }
 
-sub getBugPackage
+sub getBugPathLength
 {
     my ($self) = @_;
     return $self->{_bugPathLength} if defined ($self->{_bugPathLength});

@@ -103,6 +103,7 @@ sub writeBugObject
         }
     }
     $bugId++;
+    undef $bugObject if defined $bugObject;
     #print "Done writing bug object".$bugId;
 }
 
