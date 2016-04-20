@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use XML::Twig;
@@ -34,6 +34,7 @@ my $twig = XML::Twig->new(
 #Initialize the counter values
 my $bugId       = 0;
 my $file_Id     = 0;
+my $file_path = "";
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );

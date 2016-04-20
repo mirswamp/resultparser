@@ -246,6 +246,32 @@ sub getBugPosition
     return $self->{_position} if defined ($self->{_position});
 }
 
+sub setBugWarningCode
+{
+    my ($self, $info) = @_;
+    $self->{_warningCode}=$info if defined ($info);
+    return $self->{_warningCode};
+}
+
+sub getBugWarningCode
+{
+    my ($self) = @_;
+    return $self->{_warningCode} if defined ($self->{_warningCode});
+}
+
+sub setBugToolSpecificCode
+{
+    my ($self, $info) = @_;
+    $self->{_toolSpecificCode}=$info if defined ($info);
+    return $self->{_toolSpecificCode};
+}
+
+sub getBugToolSpecificCode
+{
+    my ($self) = @_;
+    return $self->{_toolSpecificCode} if defined ($self->{_toolSpecificCode});
+}
+
 sub printBugId
 {
 		my($self)=@_;
