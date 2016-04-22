@@ -76,7 +76,6 @@ sub executeParser
 sub version
 {
     system ("cat $script_dir/version.txt" );
-#   print "Result Parser 0.9.4\n";
     exit 0;
 }
 
