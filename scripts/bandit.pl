@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use xmlWriterObject;
@@ -26,6 +26,7 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
 #Initialize the counter values
 my $bugId   = 0;
 my $file_Id = 0;
+my ($bugCode, $bugmsg, $line_no, $filepath);
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
@@ -74,7 +75,7 @@ else {
 						'true',   'true'
 					);
 					$bug_object->setBugCode($bugCode);
-					$bug_object->setBugMessage($bugMessage);
+					$bug_object->setBugMessage($bugmsg);
 					$bug_object->setBugBuildId($build_id);
 					$bug_object->setBugReportPath(
 						Util::AdjustPath(
@@ -83,7 +84,7 @@ else {
 					);
 					$xmlWriterObj->writeBugObject($bug_object);
 					undef $bugCode;
-					undef $bugMessage;
+					undef $bugmsg;
 					undef $filepath;
 					undef $line_no;
 				}
@@ -113,7 +114,7 @@ sub GetBanditBugObjectFromJson() {
 	my $warning = shift;
 	my $bug_id  = shift;
 	my $adjusted_file_path =
-	  Util::AdjustPath( $package_name, $cwd, $warning{"filename"} );
+	  Util::AdjustPath( $package_name, $cwd, $warning->{"filename"} );
 	my $bug_object = new bugInstance($bug_id);
 	$bug_object->setBugCode( $warning->{"test_name"} );
 	$bug_object->setBugMessage( $warning->{"issue_text"} );
@@ -124,7 +125,7 @@ sub GetBanditBugObjectFromJson() {
 	my $begin_line = $warning->{"line_number"};
 	my $end_line;
 
-	foreach my $number ( @{ $warning->{"line_range"} } ) )
+	foreach my $number ( @{ $warning->{"line_range"} } )
 	  {
 		  $end_line = $number;
 	}

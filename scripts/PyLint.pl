@@ -71,6 +71,9 @@ foreach my $input_file (@input_file_arr) {
             }
         }
     }
+    if(defined $temp_bug_object){
+        $xmlWriterObj->writeBugObject($temp_bug_object);
+    }
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
