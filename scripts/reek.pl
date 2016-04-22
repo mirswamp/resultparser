@@ -71,7 +71,9 @@ sub parseJsonOutput {
 		$bugObj->setBugMessage( $warning->{"message"} );
 		$bugObj->setBugBuildId($build_id);
 		$bugObj->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, $input_file ) );
+			Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" ) );
+		$bugObj->setBugPath(
+            "[" . $file_id . "]" . "/error[" . $xmlWriterObj->getBugId() . "]" );
 		$bugObj->setBugGroup( $warning->{"smell_category"} );
 		my $lines      = $warning->{"lines"};
 		my $start_line = @{$lines}[0];
@@ -128,7 +130,7 @@ sub parseJsonOutput {
 				}
 			}
 		}
-		return $bugObj;
+		$xmlWriterObj->writeBugObject($bugObj);
 	}
 }
 
@@ -164,8 +166,9 @@ sub ParseViolations {
 		$bugObject->setBugSeverity($severity);
 		$bugObject->setBugCode($rule);
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath($current_file);
+		$bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" ));
 		$bugObject->setBugPath(
 			$bug_xpath . "[" . $file_id . "]" . "/error[" . $xmlWriterObj->getBugId() . "]" );
+		$xmlWriterObj->writeBugObject($bugObject);
 	}
 }
