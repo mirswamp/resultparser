@@ -8,14 +8,14 @@ use XML::Twig;
 use IO qw(File);
 use XML::Writer;
 use Util;
-#use Memory::Usage;
+use Memory::Usage;
 
 my $current_dir = Cwd::cwd();
 my $script_dir = dirname(Cwd::abs_path($0 ) ) ;
 my ($summary_file,$in_dir,$out_dir,$output_file,$help,$version,$logfile,$weakness_count_file,$report_summary_file, $merge );
 
-#my $mu = Memory::Usage->new();
-#$mu->record('Before XML Parsing');
+my $mu = Memory::Usage->new();
+$mu->record('Before XML Parsing');
 
 GetOptions(
            "summary_file=s" => \$summary_file, 
@@ -61,8 +61,8 @@ print "OUTPUT_FILE: $output_file\n";
 my $tool_name = Util::GetToolName($summary_file);
 
 executeParser($tool_name);
-#$mu->record('After XML parsing');
-#$mu->dump();
+$mu->record('After XML parsing');
+$mu->dump();
 
 sub executeParser
 {
