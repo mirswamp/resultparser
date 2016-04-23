@@ -32,6 +32,7 @@ my $twig = XML::Twig->new(
 #Initialize the counter values
 my $bugId       = 0;
 my $file_Id     = 0;
+my %h;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
@@ -39,6 +40,7 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 foreach my $input_file (@input_file_arr) {
     $twig->parsefile("$input_dir/$input_file");
 }
+$xmlWriterObj->writeMetricObjectUtil(%h);
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
@@ -50,7 +52,6 @@ sub metrics {
 	my $col = $twig->{twig_parser}->current_column;
 	
 	foreach my $n (@nodes) {
-		my %h;
 		my $comment = $n->{'att'}->{'comment'};
 		my $code = $n->{'att'}->{'code'};
         my $blank = $n->{'att'}->{'blank'};
@@ -66,6 +67,5 @@ sub metrics {
         $h{ $sourcefile }{'file-stat'}{'metrics'}{'comment-lines'} = $comment;
         $h{ $sourcefile }{'file-stat'}{'metrics'}{'total-lines'} = $total;
         $h{ $sourcefile }{'file-stat'}{'metrics'}{'language'} = $language;
-        $xmlWriterObj->writeMetricObject($h{ $sourcefile }{'file-stat'});
 	}
 }
