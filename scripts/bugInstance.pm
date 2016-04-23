@@ -272,10 +272,34 @@ sub getBugToolSpecificCode
     return $self->{_toolSpecificCode} if defined ($self->{_toolSpecificCode});
 }
 
+sub setBugLongMessage
+{
+        my ($self, $info)=@_;
+        $self->{_long_message}=$info if defined ($info);
+}
+
+sub getBugLongMessage
+{
+    my ($self) = @_;
+    return $self->{_long_message} if defined ($self->{_long_message});
+}
+
+sub setBugShortMessage
+{
+	my ( $self, $info ) = @_;
+	$self->{_short_message} = $info if defined ($info);
+}
+
+sub getBugShortMessage
+{
+	my ($self) = @_;
+	return $self->{_short_message} if defined ($self->{_short_message});
+}
+
 sub printBugId
 {
 		my($self)=@_;
-		return $self->{_bugId}
+		return $self->{_bugId} if defined ($self->{_bugId});
 }
 
 sub printBugInstance

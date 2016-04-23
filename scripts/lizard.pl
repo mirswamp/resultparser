@@ -27,6 +27,7 @@ my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, 
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my %h;
 
 foreach my $input_file (@input_file_arr) {
     open my $file, "$input_dir/$input_file" or die ("Unable to open file!");
@@ -56,7 +57,6 @@ foreach my $input_file (@input_file_arr) {
         exit;
     }
     while (my $line = <$file>) {
-    	my %h = hash();
         if ($line =~ /^-+/) {
             last;
         }
@@ -103,9 +103,9 @@ foreach my $input_file (@input_file_arr) {
         $h{ $sourcefile }{'func-stat'}{$fn_name}{'metrics'}{'total-lines'} = $length;
         $h{ $sourcefile }{'func-stat'}{$fn_name}{'location'}{'startline'} = $fm[0];
         $h{ $sourcefile }{'func-stat'}{$fn_name}{'location'}{'endline'} = $fm[1];
-        $xmlWriterObj->writeMetricObject($h{ $sourcefile }{'func-stat'}{$fn_name});
-        undef %h;
     }
 }
+$xmlWriterObj->writeMetricObjectUtil(%h);
+undef %h;
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
