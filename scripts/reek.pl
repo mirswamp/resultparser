@@ -32,6 +32,7 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 if ( $input_file_arr[0] =~ /\.json$/ ) {
 	foreach my $input_file (@input_file_arr) {
+		$filed_id++;
 		my $bugObject = ParseJsonOutput("$input_dir/$input_file");
 		$xmlWriterObj->writeBugObject($bugObject);
 	}
