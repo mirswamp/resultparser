@@ -38,18 +38,57 @@ my $category_xpath = 'BugCollection/BugCategory';
 my $source_xpath   = 'BugCollection/Project/SrcDir';
 my $xpath1         = 'BugCollection/BugInstance';
 
-my $twig = XML::Twig->new(
+my $twig1 = XML::Twig->new(
+    twig_roots=>{
+    	$cwe_xpath => 1
+    },
+    twig_handlers => {
+    	$cwe_xpath = \&parseBugPattern
+    }
+);
+
+foreach my $input_file (@input_file_arr) {
+    $twig1->parsefile("$input_dir/$input_file");
+}
+
+$twig1->purge();
+
+my $twig2 = XML::Twig->new(
+    twig_roots=>{
+        $category_xpath => 1
+    },
+    twig_handlers => {
+        $category_xpath = \&parseBugCategory
+    }
+);
+
+foreach my $input_file (@input_file_arr) {
+    $twig2->parsefile("$input_dir/$input_file");
+}
+
+$twig2->purge();
+
+my $twig3 = XML::Twig->new(
+    twig_roots=>{
+        $source_xpath => 1
+    },
+    twig_handlers => {
+        $source_xpath = \&parseSourcePath
+    }
+);
+
+foreach my $input_file (@input_file_arr) {
+    $twig3->parsefile("$input_dir/$input_file");
+}
+
+$twig3->purge();
+
+my $twig4 = XML::Twig->new(
 	twig_roots => {
-		$xpath1         => 1,
-		$cwe_xpath      => 1,
-		$category_xpath => 1,
-		$source_xpath   => 1,
+		$xpath1         => 1
 	},
 	twig_handlers => {
-		$xpath1         => \&parseViolations,
-		$cwe_xpath      => \&parseBugPattern,
-		$source_xpath   => \&parseSourcePath,
-		$category_xpath => \&parseBugCategory
+		$xpath1         => \&parseViolations
 	}
 );
 
@@ -59,10 +98,11 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 foreach my $input_file (@input_file_arr) {
 	$locationId = 0;
 	$methodId   = 0;
-	$twig->parsefile("$input_dir/$input_file");
+	$twig4->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
+$twig4->purge();
 
 sub parseViolations {
 	my ( $tree, $elem ) = @_;
