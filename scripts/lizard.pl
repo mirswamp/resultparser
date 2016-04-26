@@ -8,14 +8,15 @@ use xmlWriterObject;
 use Util;
 
 my (
-    $input_dir,  $output_file,  $tool_name, $summary_file
+    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file
 );
 
 GetOptions(
     "input_dir=s"   => \$input_dir,
     "output_file=s"  => \$output_file,
     "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file
+    "summary_file=s" => \$summary_file,
+    "weakness_count_file=s" => \$weakness_count_file
 ) or die("Error");
 
 if( !$tool_name ) {
@@ -109,3 +110,7 @@ $xmlWriterObj->writeMetricObjectUtil(%h);
 undef %h;
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
+
+if(defined $weakness_count_file){
+    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+}

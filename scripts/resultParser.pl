@@ -67,7 +67,7 @@ $mu->dump();
 sub executeParser
 {
     my ($tool_name) = @_;
-    my @execString = ("perl",$tool_name.".pl", "--tool_name=$tool_name","--summary_file=$summary_file", "--output_file=$output_file", "--input_dir=$in_dir");
+    my @execString = ("perl",$tool_name.".pl", "--tool_name=$tool_name","--summary_file=$summary_file", "--output_file=$output_file", "--input_dir=$in_dir", "--weakness_count_file=$weakness_count_file");
     my $out = system(@execString);
 }
 

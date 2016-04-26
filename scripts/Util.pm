@@ -126,8 +126,9 @@ sub ParseSummaryFile {
 		push(
 			@parsed_summary,
 			join( "~:~",
-				$uuid,         $package_name, $tool_version, $build_artifact_id, $report[0]->text,
-				$cwd[0]->text, $srcdir_path )
+				$uuid,              $package_name,    $tool_version,
+				$build_artifact_id, $report[0]->text, $cwd[0]->text,
+				$srcdir_path )
 		) if defined( $report[0] );
 	}
 
@@ -136,14 +137,15 @@ sub ParseSummaryFile {
 
 sub GetFileList {
 	my @parsed_summary = @_;
-	my $print_flag = 1;
+	my $print_flag     = 1;
 	my @input_file_arr;
-	my ($uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd, $replace_dir);
+	my ( $uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd,
+		$replace_dir );
 	foreach my $line (@parsed_summary) {
 		chomp($line);
 		(
-			$uuid, $package_name, $tool_version, $build_artifact_id,
-			$input, $cwd, $replace_dir
+			$uuid, $package_name, $tool_version, $build_artifact_id, $input,
+			$cwd, $replace_dir
 		) = split( '~:~', $line );
 		print $input . "\n";
 		push @input_file_arr, "$input";
@@ -185,17 +187,19 @@ sub TestPath {
 
 sub GetToolName {
 	my $assessment_summary_file = shift;
-	my $tool_name = "";
+	my $tool_name               = "";
 	my $twig                    = XML::Twig->new(
 		twig_roots    => { 'assessment-summary' => 1 },
-		twig_handlers => { 'assessment-summary/tool-type'          => sub{
-			 my ( $tree, $elem ) = @_;
-             $tool_name = $elem->text;
-		} }
+		twig_handlers => {
+			'assessment-summary/tool-type' => sub {
+				my ( $tree, $elem ) = @_;
+				$tool_name = $elem->text;
+			  }
+		}
 	);
 	$twig->parsefile($assessment_summary_file);
-	if($tool_name eq ""){
-		die( "Error: Could not extract tool name from the summary file ");
+	if ( $tool_name eq "" ) {
+		die("Error: Could not extract tool name from the summary file ");
 	}
 	return $tool_name;
 }
@@ -209,15 +213,17 @@ sub InitializeParser {
 	my $summary_file   = shift;
 	my @parsed_summary = ParseSummaryFile($summary_file);
 	my @input_file_arr = GetFileList(@parsed_summary);
-	my ($uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd, $replace_dir);
+	my ( $uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd,
+		$replace_dir );
 
 	chomp( $parsed_summary[0] );
 	(
-		$uuid, $package_name, $tool_version, $build_artifact_id,
-		$input, $cwd, $replace_dir
+		$uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd,
+		$replace_dir
 	) = split( '~:~', $parsed_summary[0] );
 
-	print "--------------------------------------------------------------------------------------\n";
+	print
+"--------------------------------------------------------------------------------------\n";
 	print "UUID: $uuid\n";
 	print "PACKAGE_NAME: $package_name\n";
 	print "TOOL_VERSION: $tool_version\n";
@@ -227,6 +233,16 @@ sub InitializeParser {
 	print "\n";
 	return ( $uuid, $package_name, $build_artifact_id, $input, $cwd,
 		$replace_dir, $tool_version, @input_file_arr );
+}
+
+sub PrintWeaknessCountFile {
+	my $weakness_count_file = shift;
+	my $weakness_count = shift;
+	if ( defined $weakness_count_file ) {
+		open my $wkfh, ">", $weakness_count_file;
+		print $wkfh "weaknesses : " . $weakness_count . "\n";
+		$wkfh->close();
+	}
 }
 
 1;
