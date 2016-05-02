@@ -67,6 +67,8 @@ sub getCppCheckBugObject() {
 	my $bug_severity        = $violation->att('severity');
 	my $bug_message         = $violation->att('msg');
 	my $bug_message_verbose = $violation->att('verbose');
+	my $bug_inconclusive = $violation->att('inconclusive');
+	my $bug_cwe = $violation->att('cwe');
 
 	my $bugObject  = new bugInstance($bugId);
 	my $locationId = 0;
@@ -92,6 +94,8 @@ sub getCppCheckBugObject() {
 	$bugObject->setBugCode($bug_code);
 	$bugObject->setBugPath( $bug_xpath . "[" . $bugId . "]" );
 	$bugObject->setBugBuildId($build_id);
+	$bugObject->setBugInconclusive($bug_inconclusive) if defined $bug_inconclusive;
+	$bugObject->setCweId($bug_cwe) if defined $bug_cwe;
 	$bugObject->setBugReportPath(
 		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) ); 
 	return $bugObject;

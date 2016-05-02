@@ -233,6 +233,22 @@ sub getCWEInfo
     return $self->{_cwe} if defined ($self->{_cwe});
 }
 
+sub setCWEArray
+{
+    my $self = shift; 
+    if (length @_!=0){
+    	$self->{_cwe_array} = [];
+    	@{$self->{_cwe_array}} = @_;
+    }
+    return @{$self->{_cwe_array}};
+}
+
+sub getCWEArray
+{
+    my ($self) = @_;
+    return @{$self->{_cwe_array}} if defined ($self->{_cwe_array});
+}
+
 sub setBugPosition
 {
     my ($self, $info) = @_;
@@ -294,6 +310,19 @@ sub getBugShortMessage
 {
 	my ($self) = @_;
 	return $self->{_short_message} if defined ($self->{_short_message});
+}
+
+sub setBugInconclusive
+{
+        my ($self, $info) = @_;
+        $self->{_inconclusive} = $info if defined ($info);
+        return $self->{_inconclusive};
+}
+
+sub getBugInconclusive
+{
+        my ($self)=@_;
+        return $self->{_inconclusive} if defined ($self->{_inconclusive});        
 }
 
 sub printBugId

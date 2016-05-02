@@ -19,7 +19,7 @@ sub new
         $self->{_output} = new IO::File(">$output_file" );
         $self->{_writer}=new XML::Writer(OUTPUT => $self->{_output}, DATA_MODE=>'true', DATA_INDENT=>2, ENCODING => 'utf-8' );
         $bugId = 1;
-        $metricId = 0;
+        $metricId = 1;
         return $self;
 }
 
@@ -149,7 +149,6 @@ sub writeMetricObject
         if($name eq "location" or $name eq "file"){
 
         }else{
-            $metricId++;
             $self->{_writer}->startTag('Metric','id'=>$metricId);
 
             $self->{_writer}->startTag('Location');
@@ -198,6 +197,7 @@ sub writeMetricObject
                 $metricMaxValueHash{$name} = ${$metricHash}{$name};
                 $metricMinValueHash{$name} = ${$metricHash}{$name};
             }
+            $metricId++;
         }
     }
 }

@@ -77,7 +77,6 @@ sub Trim {
 	return "$string";
 }
 
-#TODO : Revamp this sub routine
 sub ParseSummaryFile {
 	my $summary_file = shift;
 	my $twig         = XML::Twig->new();
@@ -153,6 +152,7 @@ sub GetFileList {
 	return @input_file_arr;
 }
 
+#Not used anywhere. Remove
 sub BuildParserHash {
 	my ( $hash, $file ) = @_;
 	open( IN, "<$file" ) or die("Failed to open $file for reading");
