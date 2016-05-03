@@ -8,7 +8,7 @@ use xmlWriterObject;
 use Util;
 
 my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file
+    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
 );
 
 GetOptions(
@@ -16,8 +16,13 @@ GetOptions(
     "output_file=s"  => \$output_file,
     "tool_name=s"    => \$tool_name,
     "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$weakness_count_file
+    "weakness_count_file=s" => \$$weakness_count_file,
+    "help" => \$help,
+    "version" => \$version
 ) or die("Error");
+
+Util::Usage() if defined ( $help );
+Util::Version() if defined ( $version );
 
 if( !$tool_name ) {
     $tool_name = Util::GetToolName($summary_file);
@@ -149,8 +154,9 @@ sub RegisterBug {
 	my ( $bug_report_line, $function, $fn_file, $file, $line_no, $col_no, $bug_group, $message ) = @_;
 
 	if ( $bug_group eq "note" and $bugId > 0 ) {
-		if(! defined $bugObject)
+		if(! defined $bugObject){
 		  return;
+		}
 		$bugObject->setBugLocation(++$locationId, "", $file, $line_no, $line_no, $col_no, 0, $message,"false", "true");
 		$prev_msg       = $message;
 		$prev_bug_group = $bug_group;

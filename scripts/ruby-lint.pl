@@ -21,6 +21,9 @@ GetOptions(
     "version" => \$version
 ) or die("Error");
 
+Util::Usage() if defined ( $help );
+Util::Version() if defined ( $version );
+
 if( !$tool_name ) {
     $tool_name = Util::GetToolName($summary_file);
 }

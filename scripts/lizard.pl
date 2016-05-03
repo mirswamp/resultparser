@@ -8,7 +8,7 @@ use xmlWriterObject;
 use Util;
 
 my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file
+    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
 );
 
 GetOptions(
@@ -16,8 +16,13 @@ GetOptions(
     "output_file=s"  => \$output_file,
     "tool_name=s"    => \$tool_name,
     "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$weakness_count_file
+    "weakness_count_file=s" => \$$weakness_count_file,
+    "help" => \$help,
+    "version" => \$version
 ) or die("Error");
+
+Util::Usage() if defined ( $help );
+Util::Version() if defined ( $version );
 
 if( !$tool_name ) {
     $tool_name = Util::GetToolName($summary_file);
