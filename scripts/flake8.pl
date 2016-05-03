@@ -16,6 +16,7 @@ GetOptions(
 	"weakness_count_file=s" => \$weakness_count_file
 ) or die("Error");
 
+
 if ( !$tool_name ) {
 	$tool_name = Util::GetToolName($summary_file);
 }

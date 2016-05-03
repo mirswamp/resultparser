@@ -8,14 +8,17 @@ use xmlWriterObject;
 use Util;
 
 my (
-    $input_dir,  $output_file,  $tool_name, $summary_file
+    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
 );
 
 GetOptions(
     "input_dir=s"   => \$input_dir,
     "output_file=s"  => \$output_file,
     "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file
+    "summary_file=s" => \$summary_file,
+    "weakness_count_file=s" => \$$weakness_count_file,
+    "help" => \$help,
+    "version" => \$version
 ) or die("Error");
 
 if( !$tool_name ) {
@@ -46,7 +49,7 @@ foreach my $input_file (@input_file_arr) {
     	chomp( $bug_message );
     	my $bug_code = BugCode($bug_message);
     	my $bug_object = new bugInstance($xmlWriterObj->getBugId());
-    	$bug_object->setBugLocation(1, "", $file, $line, $column, $column, "", 'true', 'true');
+    	$bug_object->setBugLocation(1, "", $file, $line, $line, $column, $column, "", 'true', 'true');
     	$bug_object->setBugMessage($bug_message);
     	$bug_object->setBugSeverity($severity);
     	$bug_object->setBugCode($bug_code);
@@ -58,6 +61,10 @@ foreach my $input_file (@input_file_arr) {
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
+
+if(defined $weakness_count_file){
+    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+}
 
 
 sub BugCode

@@ -1,6 +1,12 @@
 #!/usr/bin/perl
 package Util;
 use XML::Twig;
+use IO qw(File);
+use Cwd qw();
+use File::Basename;
+
+my $current_dir = Cwd::cwd();
+my $script_dir = dirname(Cwd::abs_path($0 ) ) ;
 
 # NormalizePath - take a path and remove empty and '.' directory components
 #                 empty directories become '.'
@@ -244,5 +250,41 @@ sub PrintWeaknessCountFile {
 		$wkfh->close();
 	}
 }
+
+sub Version
+{
+    system ("cat $script_dir/version.txt" );
+    exit 0;
+}
+
+
+sub Usage
+{
+print "Usage: resultParser.pl [-h] [-v]
+              [--summary_file=<PATH_TO_SUMMARY_FILE>]
+              [--input_dir=<PATH_TO_RESULTS_DIR>]
+          [--output_dir=<PATH_TO_OUTPUT_DIR>]
+          [--output_file=<OUTPUT_FILENAME>]
+          [--weakness_count_file=<WEAKNESS_COUNT_FILENAME>]
+          [--merge/nomerge]
+          [--log_file=<LOGFILE>]
+          [--report_summary_file=<REPORT_SUMMARY_FILE>]
+
+Arguments
+    -h, --help                          show this help message and exit
+    -v, --version                       show the version number
+    --summary_file=[SUMMARY_FILE]                   Path to the Assessment Summary File
+    --input_dir=[INPUT_DIR]                         Path to the raw assessment result directory
+    --output_dir=[OUTPUT_DIR]                       Path to the output directory
+    --output_file=[OUTPUT_FILE]                     Output File name in merged case 
+                            (relative to the output_dir)
+    --merge                     Merges the parsed result in a single file (Default option)
+    --nomerge                                       Do not merge the parsed results
+    --weakness_count_file                           Name of the weakness count file
+                            (relative to the output_dir)
+    --log_file                                      Name of the log file
+    exit 0;"
+}
+
 
 1;
