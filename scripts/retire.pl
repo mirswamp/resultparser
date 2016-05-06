@@ -63,6 +63,7 @@ foreach my $input_file (@input_file_arr) {
 			}
 		}
 		#FIXME: Decide BugObject Population
+		my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
 		$xmlWriterObj->writeBugObject($bug_object);
 	}
 
