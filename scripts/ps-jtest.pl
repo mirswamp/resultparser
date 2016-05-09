@@ -158,7 +158,11 @@ sub ParseViolations_DupViol {
 	foreach my $child_elem ( $elem->first_child('ElDescList')->children ) {
 		$dupviol_num++;
 		my $bugObject = new bugInstance( $xmlWriterObj->getBugId() );
-		$filepath  = replacePaths( $child_elem->att('srcRngFile') );
+		if(!$newerVersion){
+       $filepath  = replacePaths( $elem->att('srcRngFile') );
+    }else{
+       $filepath = replacePathsFromHash ( $elem->att('locRef') );
+    }
 		$filepath  = Util::AdjustPath( $package_name, $cwd, $filepath );
 		$beginLine = $child_elem->att('srcRngStartln');
 		$endLine   = $child_elem->att('srcRngEndLn');
