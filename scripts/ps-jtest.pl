@@ -7,22 +7,21 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
-);
+my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
+	$help, $version );
 
 GetOptions(
-    "input_dir=s"   => \$input_dir,
-    "output_file=s"  => \$output_file,
-    "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
-    "help" => \$help,
-    "version" => \$version
+	"input_dir=s"           => \$input_dir,
+	"output_file=s"         => \$output_file,
+	"tool_name=s"           => \$tool_name,
+	"summary_file=s"        => \$summary_file,
+	"weakness_count_file=s" => \$$weakness_count_file,
+	"help"                  => \$help,
+	"version"               => \$version
 ) or die("Error");
 
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
+Util::Usage()   if defined($help);
+Util::Version() if defined($version);
 
 if ( !$tool_name ) {
 	$tool_name = Util::GetToolName($summary_file);
@@ -32,18 +31,12 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
 	@input_file_arr )
   = Util::InitializeParser($summary_file);
 
+my $xmlWriterObj = new xmlWriterObject($output_file);
+$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+
 my $file_xpath_stdviol  = 'ResultsSession/CodingStandards/StdViols/StdViol';
 my $file_xpath_dupviol  = 'ResultsSession/CodingStandards/StdViols/DupViol';
 my $file_xpath_flowviol = 'ResultsSession/CodingStandards/StdViols/FlowViol';
-
-my $twig = XML::Twig->new(
-	twig_roots    => { 'ResultsSession' => 1 },
-	twig_handlers => {
-		$file_xpath_stdviol  => \&ParseViolations_StdViol,
-		$file_xpath_dupviol  => \&ParseViolations_DupViol,
-		$file_xpath_flowviol => \&ParseViolations_FlowViol
-	}
-);
 
 #Initialize the counter values
 my $bugId        = 0;
@@ -55,23 +48,56 @@ my @tokens       = split( "::", $replace_dir );
 my $target       = $tokens[0];
 my @srcdir       = @tokens[ 1 .. $#tokens ];
 my %replace_paths;
-my $locationId=0;
+my $locationId = 0;
+my $input_file = "";
+my %location_hash;
 
-foreach my $path (@srcdir) {
-	my @tokens = split( "/", $path );
-	$replace_paths{ $tokens[$#tokens] } = $path;
+my $newerVersion = CompareVersion($tool_version);
+
+if ( !$newerVersion ) {
+
+	my $twig = XML::Twig->new(
+		twig_roots    => { 'ResultsSession' => 1 },
+		twig_handlers => {
+			$file_xpath_stdviol  => \&ParseViolations_StdViol,
+			$file_xpath_dupviol  => \&ParseViolations_DupViol,
+			$file_xpath_flowviol => \&ParseViolations_FlowViol
+		}
+	);
+
+	foreach my $path (@srcdir) {
+		my @tokens = split( "/", $path );
+		$replace_paths{ $tokens[$#tokens] } = $path;
+	}
+
+	foreach my $ip (@input_file_arr) {
+		$input_file   = $ip;
+		$stdviol_num  = 0;
+		$dupviol_num  = 0;
+		$flowviol_num = 0;
+		$twig->parsefile("$input_dir/$input_file");
+	}
 }
-
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
-my $input_file="";
-
-foreach my $ip (@input_file_arr) {
-	$input_file = $ip;
-	$stdviol_num  = 0;
-	$dupviol_num  = 0;
-	$flowviol_num = 0;
-	$twig->parsefile("$input_dir/$input_file");
+else {
+	print "\n***Newer Version***\n";
+	my $location_hash_xpath = 'ResultsSession/Scope/Locations/Loc';
+	my $twig                = XML::Twig->new(
+		twig_roots    => { 'ResultsSession' => 1 },
+		twig_handlers => {
+			$location_hash_xpath => \&ParseLocationHash,
+			$file_xpath_stdviol  => \&ParseViolations_StdViol,
+			$file_xpath_dupviol  => \&ParseViolations_DupViol,
+			$file_xpath_flowviol => \&ParseViolations_FlowViol
+		}
+	);
+	
+    foreach my $ip (@input_file_arr) {
+        $input_file   = $ip;
+        $stdviol_num  = 0;
+        $dupviol_num  = 0;
+        $flowviol_num = 0;
+        $twig->parsefile("$input_dir/$input_file");
+    }
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -85,7 +111,11 @@ sub ParseViolations_StdViol {
 	$beginLine = $elem->att('ln');
 	$endLine   = $beginLine;
 	$stdviol_num++;
-	$filepath  = replacePaths( $elem->att('locFile') );
+	if(!$newerVersion){
+	   $filepath  = replacePaths( $elem->att('locFile') );
+	}else{
+	   $filepath = replacePathsFromHash ( $elem->att('locRef') );
+	}
 	$filepath  = Util::AdjustPath( $package_name, $cwd, $filepath );
 	$bugcode   = $elem->att('rule');
 	$bugmsg    = $elem->att('msg');
@@ -104,7 +134,11 @@ sub ParseViolations_StdViol {
 	$bugObject->setBugPath( $bug_xpath . "[$stdviol_num]" );
 	$bugObject->setBugBuildId($build_id);
 	$bugObject->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ) ) );
+		Util::AdjustPath(
+			$package_name, $cwd,
+			Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" )
+		)
+	);
 	$xmlWriterObj->writeBugObject($bugObject);
 	$tree->purge();
 }
@@ -136,7 +170,8 @@ sub ParseViolations_DupViol {
 		$bugObject->setBugCode($bugcode);
 		$bugObject->setBugPath( $bug_xpath . "[$dupviol_num]" );
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ));
+		$bugObject->setBugReportPath(
+			Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ) );
 		my $locnmsg = $child_elem->att('desc');
 		$bugObject->setBugLocation(
 			$locationId, "",        $filepath, $beginLine,
@@ -158,13 +193,17 @@ sub ParseViolations_FlowViol {
 	$flowviol_num++;
 	$beginLine = $elem->att('ln');
 	$endLine   = $beginLine;
-	$filepath  = replacePaths( $elem->att('locFile') );
+	if(!$newerVersion){
+	   $filepath  = replacePaths( $elem->att('locFile') );
+	}else{
+		$filepath = replacePathsFromHash( $elem->att('locRef') );
+	}
 	$filepath  = Util::AdjustPath( $package_name, $cwd, $filepath );
 	$bugcode   = $elem->att('rule');
 	$bugmsg    = $elem->att('msg');
 	$severity  = $elem->att('sev');
 	$bug_xpath = $elem->path();
-	
+
 	$category = GetFlowViolCategory($bugcode);
 	my $bugObject = new bugInstance( $xmlWriterObj->getBugId() );
 	$bugObject->setBugLocation(
@@ -177,7 +216,8 @@ sub ParseViolations_FlowViol {
 	$bugObject->setBugCode($bugcode);
 	$bugObject->setBugPath( $bug_xpath . "[$flowviol_num]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ));
+	$bugObject->setBugReportPath(
+		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ) );
 
 	foreach my $child_elem ( $elem->children ) {
 		if ( $child_elem->gi eq "ElDescList" ) {
@@ -238,20 +278,54 @@ sub replacePaths {
 	return $file_path;
 }
 
-sub GetFlowViolCategory{
+sub GetFlowViolCategory {
 	my $bugcode = shift;
 	$bugcode =~ s/^\s+//;
-	my $category = "";
-	my @bug_split = split( /\./, $bugcode);
-	my $x = @bug_split;
-	$x = $x-2;
-	for my $i (0 .. $x){
-		if($i==0){
-		  $category = $category.$bug_split[$i];
+	my $category  = "";
+	my @bug_split = split( /\./, $bugcode );
+	my $x         = @bug_split;
+	$x = $x - 2;
+	for my $i ( 0 .. $x ) {
+		if ( $i == 0 ) {
+			$category = $category . $bug_split[$i];
 		}
-		else{
-		  $category = $category.".".$bug_split[$i];
+		else {
+			$category = $category . "." . $bug_split[$i];
 		}
 	}
 	return $category;
 }
+
+sub CompareVersion {
+	my $version = shift;
+	my @versionSplit = split( /\./, $version );
+	if ( $versionSplit[0] >= 10 ) {
+		return 1;
+	}
+	elsif ( $versionSplit[0] == 9 && $versionSplit[1] >= 6 ) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+sub ParseLocationHash {
+	my ( $tree, $elem ) = @_;
+	my $locRef = $elem->att('locRef');
+	my $uri    = $elem->att('uri');
+	my $path = "";
+	if ( $uri =~ /^file:\/\/[^\/]*(.*)/ ) {
+		$path = $1;
+	}
+	else {
+		die "Bad file URI $uri.";
+	}
+	$location_hash{ $locRef } = $path;
+}
+
+sub replacePathsFromHash {
+    my $locKey = shift;
+    return $location_hash{ $locKey };
+}
+

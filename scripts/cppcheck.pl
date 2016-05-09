@@ -56,14 +56,9 @@ sub parseViolations {
 	my $bug_xpath = $elem->path();
 	my $file      = "";
 	my $lineno    = "";
-
-	my $bugObject =
-	  getCppCheckBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
+	getCppCheckBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
 	$elem->purge() if defined($elem);
 	$tree->purge() if defined($tree);
-
-	$xmlWriterObj->writeBugObject($bugObject);
-	undef $bugObject if defined($bugObject);
 }
 
 sub getCppCheckBugObject() {
@@ -105,6 +100,7 @@ sub getCppCheckBugObject() {
 	$bugObject->setCweId($bug_cwe) if defined $bug_cwe;
 	$bugObject->setBugReportPath(
 		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) ); 
-	return $bugObject;
+	$xmlWriterObj->writeBugObject($bugObject);
+	undef $bugObject if defined($bugObject);
 }
 
