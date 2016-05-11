@@ -28,9 +28,10 @@ if ( !$tool_name ) {
 	$tool_name = Util::GetToolName($summary_file);
 }
 
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-  = Util::InitializeParser($summary_file);
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
+my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
 
 #Initialize the counter values
 my $bugId   = 0;

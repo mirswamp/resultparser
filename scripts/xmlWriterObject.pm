@@ -225,6 +225,7 @@ sub writeSummary
             my ($code,$group ) = split ('~#~' ,$object );
             $self->{_writer}->emptyTag('BugCategory', 'group'=>"$group", 'code'=>"$code", 'count'=>$count_hash{$object }, 'bytes'=> $byteCountHash{$object});
         }
+        $self->{_writer}->endTag();
                 
 	}
 	if(%metric_count_hash)
@@ -278,8 +279,8 @@ sub writeSummary
 
             $self->{_writer}->endTag();
         }
+        $self->{_writer}->endTag();
                 
     }
-    $self->{_writer}->endTag();
 }
 1;

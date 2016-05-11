@@ -24,7 +24,10 @@ GetOptions(
 Util::Usage() if defined ( $help );
 Util::Version() if defined ( $version );
 
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser($summary_file);
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
+my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
 
 if( !$tool_name ) {
     $tool_name = Util::GetToolName($summary_file);
@@ -37,11 +40,14 @@ my $twig = XML::Twig->new(
 
 my $bugId       = 0;
 my $file_Id     = 0;
+my $count = 0;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
+	$build_id = $build_id_arr[$count];
+    $count++;
 	$twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();

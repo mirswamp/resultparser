@@ -7,33 +7,36 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
-);
+my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
+	$help, $version );
 
 GetOptions(
-    "input_dir=s"   => \$input_dir,
-    "output_file=s"  => \$output_file,
-    "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
-    "help" => \$help,
-    "version" => \$version
+	"input_dir=s"           => \$input_dir,
+	"output_file=s"         => \$output_file,
+	"tool_name=s"           => \$tool_name,
+	"summary_file=s"        => \$summary_file,
+	"weakness_count_file=s" => \$$weakness_count_file,
+	"help"                  => \$help,
+	"version"               => \$version
 ) or die("Error");
 
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
+Util::Usage()   if defined($help);
+Util::Version() if defined($version);
 
 if ( !$tool_name ) {
 	$tool_name = Util::GetToolName($summary_file);
 }
 
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
 my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
 	@input_file_arr )
-  = Util::InitializeParser($summary_file);
+  = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
 
-my $file_id = 0;
-my $current_file="";
+my $file_id      = 0;
+my $current_file = "";
+my $count        = 0;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
@@ -41,6 +44,8 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 if ( $input_file_arr[0] =~ /\.json$/ ) {
 	foreach my $input_file (@input_file_arr) {
 		$file_id++;
+		$build_id = $build_id_arr[$count];
+		$count++;
 		my $bugObject = ParseJsonOutput("$input_dir/$input_file");
 		$xmlWriterObj->writeBugObject($bugObject);
 	}
@@ -51,6 +56,8 @@ elsif ( $input_file_arr[0] =~ /\.xml$/ ) {
 		twig_handlers => { 'checkstyle/file' => \&ParseViolations } );
 	foreach my $input_file (@input_file_arr) {
 		$current_file = $input_file;
+		$build_id     = $build_id_arr[$count];
+		$count++;
 		$file_id++;
 		$twig->parsefile("$input_dir/$input_file");
 	}
@@ -59,8 +66,9 @@ elsif ( $input_file_arr[0] =~ /\.xml$/ ) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-if(defined $weakness_count_file){
-    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+if ( defined $weakness_count_file ) {
+	Util::PrintWeaknessCountFile( $weakness_count_file,
+		$xmlWriterObj->getBugId() - 1 );
 }
 
 sub parseJsonOutput {
@@ -84,9 +92,13 @@ sub parseJsonOutput {
 		$bugObj->setBugMessage( $warning->{"message"} );
 		$bugObj->setBugBuildId($build_id);
 		$bugObj->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" ) );
-		$bugObj->setBugPath(
-            "[" . $file_id . "]" . "/error[" . $xmlWriterObj->getBugId() . "]" );
+			Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" )
+		);
+		$bugObj->setBugPath( "[" 
+			  . $file_id . "]"
+			  . "/error["
+			  . $xmlWriterObj->getBugId()
+			  . "]" );
 		$bugObj->setBugGroup( $warning->{"smell_category"} );
 		my $lines      = $warning->{"lines"};
 		my $start_line = @{$lines}[0];
@@ -169,7 +181,7 @@ sub ParseViolations {
 		my $severity = $violation->att('severity');
 		my $rule     = $violation->att('source');
 
-		my $bugObject = new bugInstance($xmlWriterObj->getBugId());
+		my $bugObject = new bugInstance( $xmlWriterObj->getBugId() );
 		$bugObject->setBugLocation(
 			1,        "",           $filepath,  $beginLine,
 			$endLine, $beginColumn, $endColumn, "",
@@ -179,9 +191,14 @@ sub ParseViolations {
 		$bugObject->setBugSeverity($severity);
 		$bugObject->setBugCode($rule);
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" ));
-		$bugObject->setBugPath(
-			$bug_xpath . "[" . $file_id . "]" . "/error[" . $xmlWriterObj->getBugId() . "]" );
+		$bugObject->setBugReportPath(
+			Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" )
+		);
+		$bugObject->setBugPath( $bug_xpath . "[" 
+			  . $file_id . "]"
+			  . "/error["
+			  . $xmlWriterObj->getBugId()
+			  . "]" );
 		$xmlWriterObj->writeBugObject($bugObject);
 	}
 }

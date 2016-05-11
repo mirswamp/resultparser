@@ -7,36 +7,42 @@ use xmlWriterObject;
 use Util;
 use JSON;
 
-my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
-);
+my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
+	$help, $version );
 
 GetOptions(
-    "input_dir=s"   => \$input_dir,
-    "output_file=s"  => \$output_file,
-    "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
-    "help" => \$help,
-    "version" => \$version
+	"input_dir=s"           => \$input_dir,
+	"output_file=s"         => \$output_file,
+	"tool_name=s"           => \$tool_name,
+	"summary_file=s"        => \$summary_file,
+	"weakness_count_file=s" => \$$weakness_count_file,
+	"help"                  => \$help,
+	"version"               => \$version
 ) or die("Error");
 
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
+Util::Usage()   if defined($help);
+Util::Version() if defined($version);
 
 if ( !$tool_name ) {
 	$tool_name = Util::GetToolName($summary_file);
 }
 
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
 my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
 	@input_file_arr )
-  = Util::InitializeParser($summary_file);
+  = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
+
+my $count = 0;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
 	my $json_data;
+	$build_id = $build_id_arr[$count];
+	$count++;
 	{
 		open FILE, "$input_dir/$input_file"
 		  or die "open $input_dir/$input_file.: $!";
@@ -49,9 +55,9 @@ foreach my $input_file (@input_file_arr) {
 
 	foreach my $warning ( @{ $json_object->{"warnings"} } ) {
 		print "Warning reached\n";
-		my $file       = $package_name . "/" . $warning->{"file"};
+		my $file = $package_name . "/" . $warning->{"file"};
 
-		my $bug_object = new bugInstance($xmlWriterObj->getBugId());
+		my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
 
 		if ( defined( $warning->{"line"} ) ) {
 			my $line = $warning->{"line"};

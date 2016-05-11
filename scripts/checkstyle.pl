@@ -16,7 +16,7 @@ GetOptions(
     "output_file=s"  => \$output_file,
     "tool_name=s"    => \$tool_name,
     "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
+    "weakness_count_file=s" => \$weakness_count_file,
     "help" => \$help,
     "version" => \$version
 ) or die("Error");
@@ -28,7 +28,10 @@ if( !$tool_name ) {
 	$tool_name = Util::GetToolName($summary_file);
 }
 
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser($summary_file);
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
+my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
 
 my $twig = XML::Twig->new(
 	twig_roots         => { 'file'  => 1 },
@@ -41,11 +44,14 @@ my $twig = XML::Twig->new(
 my $bugId       = 0;
 my $file_Id     = 0;
 my $file_path = "";
+my $count = 0;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
+	$build_id = $build_id_arr[$count];
+    $count++;
 	$twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();

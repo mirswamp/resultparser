@@ -216,8 +216,7 @@ sub ToolNameHandler {
 }
 
 sub InitializeParser {
-	my $summary_file   = shift;
-	my @parsed_summary = ParseSummaryFile($summary_file);
+	my @parsed_summary = @_;
 	my @input_file_arr = GetFileList(@parsed_summary);
 	my ( $uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd,
 		$replace_dir );
@@ -238,7 +237,23 @@ sub InitializeParser {
 	print "CWD: $cwd\n";
 	print "\n";
 	return ( $uuid, $package_name, $build_artifact_id, $input, $cwd,
-		$replace_dir, $tool_version, @input_file_arr );
+		$replace_dir, $tool_version, @input_file_arr);
+}
+
+sub GetBuildIds {
+	my @parsed_summary = @_;
+    my @build_id_arr;
+    my ( $uuid, $package_name, $tool_version, $build_artifact_id, $input, $cwd,
+        $replace_dir );
+    foreach my $line (@parsed_summary) {
+        chomp($line);
+        (
+            $uuid, $package_name, $tool_version, $build_artifact_id, $input,
+            $cwd, $replace_dir
+        ) = split( '~:~', $line );
+        push @build_id_arr, "$build_artifact_id";
+    }
+    return @build_id_arr;
 }
 
 sub PrintWeaknessCountFile {

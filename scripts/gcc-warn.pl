@@ -7,35 +7,40 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
-);
+my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
+	$help, $version );
 
 GetOptions(
-    "input_dir=s"   => \$input_dir,
-    "output_file=s"  => \$output_file,
-    "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
-    "help" => \$help,
-    "version" => \$version
+	"input_dir=s"           => \$input_dir,
+	"output_file=s"         => \$output_file,
+	"tool_name=s"           => \$tool_name,
+	"summary_file=s"        => \$summary_file,
+	"weakness_count_file=s" => \$$weakness_count_file,
+	"help"                  => \$help,
+	"version"               => \$version
 ) or die("Error");
 
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
+Util::Usage()   if defined($help);
+Util::Version() if defined($version);
 
-if( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
+if ( !$tool_name ) {
+	$tool_name = Util::GetToolName($summary_file);
 }
 
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser($summary_file);
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
+my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
+	@input_file_arr )
+  = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
 
 my $violationId = 0;
 my $bugId       = 0;
 my $locationId  = 0;
 my $file_Id     = 0;
+my $count       = 0;
 
-my $prev_line = "";
+my $prev_line        = "";
 my $trace_start_line = 1;
 my $methodId;
 my $current_line_no;
@@ -53,19 +58,21 @@ my $temp_input_file;
 my $bugObject;
 
 foreach my $input_file (@input_file_arr) {
-	$prev_msg="";
-	$prev_bug_group="";
-    $prev_fn="";
-    $prev_line="";
-    $trace_start_line=1;
-    $locationId=0;
-    $methodId=0;
-    $temp_input_file = $input_file;
-    
+	$prev_msg         = "";
+	$prev_bug_group   = "";
+	$prev_fn          = "";
+	$prev_line        = "";
+	$trace_start_line = 1;
+	$locationId       = 0;
+	$methodId         = 0;
+	$temp_input_file  = $input_file;
+	$build_id         = $build_id_arr[$count];
+	$count++;
+
 	my $input = new IO::File("<$input_dir/$input_file");
 	print "\n<$input_dir/$input_file";
 	my $fn_flag = -1;
-    LINE:
+  LINE:
 	while ( my $line = <$input> ) {
 		chomp($line);
 		$current_line_no = $.;
@@ -78,23 +85,25 @@ foreach my $input_file (@input_file_arr) {
 		my $valid = ValidateLine($line);
 		if ( $valid eq "function" ) {
 			my @tokens = Util::SplitString($line);
-			$fn_file = $tokens[0];
+			$fn_file  = $tokens[0];
 			$function = $tokens[1];
 			$function =~ /‘(.*)’/;
 			$function = $1;
-			$fn_flag = 1;
-		} elsif ( $valid ne "invalid" ) {
-			if($fn_flag==1){
+			$fn_flag  = 1;
+		}
+		elsif ( $valid ne "invalid" ) {
+			if ( $fn_flag == 1 ) {
 				$fn_flag = -1;
-			}else{
+			}
+			else {
 				$function = "";
-				$fn_file = "";
+				$fn_file  = "";
 			}
 			ParseLine( $current_line_no, $line, $function, $fn_file );
 		}
 	}
-	if(defined $bugObject){
-	   RegisterBugpath($current_line_no);
+	if ( defined $bugObject ) {
+		RegisterBugpath($current_line_no);
 	}
 }
 $xmlWriterObj->writeSummary();
@@ -102,7 +111,7 @@ $xmlWriterObj->addEndTag();
 
 sub ParseLine {
 	my ( $bug_report_line, $line, $function, $fn_file ) = @_;
-	my @tokens = Util::SplitString($line);
+	my @tokens        = Util::SplitString($line);
 	my $num_of_tokens = @tokens;
 	my ( $file, $line_no, $col_no, $bug_group, $message );
 	my $flag = 1;
@@ -121,6 +130,7 @@ sub ParseLine {
 		$message   = $tokens[3];
 	}
 	else {
+
 		#bad line. hence skipping.
 		$flag = 0;
 	}
@@ -136,7 +146,7 @@ sub ParseLine {
 sub RegisterBugpath {
 	my ($bug_report_line) = @_;
 	my ( $bugLineStart, $bugLineEnd );
-	if ( $bugId > 0 ) {    
+	if ( $bugId > 0 ) {
 		if ( $trace_start_line eq $bug_report_line - 1 ) {
 			$bugLineStart = $trace_start_line;
 			$bugLineEnd   = $trace_start_line;
@@ -151,13 +161,19 @@ sub RegisterBugpath {
 }
 
 sub RegisterBug {
-	my ( $bug_report_line, $function, $fn_file, $file, $line_no, $col_no, $bug_group, $message ) = @_;
+	my ( $bug_report_line, $function, $fn_file, $file, $line_no, $col_no,
+		$bug_group, $message )
+	  = @_;
 
 	if ( $bug_group eq "note" and $bugId > 0 ) {
-		if(! defined $bugObject){
-		  return;
+		if ( !defined $bugObject ) {
+			return;
 		}
-		$bugObject->setBugLocation(++$locationId, "", $file, $line_no, $line_no, $col_no, 0, $message,"false", "true");
+		$bugObject->setBugLocation(
+			++$locationId, "",      $file, $line_no,
+			$line_no,      $col_no, 0,     $message,
+			"false",       "true"
+		);
 		$prev_msg       = $message;
 		$prev_bug_group = $bug_group;
 		$prev_fn        = $function;
@@ -165,8 +181,13 @@ sub RegisterBug {
 		undef $bugObject;
 		return;
 	}
-	if ($fn_file ne $file or $prev_msg ne $message or $prev_bug_group ne $bug_group or $prev_fn ne $function or $locationId > 99 ) {
-		if(defined $bugObject){
+	if (   $fn_file ne $file
+		or $prev_msg       ne $message
+		or $prev_bug_group ne $bug_group
+		or $prev_fn        ne $function
+		or $locationId > 99 )
+	{
+		if ( defined $bugObject ) {
 			$xmlWriterObj->writeBugObject($bugObject);
 			undef $bugObject;
 		}
@@ -177,7 +198,9 @@ sub RegisterBug {
 		$methodId   = 0;
 		$locationId = 0;
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(Util::AdjustPath($package_name, $cwd, $temp_input_file));
+		$bugObject->setBugReportPath(
+			Util::AdjustPath( $package_name, $cwd, $temp_input_file ) );
+
 		if ( $function ne '' ) {
 			$bugObject->setBugMethod( ++$methodId, "", $function, "true" );
 		}
@@ -185,7 +208,11 @@ sub RegisterBug {
 		ParseMessage($message);
 	}
 
-	$bugObject->setBugLocation(++$locationId, "", $file, $line_no, $line_no, $col_no, 0, "", "true", "true");
+	$bugObject->setBugLocation(
+		++$locationId, "",      $file, $line_no,
+		$line_no,      $col_no, 0,     "",
+		"true",        "true"
+	);
 	$prev_msg       = $message;
 	$prev_bug_group = $bug_group;
 	$prev_fn        = $function;
@@ -193,17 +220,17 @@ sub RegisterBug {
 
 sub ParseMessage {
 	my ($message) = @_;
-	my $temp = $message;
+	my $temp      = $message;
 	my $orig_msg  = $message;
 	my $code      = $message;
-	
+
 	if ( defined($code) ) {
 		$code =~ /(.*)\[(.*)\]$/;
 		$message = $1;
 		$code    = $2;
 	}
-	
-	if(!defined $code or $code eq ""){
+
+	if ( !defined $code or $code eq "" ) {
 		$code = $temp;
 		$code =~ s/(?: \d+)? of ‘.*?’//g;
 		$code =~ s/^".*?" / /;
@@ -212,9 +239,9 @@ sub ParseMessage {
 		$code =~ s/(?: to) ‘.*?’/ /g;
 		$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
 		$code =~ s/^(#(?:warning|error)) .*/$1/;
-		$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
+		$code =~
+		  s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
 	}
-	
 
 	if ( ( defined $message ) && ( $message ne '' ) ) {
 		$bugObject->setBugMessage($message);

@@ -11,36 +11,14 @@ my (
     $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
 );
 
-GetOptions(
-    "input_dir=s"   => \$input_dir,
-    "output_file=s"  => \$output_file,
-    "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
-    "help" => \$help,
-    "version" => \$version
-) or die("Error");
-
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
-
-if( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
-
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
-
-
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $parser = new Parser();
+$parser->InitializeParser();
 
 my $count = 0;
+$input_dir = $parser->GetInputDir();
 
-foreach my $input_file (@input_file_arr) {
-    $build_id = $build_id_arr[$count];
+foreach my $input_file ($parser->GetInputFileArr()) {
+    $build_id = $parser->GetBuildID($count);
     $count++;
     my $index_check_flag = 1;
     if ( !-e "$input_dir/$input_file/index.html" ) {
@@ -68,7 +46,7 @@ foreach my $input_file (@input_file_arr) {
         foreach my $line (@lines) {
             if ( $line =~ m/.*BUGFILE/ ) {
                 $BUGFILE =
-                  Util::AdjustPath( $package_name, $cwd, bugLine($line) );
+                  Util::AdjustPath( $parser->GetPackageName(), $parser->GetCWD(), bugLine($line) );
             }
             elsif ( $line =~ m/.*BUGDESC/ ) { $BUGDESC = bugLine($line); }
             elsif ( $line =~ m/.*BUGTYPE/ ) { $BUGTYPE = bugLine($line); }
@@ -80,7 +58,7 @@ foreach my $input_file (@input_file_arr) {
         }
         foreach my $line (@column) {
             if ( $line =~ m/.*line.*column *\d.*/ ) {
-                $BUGCOLUMN = &bugColumn($line);
+                $BUGCOLUMN = bugColumn($line);
             }
         }
         $bugId++;
@@ -94,16 +72,11 @@ foreach my $input_file (@input_file_arr) {
         );
         $bugObject->setBugPathLength($BUGPATHLENGTH);
         $bugObject->setBugBuildId($build_id);
-        $bugObject->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file/$file" ) );
-        $xmlWriterObj->writeBugObject($bugObject);
+        $bugObject->setBugReportPath(Util::AdjustPath( $parser->GetPackageName(), $parser->GetCWD(), "$input_dir/$input_file/$file" ) );
+        $parser->writeBugObject($bugObject);
     }
 }
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if(defined $weakness_count_file){
-    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
-}
+$parser->EndXML();
 
 sub bugLine
 {
