@@ -69,30 +69,41 @@ sub GetFlowObject() {
 	my $bug_id        = shift;
 	my $error_message = "";
 	my @messages      = @{ $e->{"message"} };
-	my $bug_code = "";
+	my $bug_code      = "";
+	my $location_id   = 0;
+	my $bug_object    = new bugInstance($bug_id);
+	my $first_flag = 1;
 	foreach my $msg ( @{ $e->{"message"} } ) {
 		if ( $error_message eq "" ) {
 			$error_message .= $msg->{"descr"};
 		}
 		else {
-			$error_message .= " ".$msg->{"descr"};
+			$error_message .= " " . $msg->{"descr"};
 		}
-		if($msg->{"type"} eq "Comment"){
+		$location_id++;
+		my $loc_arr = $msg->{"loc"};
+		if ( defined $loc_arr ) {
+			my $primary = "false";
+			if($first_flag){
+				$primary = "true";
+				$first_flag = 0;
+			}
+			$bug_object->setBugLocation( $location_id, "", $loc_arr->{"source"},
+				$msg->{"start"}, $msg->{"end"}, 0, 0, $msg->{"descr"}, $primary, "true" );
+		}
+		if ( $msg->{"type"} eq "Comment" ) {
 			$bug_code = $msg->{"descr"};
 		}
 	}
-	if($bug_code eq ""){
+	if ( $bug_code eq "" ) {
 		$bug_code = $messages[0]->{"descr"};
 	}
 	my $file;
 	my $loc_arr = $messages[0]->{"loc"};
 	$file = $loc_arr->{"source"};
-	my $bug_object = new bugInstance($bug_id);
 
 	my $startline = $messages[0]->{"start"};
 	my $endline   = $messages[0]->{"end"};
-	$bug_object->setBugLocation( 1, "", $file, $startline, $endline, 0, 0, "",
-		"true", "true" );
 
 	$bug_object->setBugMessage($error_message);
 	$bug_object->setBugCode($bug_code);
