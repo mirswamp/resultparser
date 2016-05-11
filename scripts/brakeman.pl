@@ -70,10 +70,13 @@ foreach my $input_file (@input_file_arr) {
 
 		if ( defined( $warning->{"location"} ) ) {
 			if ( $warning->{"location"}{"type"} eq "method" ) {
+				my $class = $warning->{"location"}{"class"};
+				my $method = $warning->{"location"}{"method"};
+				$method =~ s/$class.//;
 				$bug_object->setBugMethod(
 					1,
-					$warning->{"location"}{"class"},
-					$warning->{"location"}{"method"}, "true"
+					$class,
+					$method, "true"
 				);
 				$bug_object->setClassName( $warning->{"location"}{"class"} );
 			}
