@@ -52,10 +52,7 @@ foreach my $input_file (@input_file_arr) {
 	my $json_object = JSON->new->utf8->decode($json_data);
 
 	foreach my $error ( @{ $json_object->{"errors"} } ) {
-		foreach my $msg ( @{ $error->{"message"} } ) {
-			my $bug_object = GetFlowObject( $msg, $xmlWriterObj->getBugId() );
-			$xmlWriterObj->writeBugObject($bug_object);
-		}
+		GetFlowObject( $error, $xmlWriterObj->getBugId() );
 	}
 }
 
@@ -68,20 +65,38 @@ if ( defined $weakness_count_file ) {
 }
 
 sub GetFlowObject() {
-	my $e      = shift;
-	my $bug_id = shift;
-	my $file   = $package_name . "/" . $e->{"path"};
-
+	my $e             = shift;
+	my $bug_id        = shift;
+	my $error_message = "";
+	my @messages      = @{ $e->{"message"} };
+	my $bug_code = "";
+	foreach my $msg ( @{ $e->{"message"} } ) {
+		if ( $error_message eq "" ) {
+			$error_message .= $msg->{"descr"};
+		}
+		else {
+			$error_message .= " ".$msg->{"descr"};
+		}
+		if($msg->{"type"} eq "Comment"){
+			$bug_code = $msg->{"descr"};
+		}
+	}
+	if($bug_code eq ""){
+		$bug_code = $messages[0]->{"descr"};
+	}
+	my $file;
+	my $loc_arr = $messages[0]->{"loc"};
+	$file = $loc_arr->{"source"};
 	my $bug_object = new bugInstance($bug_id);
 
-	my $startline = $e->{"start"};
-	my $endline   = $e->{"end"};
+	my $startline = $messages[0]->{"start"};
+	my $endline   = $messages[0]->{"end"};
 	$bug_object->setBugLocation( 1, "", $file, $startline, $endline, 0, 0, "",
 		"true", "true" );
 
-	$bug_object->setBugMessage( $e->{"descr"} );
-	$bug_object->setBugCode( $e->{"descr"} );
+	$bug_object->setBugMessage($error_message);
+	$bug_object->setBugCode($bug_code);
 	$bug_object->setBugSeverity( $e->{"level"} );
 	$bug_object->setBugGroup( $e->{"level"} );
-	return $bug_object;
+	$xmlWriterObj->writeBugObject($bug_object);
 }

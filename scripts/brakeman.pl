@@ -54,7 +54,6 @@ foreach my $input_file (@input_file_arr) {
 	my $json_object = JSON->new->utf8->decode($json_data);
 
 	foreach my $warning ( @{ $json_object->{"warnings"} } ) {
-		print "Warning reached\n";
 		my $file = $package_name . "/" . $warning->{"file"};
 
 		my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
