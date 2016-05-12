@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");

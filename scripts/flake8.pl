@@ -15,7 +15,7 @@ GetOptions(
     "output_file=s"  => \$output_file,
     "tool_name=s"    => \$tool_name,
     "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$$weakness_count_file,
+    "weakness_count_file=s" => \$weakness_count_file,
     "help" => \$help,
     "version" => \$version
 ) or die("Error");
@@ -32,6 +32,7 @@ my @parsed_summary = Util::ParseSummaryFile($summary_file);
 my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
+my $temp_input_file;
 
 #Initialize the counter values
 my $bugId   = 0;
@@ -43,6 +44,7 @@ my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	open( my $fh, "<", "$input_dir/$input_file" )
 	  or die "Input file $input_dir/$input_file not found \n";
 	while (<$fh>) {
@@ -65,7 +67,7 @@ foreach my $input_file (@input_file_arr) {
 		$bugObj->setBugCode($bug_code);
 		$bugObj->setBugSeverity($bug_severity);
 		$bugObj->setBugBuildId($build_id);
-		$bugObj->setBugReportPath(Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ));
+		$bugObj->setBugReportPath($temp_input_file);
 		$xmlWriterObj->writeBugObject($bugObj);
 	}
 	$fh->close;

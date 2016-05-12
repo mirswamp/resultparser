@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -41,11 +41,13 @@ my $bugId   = 0;
 my $file_Id = 0;
 my %h;
 my $count = 0;
+my $temp_input_file;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	$build_id = $build_id_arr[$count];
 	$count++;
 	$twig->parsefile("$input_dir/$input_file");

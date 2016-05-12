@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -88,9 +88,7 @@ sub ParseWarning {
 	$locationId++;
 	$bug_object->setBugBuildId($build_id);
 	$bug_object->setBugMethod( $locationId, "", "", $method, 1 );
-	$bug_object->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, "$input_dir/$temp_input_file" )
-	);
+	$bug_object->setBugReportPath($temp_input_file);
 	$bug_object->setBugPath( $elem->path() . "[" 
 		  . $file_Id . "]"
 		  . "/warning["

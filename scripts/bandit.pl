@@ -14,7 +14,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -41,6 +41,7 @@ my ( $bugCode, $bugmsg, $line_no, $filepath );
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $temp_input_file;
 
 if ( $tool_version ne "8ba3536" ) {
 	my $begin_line;
@@ -48,7 +49,8 @@ if ( $tool_version ne "8ba3536" ) {
 	my $json_data = "";
 	foreach my $input_file (@input_file_arr) {
 		{
-			$build_id = $build_id_arr[$count];
+			$temp_input_file = $input_file;
+			$build_id        = $build_id_arr[$count];
 			$count++;
 			open FILE, "$input_dir/$input_file"
 			  or die "open $input_dir/$input_file : $!";
@@ -67,7 +69,8 @@ if ( $tool_version ne "8ba3536" ) {
 }
 else {
 	foreach my $input_file (@input_file_arr) {
-		$build_id = $build_id_arr[$count];
+		$temp_input_file = $input_file;
+		$build_id        = $build_id_arr[$count];
 		$count++;
 		my $start_bug = 0;
 		open( my $fh, "<", "$input_dir/$input_file" )
@@ -93,11 +96,7 @@ else {
 					$bug_object->setBugCode($bugCode);
 					$bug_object->setBugMessage($bugmsg);
 					$bug_object->setBugBuildId($build_id);
-					$bug_object->setBugReportPath(
-						Util::AdjustPath(
-							$package_name, $cwd, "$input_dir/$input"
-						)
-					);
+					$bug_object->setBugReportPath($temp_input_file);
 					$xmlWriterObj->writeBugObject($bug_object);
 					undef $bugCode;
 					undef $bugmsg;
@@ -132,22 +131,22 @@ if ( defined $weakness_count_file ) {
 }
 
 sub GetBanditBugObjectFromJson() {
-	my $warning = shift;
-	my $bug_id  = shift;
+	my $warning    = shift;
+	my $bug_id     = shift;
 	my $bug_object = new bugInstance($bug_id);
 	$bug_object->setBugCode( $warning->{"test_name"} );
 	$bug_object->setBugMessage( $warning->{"issue_text"} );
 	$bug_object->setBugSeverity( $warning->{"issue_severity"} );
 	$bug_object->setBugBuildId($build_id);
-	$bug_object->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) );
+	$bug_object->setBugReportPath($temp_input_file);
 	my $begin_line = $warning->{"line_number"};
 	my $end_line;
 
 	foreach my $number ( @{ $warning->{"line_range"} } ) {
 		$end_line = $number;
 	}
-	my $filename = Util::AdjustPath( $package_name, $cwd, $warning->{"filename"} );
+	my $filename =
+	  Util::AdjustPath( $package_name, $cwd, $warning->{"filename"} );
 	$bug_object->setBugLocation(
 		1,         "",  $filename, $begin_line,
 		$end_line, "0", "0",       "",

@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -38,8 +38,10 @@ my $count = 0;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $temp_input_file;
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	my $json_data;
 	$build_id = $build_id_arr[$count];
 	$count++;
@@ -70,14 +72,10 @@ foreach my $input_file (@input_file_arr) {
 
 		if ( defined( $warning->{"location"} ) ) {
 			if ( $warning->{"location"}{"type"} eq "method" ) {
-				my $class = $warning->{"location"}{"class"};
+				my $class  = $warning->{"location"}{"class"};
 				my $method = $warning->{"location"}{"method"};
 				$method =~ s/$class.//;
-				$bug_object->setBugMethod(
-					1,
-					$class,
-					$method, "true"
-				);
+				$bug_object->setBugMethod( 1, $class, $method, "true" );
 				$bug_object->setClassName( $warning->{"location"}{"class"} );
 			}
 		}
@@ -88,8 +86,7 @@ foreach my $input_file (@input_file_arr) {
 		$bug_object->setBugSeverity( $warning->{"confidence"} );
 		$bug_object->setBugWarningCode( $warning->{"warning_code"} );
 		$bug_object->setBugToolSpecificCode( $warning->{"code"} );
-		$bug_object->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ) );
+		$bug_object->setBugReportPath($temp_input_file);
 		$xmlWriterObj->writeBugObject($bug_object);
 	}
 }

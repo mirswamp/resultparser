@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -33,6 +33,7 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
   = Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
+my $temp_input_file;
 
 my $locationId;
 my $methodId;
@@ -95,6 +96,7 @@ foreach my $input_file (@input_file_arr) {
 	$methodId   = 0;
 	$build_id   = $build_id_arr[$count];
 	$count++;
+	$temp_input_file = $input_file;
 	$twig4->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
@@ -129,8 +131,7 @@ sub GetFindBugsBugObject() {
 	);
 
 	my $bugObject = new bugInstance($bugId);
-	$bugObject->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) );
+	$bugObject->setBugReportPath($temp_input_file );
 	$bugObject->setBugBuildId($build_id);
 	$bugObject->setBugSeverity( $elem->att('priority') );
 	$bugObject->setBugRank( $elem->att('rank') ) if defined $elem->att('rank');

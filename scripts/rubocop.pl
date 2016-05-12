@@ -14,7 +14,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -45,9 +45,11 @@ my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 my $count = 0;
+my $temp_input_file;
 
 foreach my $input_file (@input_file_arr) {
 	$build_id = $build_id_arr[$count];
+	$temp_input_file = $input_file;
 	$count++;
 	open( my $fh, "<", "$input_dir/$input_file" )
 	  or die "Could not open the input file $!";
@@ -70,7 +72,7 @@ foreach my $input_file (@input_file_arr) {
 		$bugObj->setBugSeverity($severity);
 		$bugObj->setBugCode($bugcode);
 		$bugObj->setBugBuildId($build_id);
-		$bugObj->setBugReportPath($input_file);
+		$bugObj->setBugReportPath($temp_input_file);
 		$xmlWriterObj->writeBugObject($bugObj);
 	}
 }

@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -28,7 +28,9 @@ if ( !$tool_name ) {
 }
 
 my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
+my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
+	@input_file_arr )
+  = Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
 
@@ -53,6 +55,7 @@ my $locationId = 0;
 my $input_file = "";
 my %location_hash;
 my $count = 0;
+my $temp_input_file;
 
 my $newerVersion = CompareVersion($tool_version);
 
@@ -74,7 +77,7 @@ if ( !$newerVersion ) {
 
 	foreach my $ip (@input_file_arr) {
 		$build_id = $build_id_arr[$count];
-        $count++;
+		$count++;
 		$input_file   = $ip;
 		$stdviol_num  = 0;
 		$dupviol_num  = 0;
@@ -94,14 +97,14 @@ else {
 			$file_xpath_flowviol => \&ParseViolations_FlowViol
 		}
 	);
-	
-    foreach my $ip (@input_file_arr) {
-        $input_file   = $ip;
-        $stdviol_num  = 0;
-        $dupviol_num  = 0;
-        $flowviol_num = 0;
-        $twig->parsefile("$input_dir/$input_file");
-    }
+
+	foreach my $ip (@input_file_arr) {
+		$input_file   = $ip;
+		$stdviol_num  = 0;
+		$dupviol_num  = 0;
+		$flowviol_num = 0;
+		$twig->parsefile("$input_dir/$input_file");
+	}
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -115,10 +118,11 @@ sub ParseViolations_StdViol {
 	$beginLine = $elem->att('ln');
 	$endLine   = $beginLine;
 	$stdviol_num++;
-	if(!$newerVersion){
-	   $filepath  = replacePaths( $elem->att('locFile') );
-	}else{
-	   $filepath = replacePathsFromHash ( $elem->att('locRef') );
+	if ( !$newerVersion ) {
+		$filepath = replacePaths( $elem->att('locFile') );
+	}
+	else {
+		$filepath = replacePathsFromHash( $elem->att('locRef') );
 	}
 	$filepath  = Util::AdjustPath( $package_name, $cwd, $filepath );
 	$bugcode   = $elem->att('rule');
@@ -137,12 +141,7 @@ sub ParseViolations_StdViol {
 	$bugObject->setBugCode($bugcode);
 	$bugObject->setBugPath( $bug_xpath . "[$stdviol_num]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath(
-		Util::AdjustPath(
-			$package_name, $cwd,
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" )
-		)
-	);
+	$bugObject->setBugReportPath($input_file);
 	$xmlWriterObj->writeBugObject($bugObject);
 	$tree->purge();
 }
@@ -162,11 +161,12 @@ sub ParseViolations_DupViol {
 	foreach my $child_elem ( $elem->first_child('ElDescList')->children ) {
 		$dupviol_num++;
 		my $bugObject = new bugInstance( $xmlWriterObj->getBugId() );
-		if(!$newerVersion){
-       $filepath  = replacePaths( $elem->att('srcRngFile') );
-    }else{
-       $filepath = replacePathsFromHash ( $elem->att('locRef') );
-    }
+		if ( !$newerVersion ) {
+			$filepath = replacePaths( $elem->att('srcRngFile') );
+		}
+		else {
+			$filepath = replacePathsFromHash( $elem->att('locRef') );
+		}
 		$filepath  = Util::AdjustPath( $package_name, $cwd, $filepath );
 		$beginLine = $child_elem->att('srcRngStartln');
 		$endLine   = $child_elem->att('srcRngEndLn');
@@ -178,8 +178,7 @@ sub ParseViolations_DupViol {
 		$bugObject->setBugCode($bugcode);
 		$bugObject->setBugPath( $bug_xpath . "[$dupviol_num]" );
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ) );
+		$bugObject->setBugReportPath($input_file);
 		my $locnmsg = $child_elem->att('desc');
 		$bugObject->setBugLocation(
 			$locationId, "",        $filepath, $beginLine,
@@ -201,9 +200,10 @@ sub ParseViolations_FlowViol {
 	$flowviol_num++;
 	$beginLine = $elem->att('ln');
 	$endLine   = $beginLine;
-	if(!$newerVersion){
-	   $filepath  = replacePaths( $elem->att('locFile') );
-	}else{
+	if ( !$newerVersion ) {
+		$filepath = replacePaths( $elem->att('locFile') );
+	}
+	else {
 		$filepath = replacePathsFromHash( $elem->att('locRef') );
 	}
 	$filepath  = Util::AdjustPath( $package_name, $cwd, $filepath );
@@ -224,8 +224,7 @@ sub ParseViolations_FlowViol {
 	$bugObject->setBugCode($bugcode);
 	$bugObject->setBugPath( $bug_xpath . "[$flowviol_num]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input_file" ) );
+	$bugObject->setBugReportPath($input_file);
 
 	foreach my $child_elem ( $elem->children ) {
 		if ( $child_elem->gi eq "ElDescList" ) {
@@ -322,18 +321,18 @@ sub ParseLocationHash {
 	my ( $tree, $elem ) = @_;
 	my $locRef = $elem->att('locRef');
 	my $uri    = $elem->att('uri');
-	my $path = "";
+	my $path   = "";
 	if ( $uri =~ /^file:\/\/[^\/]*(.*)/ ) {
 		$path = $1;
 	}
 	else {
 		die "Bad file URI $uri.";
 	}
-	$location_hash{ $locRef } = $path;
+	$location_hash{$locRef} = $path;
 }
 
 sub replacePathsFromHash {
-    my $locKey = shift;
-    return $location_hash{ $locKey };
+	my $locKey = shift;
+	return $location_hash{$locKey};
 }
 

@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -198,8 +198,7 @@ sub RegisterBug {
 		$methodId   = 0;
 		$locationId = 0;
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, $temp_input_file ) );
+		$bugObject->setBugReportPath($temp_input_file);
 
 		if ( $function ne '' ) {
 			$bugObject->setBugMethod( ++$methodId, "", $function, "true" );

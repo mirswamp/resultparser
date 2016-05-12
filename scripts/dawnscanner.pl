@@ -16,7 +16,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -34,6 +34,7 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
   = Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
+my $temp_input_file;
 
 #Initialize the counter values
 my $bugId   = 0;
@@ -44,6 +45,7 @@ my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	my $json_data = "";
 	$build_id = $build_id_arr[$count];
 	$count++;
@@ -69,8 +71,7 @@ foreach my $input_file (@input_file_arr) {
 		$bug_object->setBugSeverity( $warning->{"severity"} );
 		$bug_object->setBugRank( $warning->{"priority"} );
 		$bug_object->setBugSuggestion( $warning->{"remediation"} );
-		$bug_object->setBugReportPath(
-			sprintf( "/vulnerabilities/[%d]", $bugId ) );
+		$bug_object->setBugReportPath($temp_input_file);
 		my $cve_link = $warning->{"cve_link"};
 
 		if ( defined $cve_link && $cve_link ne "null" ) {

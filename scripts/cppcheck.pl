@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -34,6 +34,7 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
 my $count = 0;
+my $temp_input_file;
 
 my $twig = XML::Twig->new(
 	twig_roots    => { 'errors' => 1 },
@@ -44,7 +45,8 @@ my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 foreach my $input_file (@input_file_arr) {
-	$build_id = $build_id_arr[$count];
+	$temp_input_file = $input_file;
+	$build_id        = $build_id_arr[$count];
 	$count++;
 	$twig->parsefile("$input_dir/$input_file");
 }
@@ -105,8 +107,7 @@ sub getCppCheckBugObject() {
 	$bugObject->setBugInconclusive($bug_inconclusive)
 	  if defined $bug_inconclusive;
 	$bugObject->setCweId($bug_cwe) if defined $bug_cwe;
-	$bugObject->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) );
+	$bugObject->setBugReportPath($temp_input_file);
 	$xmlWriterObj->writeBugObject($bugObject);
 	undef $bugObject if defined($bugObject);
 }

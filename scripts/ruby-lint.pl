@@ -43,8 +43,10 @@ my %severity_hash = ( 'W' => 'warning', 'I' => 'info', 'E' => 'error' );
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $temp_input_file;
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	$build_id = $build_id_arr[$count];
 	$count++;
 	open( my $fh, "<", "$input_dir/$input_file" )

@@ -15,7 +15,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -43,6 +43,7 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 if ( $input_file_arr[0] =~ /\.json$/ ) {
 	foreach my $input_file (@input_file_arr) {
+		$current_file = $input_file;
 		$file_id++;
 		$build_id = $build_id_arr[$count];
 		$count++;
@@ -91,9 +92,7 @@ sub parseJsonOutput {
 		$bugObj->setBugCode( $warning->{"smell_type"} );
 		$bugObj->setBugMessage( $warning->{"message"} );
 		$bugObj->setBugBuildId($build_id);
-		$bugObj->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" )
-		);
+		$bugObj->setBugReportPath( $current_file );
 		$bugObj->setBugPath( "[" 
 			  . $file_id . "]"
 			  . "/error["
@@ -191,9 +190,7 @@ sub ParseViolations {
 		$bugObject->setBugSeverity($severity);
 		$bugObject->setBugCode($rule);
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$current_file" )
-		);
+		$bugObject->setBugReportPath( $current_file );
 		$bugObject->setBugPath( $bug_xpath . "[" 
 			  . $file_id . "]"
 			  . "/error["

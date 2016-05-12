@@ -48,8 +48,10 @@ my $count = 0;
 
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $temp_input_file;
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	$build_id = $build_id_arr[$count];
     $count++;
 	$twig->parsefile("$input_dir/$input_file");
@@ -105,8 +107,7 @@ sub GetCheckstyleBugObject() {
 	$bugObject->setBugPath(
 		$bug_xpath . "[" . $file_Id . "]" . "/error[" . $bugId . "]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) );
+	$bugObject->setBugReportPath("$temp_input_file" );
 	return $bugObject;
 }
 

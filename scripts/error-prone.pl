@@ -14,7 +14,7 @@ GetOptions(
 	"output_file=s"         => \$output_file,
 	"tool_name=s"           => \$tool_name,
 	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$$weakness_count_file,
+	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
@@ -32,6 +32,7 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
   = Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
+my $temp_input_file;
 
 #Initialize the counter values
 my $bugId   = 0;
@@ -53,6 +54,7 @@ my $first_report
 my $input_text;
 
 foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
 	$build_id = $build_id_arr[$count];
 	$count++;
 	$not_message       = 0;
@@ -175,7 +177,7 @@ sub RegisterBugPath {
 		}
 		$temp_bug_object->setBugLine( $bugLineStart, $bugLineEnd );
 		$temp_bug_object->setBugBuildId($build_id);
-		$temp_bug_object->setBugReportPath("$input_dir/$input_file");
+		$temp_bug_object->setBugReportPath($temp_input_file);
 		$trace_start_line = $bug_report_line;
 	}
 

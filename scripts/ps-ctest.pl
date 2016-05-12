@@ -33,6 +33,7 @@ my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
   = Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
+my $temp_input_file;
 
 my $file_xpath_stdviol  = 'ResultsSession/CodingStandards/StdViols/StdViol';
 my $file_xpath_dupviol  = 'ResultsSession/CodingStandards/StdViols/DupViol';
@@ -77,10 +78,9 @@ else {
 	);
 }
 
-my $input_file;
-
-foreach $input_file (@input_file_arr) {
-	$build_id = $build_id_arr[$count];
+foreach my $input_file (@input_file_arr) {
+	$temp_input_file = $input_file;
+	$build_id        = $build_id_arr[$count];
 	$count++;
 	$twig->parsefile("$input_dir/$input_file");
 }
@@ -123,7 +123,7 @@ sub ParseViolations_Stdviol {
 	$bugObject->setBugCode($bugcode);
 	$bugObject->setBugPath( $bug_xpath . "[$stdviol_num]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath($input_file);
+	$bugObject->setBugReportPath($temp_input_file);
 	$tree->purge();
 	$xmlWriterObj->writeBugObject($bugObject);
 }
