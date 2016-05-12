@@ -50,7 +50,8 @@ my $fh;
 foreach my $input_file (@input_file_arr) {
 	my $start_bug = 0;
 	$build_id = $build_id_arr[$count];
-	$count++ open( $fh, "<", "$input_dir/$input_file" )
+	$count++;
+	open( $fh, "<", "$input_dir/$input_file" )
 	  or die "unable to open the input file $input_file";
 	while (<$fh>) {
 		my $line = $_;
@@ -71,10 +72,9 @@ foreach my $input_file (@input_file_arr) {
 		$bug_object->setBugMessage($msg);
 		$bug_object->setBugSeverity($err_typ);
 		$bug_object->setBugBuildId($build_id);
-		$bug_object->setBugReportPath(
-			Util::AdjustPath( $package_name, $cwd, "$input_dir/$input" ) );
+		$bug_object->setBugReportPath($input_file );
 		$bug_object->setBugLocation(
-			1,  "", $fileName, $line_no, $line_no, $col_no,
+			1,  "", Util::AdjustPath($package_name, $cwd,$fileName), $line_no, $line_no, $col_no,
 			"", "", 'true',    'true'
 		);
 		$xmlWriterObj->writeBugObject($bug_object);

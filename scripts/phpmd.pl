@@ -7,26 +7,36 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my (
-	$input_file,   $output_file, $tool_name, $tool_version, $uuid,
-	$package_name, $build_id,    $cwd,       $replace_dir,  $file_path
-);
+my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
+    $help, $version );
 my $violationId = 0;
 my $bugId       = 0;
 my $file_Id     = 0;
 
 GetOptions(
-	"input_file=s"     => \$input_file,
-	"output_file=s"    => \$output_file,
-	"tool_name=s"      => \$tool_name,
-	"tool_version=s"   => \$tool_version,
-	"package_name=s"   => \$package_name,
-	"uuid=s"           => \$uuid,
-	"build_id=s"       => \$build_id,
-	"cwd=s"            => \$cwd,
-	"replace_dir=s"    => \$replace_dir,
-	"input_file_arr=s" => \@input_file_arr
+    "input_dir=s"           => \$input_dir,
+    "output_file=s"         => \$output_file,
+    "tool_name=s"           => \$tool_name,
+    "summary_file=s"        => \$summary_file,
+    "weakness_count_file=s" => \$$weakness_count_file,
+    "help"                  => \$help,
+    "version"               => \$version
 ) or die("Error");
+
+Util::Usage()   if defined($help);
+Util::Version() if defined($version);
+
+if ( !$tool_name ) {
+    $tool_name = Util::GetToolName($summary_file);
+}
+
+my @parsed_summary = Util::ParseSummaryFile($summary_file);
+my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
+    @input_file_arr )
+  = Util::InitializeParser(@parsed_summary);
+my @build_id_arr = Util::GetBuildIds(@parsed_summary);
+undef @parsed_summary;
+my $file_path;
 
 my $twig = XML::Twig->new(
 	twig_roots         => { 'file'  => 1 },
@@ -37,8 +47,11 @@ my $twig = XML::Twig->new(
 my $xmlWriterObj = new xmlWriterObject($output_file);
 $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
+my $temp_input_file;
+
 foreach my $input_file (@input_file_arr) {
-	$twig->parsefile($input_file);
+	$temp_input_file = $input_file;
+	$twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -91,12 +104,12 @@ sub getPHPMDBugObject() {
 	$bugObject->setBugMessage($message);
 	$bugObject->setBugSeverity($priority);
 	$bugObject->setBugGroup($priority);
-	$bugObject->setBugCode($source_rule);
+	$bugObject->setBugCode($ruleset);
 	$bugObject->setBugPath(
 		$bug_xpath . "[" . $file_Id . "]" . "/error[" . $bugId . "]" );
 	$bugObject->setBugBuildId($build_id);
 	$bugObject->setBugReportPath(
-		Util::AdjustPath( $package_name, $cwd, $input_file ) );
+		$temp_input_file );
 	return $bugObject;
 }
 
