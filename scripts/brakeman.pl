@@ -54,9 +54,11 @@ foreach my $input_file (@input_file_arr) {
 	}
 
 	my $json_object = JSON->new->utf8->decode($json_data);
-
+	my $app_path = $json_object->{"scan_info"}->{"app_path"};
+	
+    $app_path =~ s/^\Q$package_name\E\///;
 	foreach my $warning ( @{ $json_object->{"warnings"} } ) {
-		my $file = $package_name . "/" . $warning->{"file"};
+		my $file = $app_path."/".$warning->{"file"};
 
 		my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
 

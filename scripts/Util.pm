@@ -34,10 +34,6 @@ sub NormalizePath {
 sub AdjustPath {
 	my ( $baseDir, $curDir, $path ) = @_;
 
-	#print "\nBaseDir ".$baseDir;
-	#print "\nCurDir ".$curDir;
-	#print "\npath ".$path;
-
 	$baseDir = NormalizePath($baseDir);
 	$curDir  = NormalizePath($curDir);
 	$path    = NormalizePath($path);
