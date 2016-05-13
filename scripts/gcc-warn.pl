@@ -109,6 +109,10 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
+if(defined $weakness_count_file){
+    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+}
+
 sub ParseLine {
 	my ( $bug_report_line, $line, $function, $fn_file ) = @_;
 	my @tokens        = Util::SplitString($line);
