@@ -89,10 +89,11 @@ sub ParseWarning {
 	$bug_object->setBugBuildId($build_id);
 	$bug_object->setBugMethod( $locationId, "", "", $method, 1 );
 	$bug_object->setBugReportPath($temp_input_file);
+	my $xpath_bug_id = $xmlWriterObj->getBugId() - 1;
 	$bug_object->setBugPath( $elem->path() . "[" 
 		  . $file_Id . "]"
 		  . "/warning["
-		  . $xmlWriterObj->getBugId() - 1
+		  . $xpath_bug_id
 		  . "]" );
 	$trace_block = $elem->first_child('trace');
 
@@ -107,8 +108,8 @@ sub ParseWarning {
 sub traceline {
 	my $elem       = shift;
 	my $file       = shift;
-	my $method     = shift;
 	my $bug_object = shift;
+	my $method = "";
 	foreach my $traceline ( $elem->children('traceLine') ) {
 		$locationId++;
 		$bug_object->setBugLocation(
