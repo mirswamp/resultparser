@@ -92,7 +92,8 @@ sub GetFlowObject() {
 				$primary    = "true";
 				$first_flag = 0;
 			}
-			$bug_object->setBugLocation( $location_id, "", Util::AdjustPath( $package_name, $cwd, $file ),
+			$bug_object->setBugLocation( $location_id, "",
+				Util::AdjustPath( $package_name, $cwd, $file ),
 				$msg->{"start"}, $msg->{"end"}, 0, 0, $msg->{"descr"}, $primary,
 				"true" );
 		}

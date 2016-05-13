@@ -60,9 +60,9 @@ my $twig;
 if ( !$newerVersion ) {
 	$twig = XML::Twig->new(
 		twig_handlers => {
-			$file_xpath_stdviol  => \&ParseViolations_stdviol,
-			$file_xpath_dupviol  => \&ParseViolations_dupviol,
-			$file_xpath_flowviol => \&ParseViolations_flowviol
+			$file_xpath_stdviol  => \&ParseViolations_StdViol,
+			$file_xpath_dupviol  => \&ParseViolations_DupViol,
+			$file_xpath_flowviol => \&ParseViolations_FlowViol
 		}
 	);
 }
@@ -88,7 +88,7 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-sub ParseViolations_Stdviol {
+sub ParseViolations_StdViol {
 	my ( $tree, $elem ) = @_;
 	my (
 		$beginLine, $endLine,   $begincol, $endcol,
@@ -99,7 +99,7 @@ sub ParseViolations_Stdviol {
 	$beginLine = $elem->att('ln');
 	$endLine   = $beginLine;
 	if ( !$newerVersion ) {
-		$file = replacePaths( $elem->att('locFile') );
+		$file = $elem->att('locFile');
 		$file =~ s/\/(.*?)\/(.*?\/)/\//;
 		$file = $cwd . $file;
 	}
@@ -128,7 +128,7 @@ sub ParseViolations_Stdviol {
 	$xmlWriterObj->writeBugObject($bugObject);
 }
 
-sub ParseViolations_Dupviol {
+sub ParseViolations_DupViol {
 	my ( $tree, $elem ) = @_;
 	my (
 		$beginLine, $endLine, $begincol, $endcol,   $filepath,
@@ -163,7 +163,7 @@ sub ParseViolations_Dupviol {
 		$bugObject->setBugCode($bugcode);
 		$bugObject->setBugPath( $bug_xpath . "[$dupviol_num]" );
 		$bugObject->setBugBuildId($build_id);
-		$bugObject->setBugReportPath($input_file);
+		$bugObject->setBugReportPath($temp_input_file);
 		my $locnmsg = $child_elem->att('desc');
 		$bugObject->setBugLocation(
 			$locationId, "",        $filepath, $beginLine,
@@ -175,7 +175,7 @@ sub ParseViolations_Dupviol {
 	$tree->purge();
 }
 
-sub ParseViolations_Flowviol {
+sub ParseViolations_FlowViol {
 	my ( $tree, $elem ) = @_;
 	my (
 		$beginLine, $endLine, $begincol, $endcol,   $filepath,
@@ -187,7 +187,7 @@ sub ParseViolations_Flowviol {
 	$endLine   = $beginLine;
 	my $file;
 	if ( !$newerVersion ) {
-		$file = replacePaths( $elem->att('locFile') );
+		$file = $elem->att('locFile');
 		$file =~ s/\/(.*?)\/(.*?\/)/\//;
 		$file = $cwd . $file;
 	}
@@ -210,7 +210,7 @@ sub ParseViolations_Flowviol {
 	$bugObject->setBugCode($bugcode);
 	$bugObject->setBugPath( $bug_xpath . "[$flowviol_num]" );
 	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath($input_file);
+	$bugObject->setBugReportPath($temp_input_file);
 
 	foreach my $child_elem ( $elem->children ) {
 		if ( $child_elem->gi eq "ElDescList" ) {
@@ -262,11 +262,7 @@ sub ParseElDesc {
 
 sub CompareVersion {
 	my $version = shift;
-	my @versionSplit = split( /\./, $version );
-	if ( $versionSplit[0] >= 10 ) {
-		return 1;
-	}
-	elsif ( $versionSplit[0] == 9 && $versionSplit[1] >= 6 ) {
+	if ( index( $version, "10." ) != -1 ) {
 		return 1;
 	}
 	else {

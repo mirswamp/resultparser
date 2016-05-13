@@ -308,11 +308,7 @@ sub CompareVersion {
 	my @versionSplit = split( /\./, $version );
 	if ( $versionSplit[0] >= 10 ) {
 		return 1;
-	}
-	elsif ( $versionSplit[0] == 9 && $versionSplit[1] >= 6 ) {
-		return 1;
-	}
-	else {
+	} else {
 		return 0;
 	}
 }
