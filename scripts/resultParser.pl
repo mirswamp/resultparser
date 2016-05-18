@@ -28,7 +28,7 @@ GetOptions(
            "log_file=s" => \$logfile,
            "weakness_count_file=s" => \$weakness_count_file,
            "report_summary_file=s" => \$report_summary_file
-          ) or &usage() and die ("Error parsing command line arguments\n" );
+      ) or &usage() and die ("Error parsing command line arguments\n" );
 
 usage() if defined ( $help );
 version() if defined ( $version );

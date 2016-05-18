@@ -18,19 +18,19 @@ GetOptions(
 	"weakness_count_file=s" => \$weakness_count_file,
 	"help"                  => \$help,
 	"version"               => \$version
-) or die("Error");
+    ) or die("Error");
 
 Util::Usage()   if defined($help);
 Util::Version() if defined($version);
 
 if ( !$tool_name ) {
-	$tool_name = Util::GetToolName($summary_file);
+    $tool_name = Util::GetToolName($summary_file);
 }
 
 my @parsed_summary = Util::ParseSummaryFile($summary_file);
 my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
 	@input_file_arr )
-  = Util::InitializeParser(@parsed_summary);
+			= Util::InitializeParser(@parsed_summary);
 my @build_id_arr = Util::GetBuildIds(@parsed_summary);
 undef @parsed_summary;
 
@@ -48,77 +48,77 @@ my $file_Id = 0;
 my $count   = 0;
 
 foreach my $input_file (@input_file_arr) {
-	$temp_input_file = $input_file;
-	$file_Id++;
-	$build_id = $build_id_arr[$count];
-	$count++;
-	$twig->parsefile("$input_dir/$input_file");
+    $temp_input_file = $input_file;
+    $file_Id++;
+    $build_id = $build_id_arr[$count];
+    $count++;
+    $twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
 sub ParseWarning {
-	my ( $tree, $elem ) = @_;
-	my (
-		$beginLine, $endLine,   $begincol, $endcol,
-		$filepath,  $bugcode,   $bugmsg,   $severity,
-		$category,  $bug_xpath, $method,   $trace_block
-	);
+    my ( $tree, $elem ) = @_;
+    my (
+	    $beginLine, $endLine,   $begincol, $endcol,
+	    $filepath,  $bugcode,   $bugmsg,   $severity,
+	    $category,  $bug_xpath, $method,   $trace_block
+    );
 
-	$method     = $elem->first_child('method')->text;
-	$filepath   = $elem->first_child('absFile')->text;
-	$filepath   = Util::AdjustPath( $package_name, $cwd, $filepath );
-	$bugcode    = $elem->first_child('checkName')->text;
-	$beginLine  = $elem->first_child('lineNo')->text;
-	$endLine    = $beginLine;
-	$begincol   = $elem->first_child('column')->text;
-	$endcol     = $elem->first_child('column')->text;
-	$bugmsg     = $elem->first_child('message')->text;
-	$severity   = $elem->first_child('severity')->text;
-	$locationId = 0;
+    $method     = $elem->first_child('method')->text;
+    $filepath   = $elem->first_child('absFile')->text;
+    $filepath   = Util::AdjustPath( $package_name, $cwd, $filepath );
+    $bugcode    = $elem->first_child('checkName')->text;
+    $beginLine  = $elem->first_child('lineNo')->text;
+    $endLine    = $beginLine;
+    $begincol   = $elem->first_child('column')->text;
+    $endcol     = $elem->first_child('column')->text;
+    $bugmsg     = $elem->first_child('message')->text;
+    $severity   = $elem->first_child('severity')->text;
+    $locationId = 0;
 
-	my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
-	$bug_object->setBugLocation(
-		1,       "", $filepath, $beginLine, $endLine, $begincol,
-		$endcol, "", 'true',    'true'
-	);
-	$bug_object->setBugMessage($bugmsg);
-	$bug_object->setBugSeverity($severity);
-	$bug_object->setBugCode($bugcode);
-	$locationId++;
-	$bug_object->setBugBuildId($build_id);
-	$bug_object->setBugMethod( $locationId, "", "", $method, 1 );
-	$bug_object->setBugReportPath($temp_input_file);
-	my $xpath_bug_id = $xmlWriterObj->getBugId() - 1;
-	$bug_object->setBugPath( $elem->path() . "[" 
-		  . $file_Id . "]"
-		  . "/warning["
-		  . $xpath_bug_id
-		  . "]" );
-	$trace_block = $elem->first_child('trace');
+    my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
+    $bug_object->setBugLocation(
+	    1,       "", $filepath, $beginLine, $endLine, $begincol,
+	    $endcol, "", 'true',    'true'
+    );
+    $bug_object->setBugMessage($bugmsg);
+    $bug_object->setBugSeverity($severity);
+    $bug_object->setBugCode($bugcode);
+    $locationId++;
+    $bug_object->setBugBuildId($build_id);
+    $bug_object->setBugMethod( $locationId, "", "", $method, 1 );
+    $bug_object->setBugReportPath($temp_input_file);
+    my $xpath_bug_id = $xmlWriterObj->getBugId() - 1;
+    $bug_object->setBugPath( $elem->path() . "[" 
+	      . $file_Id . "]"
+	      . "/warning["
+	      . $xpath_bug_id
+	      . "]" );
+    $trace_block = $elem->first_child('trace');
 
-	foreach my $traceblock_tr ( $trace_block->children('traceBlock') ) {
-		my $file   = $traceblock_tr->att('file');
-		my $method = $traceblock_tr->att('method');
-		$bug_object = traceline( $traceblock_tr, $file, $bug_object );
-	}
-	$xmlWriterObj->writeBugObject($bug_object);
+    foreach my $traceblock_tr ( $trace_block->children('traceBlock') ) {
+	my $file   = $traceblock_tr->att('file');
+	my $method = $traceblock_tr->att('method');
+	$bug_object = traceline( $traceblock_tr, $file, $bug_object );
+    }
+    $xmlWriterObj->writeBugObject($bug_object);
 }
 
 sub traceline {
-	my $elem       = shift;
-	my $file       = shift;
-	my $bug_object = shift;
-	my $method = "";
-	foreach my $traceline ( $elem->children('traceLine') ) {
-		$locationId++;
-		$bug_object->setBugLocation(
-			$locationId, $method, $file,
-			$traceline->att('line'),
-			$traceline->att('line'),
-			0, 0, $traceline->att('text'),
-			'false', 'true'
-		);
-	}
-	return $bug_object;
+    my $elem       = shift;
+    my $file       = shift;
+    my $bug_object = shift;
+    my $method = "";
+    foreach my $traceline ( $elem->children('traceLine') ) {
+	$locationId++;
+	$bug_object->setBugLocation(
+		$locationId, $method, $file,
+		$traceline->att('line'),
+		$traceline->att('line'),
+		0, 0, $traceline->att('text'),
+		'false', 'true'
+	    );
+    }
+    return $bug_object;
 }

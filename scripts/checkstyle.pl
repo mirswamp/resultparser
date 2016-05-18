@@ -8,24 +8,24 @@ use xmlWriterObject;
 use Util;
 
 my (
-	$input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
+    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
 );
 
 GetOptions(
-    "input_dir=s"   => \$input_dir,
-    "output_file=s"  => \$output_file,
-    "tool_name=s"    => \$tool_name,
-    "summary_file=s" => \$summary_file,
-    "weakness_count_file=s" => \$weakness_count_file,
-    "help" => \$help,
-    "version" => \$version
-) or die("Error");
+	"input_dir=s"   => \$input_dir,
+	"output_file=s"  => \$output_file,
+	"tool_name=s"    => \$tool_name,
+	"summary_file=s" => \$summary_file,
+	"weakness_count_file=s" => \$weakness_count_file,
+	"help" => \$help,
+	"version" => \$version
+    ) or die("Error");
 
 Util::Usage() if defined ( $help );
 Util::Version() if defined ( $version );
 
 if( !$tool_name ) {
-	$tool_name = Util::GetToolName($summary_file);
+    $tool_name = Util::GetToolName($summary_file);
 }
 
 my @parsed_summary = Util::ParseSummaryFile($summary_file);
@@ -37,7 +37,7 @@ my $twig = XML::Twig->new(
 	twig_roots         => { 'file'  => 1 },
 	start_tag_handlers => { 'file'  => \&SetFileName },
 	twig_handlers      => { 'error' => \&ParseViolations }
-);
+    );
 
 
 #Initialize the counter values
@@ -51,63 +51,63 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 my $temp_input_file;
 
 foreach my $input_file (@input_file_arr) {
-	$temp_input_file = $input_file;
-	$build_id = $build_id_arr[$count];
+    $temp_input_file = $input_file;
+    $build_id = $build_id_arr[$count];
     $count++;
-	$twig->parsefile("$input_dir/$input_file");
+    $twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
 if(defined $weakness_count_file){
-	Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
 }
 
 sub SetFileName {
-	my ( $tree, $element ) = @_;
-	$file_path = $element->att('name');
-	$element->purge() if defined($element);
-	$file_Id++;
+    my ( $tree, $element ) = @_;
+    $file_path = $element->att('name');
+    $element->purge() if defined($element);
+    $file_Id++;
 
 }
 
 sub ParseViolations {
-	my ( $tree, $elem ) = @_;
+    my ( $tree, $elem ) = @_;
 
-	my $bug_xpath = $elem->path();
+    my $bug_xpath = $elem->path();
 
-	my $bugObject =
-	  GetCheckstyleBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
-	$elem->purge() if defined($elem);
+    my $bugObject =
+	    GetCheckstyleBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
+    $elem->purge() if defined($elem);
 
-	$xmlWriterObj->writeBugObject($bugObject);
+    $xmlWriterObj->writeBugObject($bugObject);
 }
 
 sub GetCheckstyleBugObject() {
-	my $violation        = shift;
-	my $adjustedFilePath = Util::AdjustPath( $package_name, $cwd, $file_path );
-	my $bugId            = shift;
-	my $bug_xpath        = shift;
-	my $beginLine        = $violation->att('line');
-	my $endLine          = $beginLine;
-	my $beginColumn =
-	  defined( $violation->att('column') ) ? $violation->att('column') : 0;
-	my $endColumn   = $beginColumn;
-	my $source_rule = $violation->att('source');
-	my $priority    = $violation->att('severity');
-	my $message     = $violation->att('message');
-	my $bugObject   = new bugInstance($bugId);
-	###################
-	$bugObject->setBugLocation( 1, "", $adjustedFilePath, $beginLine, $endLine,
-		$beginColumn, 0, "", 'true', 'true' );
-	$bugObject->setBugMessage($message);
-	$bugObject->setBugSeverity($priority);
-	$bugObject->setBugGroup($priority);
-	$bugObject->setBugCode($source_rule);
-	$bugObject->setBugPath(
-		$bug_xpath . "[" . $file_Id . "]" . "/error[" . $bugId . "]" );
-	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath("$temp_input_file" );
-	return $bugObject;
+    my $violation        = shift;
+    my $adjustedFilePath = Util::AdjustPath( $package_name, $cwd, $file_path );
+    my $bugId            = shift;
+    my $bug_xpath        = shift;
+    my $beginLine        = $violation->att('line');
+    my $endLine          = $beginLine;
+    my $beginColumn =
+	    defined( $violation->att('column') ) ? $violation->att('column') : 0;
+    my $endColumn   = $beginColumn;
+    my $source_rule = $violation->att('source');
+    my $priority    = $violation->att('severity');
+    my $message     = $violation->att('message');
+    my $bugObject   = new bugInstance($bugId);
+    ###################
+    $bugObject->setBugLocation( 1, "", $adjustedFilePath, $beginLine, $endLine,
+	    $beginColumn, 0, "", 'true', 'true' );
+    $bugObject->setBugMessage($message);
+    $bugObject->setBugSeverity($priority);
+    $bugObject->setBugGroup($priority);
+    $bugObject->setBugCode($source_rule);
+    $bugObject->setBugPath(
+	    $bug_xpath . "[" . $file_Id . "]" . "/error[" . $bugId . "]" );
+    $bugObject->setBugBuildId($build_id);
+    $bugObject->setBugReportPath("$temp_input_file" );
+    return $bugObject;
 }
 

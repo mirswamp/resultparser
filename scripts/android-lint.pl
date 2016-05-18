@@ -47,10 +47,10 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 
 my $temp_input_file;
 foreach my $input_file (@input_file_arr) {
-	$temp_input_file = $input_file;
-	$build_id = $build_id_arr[$count];
+    $temp_input_file = $input_file;
+    $build_id = $build_id_arr[$count];
     $count++;
-	$twig->parsefile("$input_dir/$input_file");
+    $twig->parsefile("$input_dir/$input_file");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -60,75 +60,75 @@ if(defined $weakness_count_file){
 }
 
 sub parseViolations {
-	my ( $tree, $elem ) = @_;
+    my ( $tree, $elem ) = @_;
 
-	my $bug_xpath = $elem->path();
+    my $bug_xpath = $elem->path();
 
-	my $bugObject =
-	  getAndroidLintBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
-	$elem->purge() if defined($elem);
+    my $bugObject =
+	    getAndroidLintBugObject( $elem, $xmlWriterObj->getBugId(), $bug_xpath );
+    $elem->purge() if defined($elem);
 
-	$xmlWriterObj->writeBugObject($bugObject);
+    $xmlWriterObj->writeBugObject($bugObject);
 }
 
 sub getAndroidLintBugObject() {
-	my $elem      = shift;
-	my $bugId     = shift;
-	my $bug_xpath = shift;
-	my (
-		$bugcode, $bugmsg,      $severity,   $category, $priority,
-		$summary, $explanation, $error_line, @tokens,   $length, $error_line_position, $url, $urls
-	);
-	$bugcode     = $elem->att('id');
-	$severity    = $elem->att('severity');
-	$bugmsg      = $elem->att('message');
-	$category    = $elem->att('category');
-	$priority    = $elem->att('priority');
-	$summary     = $elem->att('summary');
-	$explanation = $elem->att('explanation');
-	$error_line  = $elem->att('errorLine2');
-	$error_line_position = $elem->att('errorLine1');
-	$url = $elem->att('url');
-	$urls = $elem->att('urls');
-	
+    my $elem      = shift;
+    my $bugId     = shift;
+    my $bug_xpath = shift;
+    my (
+	$bugcode, $bugmsg,      $severity,   $category, $priority,
+	$summary, $explanation, $error_line, @tokens,   $length, $error_line_position, $url, $urls
+    );
+    $bugcode     = $elem->att('id');
+    $severity    = $elem->att('severity');
+    $bugmsg      = $elem->att('message');
+    $category    = $elem->att('category');
+    $priority    = $elem->att('priority');
+    $summary     = $elem->att('summary');
+    $explanation = $elem->att('explanation');
+    $error_line  = $elem->att('errorLine2');
+    $error_line_position = $elem->att('errorLine1');
+    $url = $elem->att('url');
+    $urls = $elem->att('urls');
+    
 
-	if ( defined($error_line) ) {
-		@tokens = split( '(\~)', $error_line );
-	}
-	$length = ( $#tokens + 1 ) / 2;
-	my $bugObject = new bugInstance($bugId);
-	###################
-	$bugObject->setBugMessage($bugmsg);
-	$bugObject->setBugSeverity($severity);
-	$bugObject->setBugGroup($category);
-	$bugObject->setBugCode($bugcode);
-	$bugObject->setBugSuggestion($summary);
-	$bugObject->setBugPath( $bug_xpath . "[$bugId]" );
-	$bugObject->setBugBuildId($build_id);
-	$bugObject->setBugReportPath($temp_input_file);
-	$bugObject->setBugPosition($error_line_position);
+    if ( defined($error_line) ) {
+	@tokens = split( '(\~)', $error_line );
+    }
+    $length = ( $#tokens + 1 ) / 2;
+    my $bugObject = new bugInstance($bugId);
+    ###################
+    $bugObject->setBugMessage($bugmsg);
+    $bugObject->setBugSeverity($severity);
+    $bugObject->setBugGroup($category);
+    $bugObject->setBugCode($bugcode);
+    $bugObject->setBugSuggestion($summary);
+    $bugObject->setBugPath( $bug_xpath . "[$bugId]" );
+    $bugObject->setBugBuildId($build_id);
+    $bugObject->setBugReportPath($temp_input_file);
+    $bugObject->setBugPosition($error_line_position);
     $bugObject->setURLText($url." , ".$urls)  if defined ($url); 
-	my $location_num = 0;
+    my $location_num = 0;
 
-	foreach my $child_elem ( $elem->children ) {
-		if ( $child_elem->gi eq "location" ) {
-			my $filepath =
-			  Util::AdjustPath( $package_name, $cwd, $child_elem->att('file') );
-			my $line_num  = $child_elem->att('line');
-			my $begin_col = $child_elem->att('column');
-			my $end_col;
-			if   ( $length >= 1 ) { $end_col = $begin_col + $length; }
-			else                  { $end_col = $begin_col; }
-			$bugObject->setBugLocation(
-				++$location_num, "",         $filepath, $line_num,
-				$line_num,       $begin_col, $end_col,  $explanation,
-				'true',          'true'
-			);
-		}
-		else {
-			print "found an unknown tag: " ;
-		}
+    foreach my $child_elem ( $elem->children ) {
+	if ( $child_elem->gi eq "location" ) {
+	    my $filepath =
+	      Util::AdjustPath( $package_name, $cwd, $child_elem->att('file') );
+	    my $line_num  = $child_elem->att('line');
+	    my $begin_col = $child_elem->att('column');
+	    my $end_col;
+	    if   ( $length >= 1 ) { $end_col = $begin_col + $length; }
+	    else                  { $end_col = $begin_col; }
+	    $bugObject->setBugLocation(
+		++$location_num, "",         $filepath, $line_num,
+		$line_num,       $begin_col, $end_col,  $explanation,
+		'true',          'true'
+	    );
 	}
-	return $bugObject;
+	else {
+	    print "found an unknown tag: " ;
+	}
+    }
+    return $bugObject;
 }
 
