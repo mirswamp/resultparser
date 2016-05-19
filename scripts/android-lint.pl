@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use XML::Twig;
@@ -90,7 +90,7 @@ sub getAndroidLintBugObject() {
     $error_line_position = $elem->att('errorLine1');
     $url = $elem->att('url');
     $urls = $elem->att('urls');
-    
+
 
     if ( defined($error_line) ) {
 	@tokens = split( '(\~)', $error_line );

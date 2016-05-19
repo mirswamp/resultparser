@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use xmlWriterObject;
@@ -16,9 +16,10 @@ $parser->InitializeParser();
 
 my $count = 0;
 $input_dir = $parser->GetInputDir();
+my $bugId = 0;
 
 foreach my $input_file ($parser->GetInputFileArr()) {
-    $build_id = $parser->GetBuildID($count);
+    my $build_id = $parser->GetBuildID($count);
     $count++;
     my $index_check_flag = 1;
     if ( !-e "$input_dir/$input_file/index.html" ) {

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use xmlWriterObject;
@@ -48,16 +48,17 @@ my $prev_line;
 my $trace_start_line;
 my $suggested_message;
 my $current_line_no;
-my $not_mssg;
+my $not_msg;
 my $first_report
   ; #this variable is defined so that the first bug report of a file doesnot try to change the bug instance of its previous bug report.
 my $input_text;
+my $temp_bug_object;
 
 foreach my $input_file (@input_file_arr) {
     $temp_input_file = $input_file;
     $build_id = $build_id_arr[$count];
     $count++;
-    $not_message       = 0;
+    $not_msg	       = 0;
     $prev_line         = "";
     $first_report      = 1;
     $suggested_message = "";
@@ -76,14 +77,14 @@ foreach my $input_file (@input_file_arr) {
 	chomp($line);
 	$current_line_no = $.;
 	my @tokens = split( ':', $line );
-	if ( ( $#tokens != 3 && $not_message == 1 ) |
+	if ( ( $#tokens != 3 && $not_msg == 1 ) |
 		( ( $#tokens == 3 ) && !( $tokens[3] =~ /^\s*\[.*\]/ ) ) )
 	{
-	    $not_message = 1;
+	    $not_msg = 1;
 	    next;
 	}
 	else {
-	    $not_message = 0;
+	    $not_msg = 0;
 	}
 
 	if ( $line eq $prev_line ) {

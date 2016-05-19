@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use XML::Twig;
@@ -149,7 +149,7 @@ sub GetFindBugsBugObject() {
     foreach my $itr1 (@children) {
 	    if ( $itr1->gi eq 'Class' ) { $classNum++; }
     }
-    foreach $element ( $elem->children ) {
+    foreach my $element ( $elem->children ) {
 	my $tag = $element->gi;
 	if ( $tag eq "LongMessage" ) {
 	    $bugObject->setBugMessage( $element->text );

@@ -130,7 +130,7 @@ if ( defined $weakness_count_file ) {
 	    $xmlWriterObj->getBugId() - 1 );
 }
 
-sub GetBanditBugObjectFromJson() {
+sub GetBanditBugObjectFromJson {
     my $warning    = shift;
     my $bug_id     = shift;
     my $bug_object = new bugInstance($bug_id);

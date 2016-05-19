@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use xmlWriterObject;
@@ -62,8 +62,8 @@ foreach my $input_file (@input_file_arr) {
 	    $xmlWriterObj->writeBugObject($bug_object);
 	}
     }
+    $fh->close();
 }
-$fh->close();
 
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();

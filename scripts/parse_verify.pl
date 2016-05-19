@@ -1,10 +1,10 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use strict;
 use Getopt::Long;
 use IO;
 use Cwd;
-use Twig;
+use XML::Twig;
 use Archive::Extract;
 use Archive::Tar;
 use Archive::Zip;
@@ -170,7 +170,7 @@ sub clang()
 		    my @tokens = split('\s',$line,2);
 		    $filepath = AdjustPath($package_name, $cwd, $tokens[1]);
 		}
-		
+
 		if ($line =~ m/.*BUGLINE/)
 		{
 		    $line =~ s/(<!--)//;
@@ -188,7 +188,7 @@ sub clang()
 	    $bughash{$bug_count}=$bugObj;
 	    $bughash{$bug_count}->setBugLocation(0,"",$filepath,$startline,$endline,0,0,"","true","true");
 	    $bugassfile{$bug_count}=$dir_path."/".$rf;
-	    
+
 	}
     }
 }
@@ -214,7 +214,7 @@ sub gccwarn()
 	    $bughash{$bug_count}->setBugLocation(0,"",$file_path,$line_num,$line_num,0,0,"","true","true");
 	    $bugassfile{$bug_count}=$report_path;
 	}	
-	
+
     }
 }
 ################################################################################################
@@ -359,14 +359,14 @@ sub errorprone
 	my @tokens = split("\s",$lines[$#lines]);
 	$bugcount_ep = $bugcount_ep+$tokens[0];
     } 
-    
+
     if ((($lines[$#lines-1]) =~ /error/) | ($lines[$#lines-1] =~ /warn/))
     {
 	my @tokens = split("\s",$lines[$#lines-1]);
 	$bugcount_ep = $bugcount_ep+$tokens[0];
     } 
     return;
-    
+
 }
 ##############################################################################################
 
@@ -413,7 +413,7 @@ sub AdjustPath
 sub status_count
 {
     my $status_out_path =  $curwrkdir."/".$input_dir."/status.out";
-    
+
     open(my $fh,"<","$status_out_path") or die "status.out not found";
     while (<$fh>)
     {
@@ -507,7 +507,7 @@ sub diff_scarf()
     my $tag_elem = shift;
     print "$file1 and $file2\n";
     open(my $fh,"<",$file2) or die ("file not found");
-    
+
     #####################parsing file1######
     my $twig = XML::Twig->new();
     $twig->parsefile($file1);
@@ -568,7 +568,7 @@ sub diff_scarf()
 	    case "2" {$tag = $file_name.':'.$start_line.":".$end_line}
 	    case "1" {$tag = $file_name}
 	}
-    
+
 	if (!exists($hash_xml{$tag}))
 	{
 	     $hash_xml{$tag} = {'count'=>1,'bugid'=>$bug_id, 'startline'=>$start_line, 'endline'=>$end_line, 'location'=>$location};
@@ -580,10 +580,10 @@ sub diff_scarf()
 	     $hash_xml{$tag}->{bugid} = $hash_xml{$tag}->{bugid}."\n\t".$bug_id;
 	     $count_dup++;	
 	}
-    
+
     }
     ###################################parsing CSV as XML#################################
-    
+
     my $twig2 = XML::Twig->new();
     $twig2->parsefile($file2);
     my $root_csv = $twig2->root;;
@@ -594,9 +594,9 @@ sub diff_scarf()
     #$kids[0]->print;
     my $start_line_csv;
     my $end_line_csv;
-    
+
     foreach my $elem_csv (@kids_csv){
-	
+
 	if ($elem_csv->first_child('BugLocations') == 0){
 	    next;
 	}

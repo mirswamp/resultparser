@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use XML::Twig;
@@ -57,6 +57,7 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
+my $file_path;
 sub SetFileName {
 	my ( $tree, $element ) = @_;
 	$file_path = $element->att('name');

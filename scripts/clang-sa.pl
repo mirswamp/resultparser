@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#use strict;
+use strict;
 use Getopt::Long;
 use bugInstance;
 use xmlWriterObject;
@@ -39,6 +39,7 @@ $xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
 my $temp_input_file;
 
 my $count = 0;
+my $bugId = 0;
 
 foreach my $input_file (@input_file_arr) {
     $temp_input_file = $input_file;
