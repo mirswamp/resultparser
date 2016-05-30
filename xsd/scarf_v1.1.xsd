@@ -90,6 +90,42 @@
                   </xs:sequence>
             </xs:complexType>
 	</xs:element>
+	<xs:element name="Metric" maxOccurs="unbounded" minOccurs="0">
+	  <xs:complexType mixed="true">
+	    <xs:sequence>
+              <xs:element name="Location" minOccurs="0">
+		<xs:complexType>
+		  <xs:sequence>
+		    <xs:element type="xs:string" name="SourceFile" minOccurs="0"/>
+		  </xs:sequence>
+		</xs:complexType>
+	      </xs:element>
+	      <xs:element type="xs:string" name="Method" minOccurs="0"/>
+  	      <xs:element type="xs:string" name="Type" minOccurs="0"/>
+	      <xs:element type="xs:long" name="Value" minOccurs="0"/>
+	    </xs:sequence>
+	  </xs:complexType>
+	</xs:element>
+	<xs:element name="MetricSummaries" maxOccurs="1" minOccurs="0">
+	  <xs:complexType mixed="true">
+	    <xs:sequence>
+	      <xs:element name="MetricSummary" maxOccurs="unbounded" minOccurs="0">
+	        <xs:complexType mixed="true">
+		  <xs:sequence>
+		    <xs:element type="xs:string" name="Type" minOccurs="0"/>
+		    <xs:element type="xs:long" name="Count" minOccurs="0"/>
+		    <xs:element type="xs:long" name="Sum" minOccurs="0"/>
+		    <xs:element type="xs:decimal" name="SumOfSquares" minOccurs="0"/>
+		    <xs:element type="xs:long" name="Minimum" minOccurs="0"/>
+		    <xs:element type="xs:long" name="Maximum" minOccurs="0"/>
+		    <xs:element type="xs:decimal" name="Average" minOccurs="0"/>
+		    <xs:element type="xs:decimal" name="StandardDeviation" minOccurs="0"/>
+		  </xs:sequence>
+	        </xs:complexType>
+	      </xs:element>
+	    </xs:sequence>
+	  </xs:complexType>
+	</xs:element>
       </xs:sequence>
       <xs:attribute type="xs:string" name="tool_name"/>
       <xs:attribute type="xs:string" name="tool_version"/>
