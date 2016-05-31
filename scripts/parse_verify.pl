@@ -66,7 +66,7 @@ while (defined $inputDir = readdir $dh)  {
 	    my $asm_path = $results_dir."/assessment_summary.xml";
 	    untar_results($results_dir);
 	    untar($input_path, $parsed_result);
-	    my @lines = `perl parseSummary.pl --summary_file = $asm_path`;
+	    my @lines = `perl parseSummary.pl --summary_file=$asm_path`;
 	    for (my $i = 0;$i <= $#lines; $i++)  {
 		chomp($lines[$i]);
 		my @tokens = split("~:~", $lines[$i]);

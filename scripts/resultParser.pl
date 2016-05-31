@@ -74,7 +74,7 @@ sub executeParser
 {
     my ($toolName) = @_;
 
-    my @execString = ("perl", $script_dir."/".$toolName.".pl", "--tool_name = $toolName", "--summary_file = $summaryFile", "--output_file = $outputFile", "--input_dir = $in_dir", "--weakness_count_file = $weaknessCountFile");
+    my @execString = ("perl", $script_dir."/".$toolName.".pl", "--tool_name=$toolName", "--summary_file=$summaryFile", "--output_file=$outputFile", "--input_dir=$in_dir", "--weakness_count_file=$weaknessCountFile");
     my $out = system(@execString);
 }
 
@@ -102,10 +102,10 @@ Usage: resultParser.pl [-h] [-v]
 Arguments
     -h, --help                          show this help message and exit
     -v, --version                       show the version number
-    --summary_file = [SUMMARY_FILE]       Path to the Assessment Summary File
-    --input_dir = [INPUT_DIR]             Path to the raw assessment result directory
-    --output_dir = [OUTPUT_DIR]           Path to the output directory
-    --output_file = [OUTPUT_FILE]         Output File name in merged case 
+    --summary_file=[SUMMARY_FILE]       Path to the Assessment Summary File
+    --input_dir=[INPUT_DIR]             Path to the raw assessment result directory
+    --output_dir=[OUTPUT_DIR]           Path to the output directory
+    --output_file=[OUTPUT_FILE]         Output File name in merged case 
                                           (relative to the output_dir)
     --merge                     Merges the parsed result in a single file (Default option)
     --nomerge                           Do not merge the parsed results
