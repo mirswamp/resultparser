@@ -13,80 +13,71 @@ use Switch;
 use XML::Writer;
 use bugInstance;
 
-my ($input_dir,$package,$tool,$platform,$cwd,$package_name,$tool_version,$uuid,$tool_name,$build_id);
+my ($inputDir, $package, $tool, $platform, $cwd, $packageName, $toolVersion, $uuid, $toolName, $buildId);
 my $curwrkdir = getcwd;
 my $bug_count = 0;
 my %bughash;
 my %bugassfile;
 my $logfile = "log";
-my ($report_path_cpp,$report_path_chst,$report_path_fb,$report_path_pmd,$bugcount_ep);
+my ($report_path_cpp, $report_path_chst, $report_path_fb, $report_path_pmd, $bugcount_ep);
 my $result = GetOptions('package=s' => \$package,
 			'tool=s' => \$tool,
 			'platform=s' => \$platform,
 			'output=s' => \$logfile);
 
 my ($pkg_defined, $platform_defined, $tool_defined) = 0;
-if (defined ($package))
-{
+if (defined $package)  {
     $pkg_defined = 1;
 }
 
-if (defined($platform))
-{
+if (defined $platform)  {
     $platform_defined = 1;
 }
 
-if (defined($tool))
-{
+if (defined $tool)  {
     $tool_defined = 1
 }
 
-open (my $fh1,">",$logfile);
+open (my $fh1, ">", $logfile);
 opendir my $dh, $curwrkdir or die "could not open the dir";
 
-while (defined ($input_dir = readdir $dh))
-{
+while (defined $inputDir = readdir $dh)  {
     $bug_count = 0;
     $bugcount_ep = 0;
     %bughash = ();
     %bugassfile = ();
-    my @tokens = split("---",$input_dir);
-    if($#tokens != 3 | ($tokens[3] ne 'parse'))
-    {
+    my @tokens = split("---", $inputDir);
+    if ($#tokens != 3 | ($tokens[3] ne 'parse'))  {
 	next;
-    }
-    else
-    {
-	if((!($pkg_defined)|($tokens[0] eq $package)) && (!($platform_defined)|($tokens[1] eq $platform)) && (!($tool_defined)|($tokens[2] eq $tool)))
-	{
-	    print $fh1 "#########$input_dir##############\n";
-	    print "##############working on $input_dir##############\n";
-	    my $run_successful = run_success($input_dir);
-	    if ($run_successful == 0)
-	    {
-		print "the run $input_dir was not successfule\n";
+    }  else  {
+	if ((!($pkg_defined)|($tokens[0] eq $package))
+		&& (!($platform_defined)|($tokens[1] eq $platform))
+		&& (!($tool_defined)|($tokens[2] eq $tool)))  {
+	    print $fh1 "#########$inputDir##############\n";
+	    print "##############working on $inputDir##############\n";
+	    my $run_successful = run_success($inputDir);
+	    if ($run_successful == 0)  {
+		print "the run $inputDir was not successfule\n";
 		next;
 	    }
-	    my $input_path = $curwrkdir."/".$input_dir;
+	    my $input_path = $curwrkdir."/".$inputDir;
 	    my $results_dir = $input_path."/results";
 	    my $parsed_result = $input_path."/parsed_results";
 	    my $asm_path = $results_dir."/assessment_summary.xml";
 	    untar_results($results_dir);
-	    untar($input_path,$parsed_result);
-	    my @lines = `perl parseSummary.pl --summary_file=$asm_path`;
-	    for (my $i = 0;$i <= $#lines; $i++)
-	    {
+	    untar($input_path, $parsed_result);
+	    my @lines = `perl parseSummary.pl --summary_file = $asm_path`;
+	    for (my $i = 0;$i <= $#lines; $i++)  {
 		chomp($lines[$i]);
-		my @tokens = split("~:~",$lines[$i]);
+		my @tokens = split("~:~", $lines[$i]);
 		my $report_path = $results_dir."/".$tokens[5]; 
-		$tool_name = $tokens[2];
-		$tool_version = $tokens[3];
-		$build_id = $tokens[4];
-		$package_name = $tokens[1];
+		$toolName = $tokens[2];
+		$toolVersion = $tokens[3];
+		$buildId = $tokens[4];
+		$packageName = $tokens[1];
 		$cwd = $tokens[6];
 		$uuid = $tokens[0];
-		switch($tool_name)
-		{
+		switch($toolName)  {
 		    case "cppcheck"	{cppcheck($report_path)}
 		    case "gcc-warn"	{gccwarn($report_path)}
 		    case "checkstyle"	{checkstyle($report_path)}
@@ -99,11 +90,10 @@ while (defined ($input_dir = readdir $dh))
 	    PrintXML();
 	    print $fh1 "count is $bug_count\n";
 	    my $count_status = status_count();
-	    if ($count_status != $bug_count)
-	    {
+	    if ($count_status != $bug_count)  {
 		print $fh1 "*******COUNTS DO NOT MATCH*****\n";
-#			diff_scarf($parsed_result."/parsed_assessment_result.xml",$curwrkdir."/".$input_dir."_out.xml",$fh1,2);
-		diff_scarf($curwrkdir."/".$input_dir."_out.xml",$parsed_result."/parsed_assessment_result.xml",$fh1,2);
+#			diff_scarf($parsed_result."/parsed_assessment_result.xml", $curwrkdir."/".$inputDir."_out.xml", $fh1, 2);
+		diff_scarf($curwrkdir."/".$inputDir."_out.xml", $parsed_result."/parsed_assessment_result.xml", $fh1, 2);
 	    }
 	    print $fh1 "#################################\n";
 	}
@@ -113,8 +103,8 @@ while (defined ($input_dir = readdir $dh))
 
 $fh1->close;
 
-################################cppcheck######################################################
-sub cppcheck()
+
+sub cppcheck
 {
     my $report_path = shift;
     $report_path_cpp = $report_path;
@@ -124,69 +114,63 @@ sub cppcheck()
     $twig->purge();
 }
 
-sub cpp_parseError()
+
+sub cpp_parseError
 {
-    my($tree,$elem) = @_;
+    my($tree, $elem) = @_;
     foreach my $error ($elem->children)
     {
 	my $tag = $error->tag;
 	if ($tag eq 'location')
 	{
 	    $bug_count++;
-	    my $file_path = AdjustPath($package_name, $cwd,$error->att('file'));
-	    my $line_num = $error->att('line');
+	    my $filePath = AdjustPath($packageName, $cwd, $error->att('file'));
+	    my $lineNum = $error->att('line');
 	    my $bugObj = new bugInstance($bug_count);
 	    $bughash{$bug_count}=$bugObj;
-	    $bughash{$bug_count}->setBugLocation(0,"",$file_path,$line_num,$line_num,0,0,"","true","true");
+	    $bughash{$bug_count}->setBugLocation(0, "", $filePath, $lineNum, $lineNum, 0,0, "", "true", "true");
 	    $bugassfile{$bug_count}=$report_path_cpp;
 
 	}
     }
 }
-###############################################################################################
 
-###############################clang###########################################################
-sub clang()
+
+sub clang
 {
     my $dir_path = shift;
     opendir my $directory, $dir_path or die "could not open the dir";
-    while (defined (my $rf = readdir $directory))
-    {
-	if($rf =~ /^report.*.html$/)
-	{
-	    open (my $fh_clang,"<",$dir_path."/".$rf) or die "file not found";
+    while (defined my $rf = readdir $directory)  {
+	if ($rf =~ /^report.*.html$/)  {
+	    open (my $fh_clang, "<", $dir_path."/".$rf) or die "file not found";
 	    my @lines = grep /<!--.*BUG.*-->/, <$fh_clang>;
-	    my ($filepath, $startline, $endline);
-	    foreach my $line (@lines)
-	    {
+	    my ($filePath, $startLine, $endLine);
+	    foreach my $line (@lines)  {
 		chomp ($line);
-		if ($line =~ m/.*BUGFILE/)
-		{
+		if ($line =~ m/.*BUGFILE/)  {
 		    $bug_count++;
 		    $line =~ s/(<!--)//;
 		    $line =~ s/-->//;
 		    $line =~ s/^\s+//;
 		    $line =~ s/\s+$//;
-		    my @tokens = split('\s',$line,2);
-		    $filepath = AdjustPath($package_name, $cwd, $tokens[1]);
+		    my @tokens = split('\s', $line, 2);
+		    $filePath = AdjustPath($packageName, $cwd, $tokens[1]);
 		}
 
-		if ($line =~ m/.*BUGLINE/)
-		{
+		if ($line =~ m/.*BUGLINE/)  {
 		    $line =~ s/(<!--)//;
 		    $line =~ s/-->//;
 		    $line =~ s/^\s+//;
 		    $line =~ s/\s+$//;
-		    my @tokens = split('\s',$line);
-		    $startline = $tokens[1];
-		    $endline = $tokens[1];
+		    my @tokens = split('\s', $line);
+		    $startLine = $tokens[1];
+		    $endLine = $tokens[1];
 		}
-
 
 	    }
 	    my $bugObj = new bugInstance($bug_count);
 	    $bughash{$bug_count}=$bugObj;
-	    $bughash{$bug_count}->setBugLocation(0,"",$filepath,$startline,$endline,0,0,"","true","true");
+	    $bughash{$bug_count}->setBugLocation(0, "", $filePath, $startLine, $endLine, 0,0, "", "true", "true");
 	    $bugassfile{$bug_count}=$dir_path."/".$rf;
 
 	}
@@ -194,183 +178,160 @@ sub clang()
 }
 
 
-###############################################################################################
-
-#############################gccwarn###########################################################
-sub gccwarn()
+sub gccwarn
 {
     my $report_path = shift;
-    open(my $fh_op,"<","$report_path") or die "could not find the report\n";
-    while(<$fh_op>)
-    {
-	my @tokens = split(":",$_);
-	if (($#tokens == 4) && ($tokens[4] =~ /\[.*\]/))
-	{
+    open(my $fh_op, "<", "$report_path") or die "could not find the report\n";
+    while (<$fh_op>)  {
+	my @tokens = split(":", $_);
+	if (($#tokens == 4) && ($tokens[4] =~ /\[.*\]/))  {
 	    $bug_count++;
-	    my $file_path = AdjustPath($package_name, $cwd, $tokens[0]);
-	    my $line_num = $tokens[1];
+	    my $filePath = AdjustPath($packageName, $cwd, $tokens[0]);
+	    my $lineNum = $tokens[1];
 	    my $bugObj = new bugInstance($bug_count);
 	    $bughash{$bug_count}=$bugObj;
-	    $bughash{$bug_count}->setBugLocation(0,"",$file_path,$line_num,$line_num,0,0,"","true","true");
+	    $bughash{$bug_count}->setBugLocation(0, "", $filePath, $lineNum, $lineNum, 0,0, "", "true", "true");
 	    $bugassfile{$bug_count}=$report_path;
 	}	
 
     }
 }
-################################################################################################
 
 
-############################CHECKSTYLE##########################################################
-sub checkstyle()
+sub checkstyle
 {
     my $report_path = shift;
     $report_path_chst = $report_path;
     my $file_xpath = 'checkstyle/file';
-    my $twig = new XML::Twig(TwigHandlers=>{$file_xpath=>\&checkstyle_parse});
+    my $twig = new XML::Twig(TwigHandlers => {$file_xpath => \&checkstyle_parse});
     $twig->parsefile($report_path);
     $twig->purge();
 }
 
 
-sub checkstyle_parse()
+sub checkstyle_parse
 {
-    my ($tree,$elem) = @_;
-    my $filepath = AdjustPath($package_name, $cwd, $elem->att('name'));
-    foreach my $bug ($elem->children)
-    {
+    my ($tree, $elem) = @_;
+    my $filePath = AdjustPath($packageName, $cwd, $elem->att('name'));
+    foreach my $bug ($elem->children)  {
 	$bug_count++;
-	my $beginLine=$bug->att('line');
-	my $endLine=$beginLine;
-	my $bugcode=$bug->att('source');
+	my $beginLine = $bug->att('line');
+	my $endLine = $beginLine;
+	my $bugCode = $bug->att('source');
 	my $bugObj = new bugInstance($bug_count);
 	$bughash{$bug_count}=$bugObj;
-	$bughash{$bug_count}->setBugLocation(0,"",$filepath,$beginLine,$endLine,0,0,"","true","true");
+	$bughash{$bug_count}->setBugLocation(0, "", $filePath, $beginLine, $endLine, 0,0, "", "true", "true");
 	$bugassfile{$bug_count}=$report_path_chst;
 
     }
 }
-###############################################################################################
 
 
-##########################FINDBUGS#############################################################
-sub findbugs()
-
+sub findbugs
 {
     my $report_path = shift;
     $report_path_fb = $report_path;
     my $file_xpath = 'BugCollection/BugInstance';
-    my $twig = new XML::Twig(TwigHandlers=>{$file_xpath => \&findbugs_parse});
+    my $twig = new XML::Twig(TwigHandlers => {$file_xpath => \&findbugs_parse});
     $twig->parsefile($report_path);
     $twig->purge();
 }
 
-sub findbugs_parse()
+
+sub findbugs_parse
 {
     $bug_count++;
-    my($tree,$elem) = @_;
-    my $bug_code = $elem->att('type');
-    foreach my $element ($elem->children)
-    {
+    my($tree, $elem) = @_;
+    my $bugCode = $elem->att('type');
+    foreach my $element ($elem->children)  {
 	my $tag = $element->gi;
-	if($tag eq "SourceLine")
-	{
-	    my $filepath = AdjustPath($package_name, $cwd,$element->att('sourcepath'));
-	    my $start_line = $element->att('start');
-	    my $end_line = $element->att('end');
+	if ($tag eq "SourceLine")  {
+	    my $filePath = AdjustPath($packageName, $cwd, $element->att('sourcepath'));
+	    my $startLine = $element->att('start');
+	    my $endLine = $element->att('end');
 	    my $bugObj = new bugInstance($bug_count);
 	    $bughash{$bug_count}=$bugObj;
-	    $bughash{$bug_count}->setBugLocation(0,"",$filepath,$start_line,$end_line,0,0,"","true","true");
+	    $bughash{$bug_count}->setBugLocation(0, "", $filePath, $startLine, $endLine, 0,0, "", "true", "true");
 	    $bugassfile{$bug_count}=$report_path_fb;
 
 	} 
     }
 }
-##############################################################################################
 
-############################PMD###############################################################
 
 sub pmd
 {
-    my $report_path = shift;
+    my ($report_path) = @_;
+
     $report_path_pmd = $report_path;
     my $file_xpath = 'pmd/file';
-    my $twig = new XML::Twig(TwigHandlers=>{$file_xpath=>\&pmd_parse});
+    my $twig = new XML::Twig(TwigHandlers => {$file_xpath => \&pmd_parse});
     $twig->parsefile($report_path);
     $twig->purge();
 }
 
-sub pmd_parse()
+
+sub pmd_parse
 {
-    my ($tree,$elem) = @_;
-    my $filepath = AdjustPath($package_name, $cwd,$elem->att('name'));
-    foreach my $element ($elem->children)
-    {
+    my ($tree, $elem) = @_;
+
+    my $filePath = AdjustPath($packageName, $cwd, $elem->att('name'));
+    foreach my $element ($elem->children)  {
 	$bug_count++;
-	my $start_line = $element->att('beginline');
-	my $endline    = $element->att('endline');
-	my $bugcode    = $element->att('rule');
+	my $startLine = $element->att('beginline');
+	my $endLine    = $element->att('endline');
+	my $bugCode    = $element->att('rule');
 	my $bugObj = new bugInstance($bug_count);
 	$bughash{$bug_count}=$bugObj;
-	$bughash{$bug_count}->setBugLocation(0,"",$filepath,$start_line,$endline,0,0,"","true","true");
+	$bughash{$bug_count}->setBugLocation(0, "", $filePath, $startLine, $endLine, 0,0, "", "true", "true");
 	$bugassfile{$bug_count}=$report_path_pmd;
     }
 }
 
-##############################################################################################
-
-
-############################errorprone########################################################
 
 sub errorprone
 {
-    my $report_path = shift;	
-    open (my $fh2,"<","$report_path");
+    my ($report_path) = @_;	
+
+    open (my $fh2, "<", "$report_path");
     my @lines;
-    while (<$fh2>)
-    {
-	push(@lines,$_);
+    while (<$fh2>)  {
+	push(@lines, $_);
     }
 
-    for (my $i = 0;$i <= $#lines;$i++)
-    {
-	my @tokens = split(":",$lines[$i]);
-	if ($#tokens != 3 | !($tokens[3] =~ /^\s*\[.*\]/))
-	{
+    for (my $i = 0;$i <= $#lines;$i++)  {
+	my @tokens = split(":", $lines[$i]);
+	if ($#tokens != 3 | !($tokens[3] =~ /^\s*\[.*\]/))  {
 	    next;
-	}
-	else
-	{	
+	}  else  {
 	    $bug_count++;
-	    my $filepath = AdjustPath($package_name, $cwd,$tokens[0]);
-	    my $startline = $tokens[1];
-	    my $endline = $startline;
+	    my $filePath = AdjustPath($packageName, $cwd, $tokens[0]);
+	    my $startLine = $tokens[1];
+	    my $endLine = $startLine;
 	    $tokens[3] =~ /^\s*\[(.*)\].*$/;
-	    my $bugcode = $1; 
+	    my $bugCode = $1; 
 	    my $bugObj = new bugInstance($bug_count);
 	    $bughash{$bug_count}=$bugObj;
-	    $bughash{$bug_count}->setBugLocation(0,"",$filepath,$startline,$endline,0,0,"","true","true");
-	    $bughash{$bug_count}->setBugCode($bugcode);
+	    $bughash{$bug_count}->setBugLocation(0, "", $filePath, $startLine, $endLine, 0,0, "", "true", "true");
+	    $bughash{$bug_count}->setBugCode($bugCode);
 	    $bugassfile{$bug_count}=$report_path; 
 	}
     }
 
-    if ((($lines[$#lines]) =~ /error/) | ($lines[$#lines] =~ /warn/))
-    {
-	my @tokens = split("\s",$lines[$#lines]);
+    if ((($lines[$#lines]) =~ /error/) | ($lines[$#lines] =~ /warn/))  {
+	my @tokens = split("\s", $lines[$#lines]);
 	$bugcount_ep = $bugcount_ep+$tokens[0];
     } 
 
-    if ((($lines[$#lines-1]) =~ /error/) | ($lines[$#lines-1] =~ /warn/))
-    {
-	my @tokens = split("\s",$lines[$#lines-1]);
+    if ((($lines[$#lines-1]) =~ /error/) | ($lines[$#lines-1] =~ /warn/))  {
+	my @tokens = split("\s", $lines[$#lines-1]);
 	$bugcount_ep = $bugcount_ep+$tokens[0];
     } 
+
     return;
-
 }
-##############################################################################################
 
-###############################################################################################
+
 sub NormalizePath
 {
     my $p = shift;
@@ -384,6 +345,7 @@ sub NormalizePath
 
     return $p;
 }
+
 
 sub AdjustPath
 {
@@ -406,19 +368,14 @@ sub AdjustPath
     return $path;
 }
 
-#####################################################################################################
 
-
-#############################status.out################################################################
 sub status_count
 {
-    my $status_out_path =  $curwrkdir."/".$input_dir."/status.out";
+    my $status_out_path =  $curwrkdir."/".$inputDir."/status.out";
 
-    open(my $fh,"<","$status_out_path") or die "status.out not found";
-    while (<$fh>)
-    {
-	if($_ =~ /\(weaknesses: (.*)\)/)
-	{
+    open(my $fh, "<", "$status_out_path") or die "status.out not found";
+    while (<$fh>)  {
+	if ($_ =~ /\(weaknesses: (.*)\)/)  {
 	    print $fh1 "count in status.out is $1\n";
 	    return $1;
 	    last;
@@ -426,70 +383,56 @@ sub status_count
     }
 }
 
-sub run_success()
+
+sub run_success
 {
     my $name = shift;
     my $status_path = $curwrkdir."/".$name."/status.out";
-    open (my $fh,"<",$status_path) or return 0;
-    while (<$fh>)
-    {
-	if($_ =~ /PASS: all/)
-	{
+    open (my $fh, "<", $status_path) or return 0;
+    while (<$fh>)  {
+	if ($_ =~ /PASS: all/)  {
 	    return 1;
 	}
-
     }
     $fh->close;
     return 0;
 }
-######################################################################################################
 
-###########################results dir################################################################
 
-sub untar_results()
+sub untar_results
 {
-    my $path =	$curwrkdir."/".$input_dir;
+    my $path =	$curwrkdir."/".$inputDir;
     my $result_path = $path."/results";
-    if(!(-d $result_path))
+    if (!(-d $result_path))
     {
 	print "untarring the results directory\n";
 	my $ae = Archive::Extract->new(archive=> $result_path.".tar.gz");
-	$ae->extract(to=>$path);
+	$ae->extract(to => $path);
     }
 }
 
-######################################################################################################
 
-###################################untar##############################################################
-
-sub untar()
+sub untar
 {
     my $output_dir = shift;
     my $output = shift;
-    if (!(-d $output))
-    {
+    if (!(-d $output))  {
 	print "untarring the parsed_result directory\n";
 	my $ae = Archive::Extract->new(archive=> $output.".tar.gz");
-	$ae->extract(to=>$output_dir);		
+	$ae->extract(to => $output_dir);		
     }
 }
 
 
-
-
-######################################################################################################
-
-###########################PrintXML###################################################################
-sub PrintXML()
+sub PrintXML
 {
-    my $output_file = $input_dir."_out.xml";
-    open(my $oh,">",$output_file);
-    my $writer = new XML::Writer(OUTPUT => $oh, DATA_MODE=>'true', DATA_INDENT=>2);
+    my $outputFile = $inputDir."_out.xml";
+    open(my $oh, ">", $outputFile);
+    my $writer = new XML::Writer(OUTPUT => $oh, DATA_MODE => 'true', DATA_INDENT => 2);
     $writer->xmlDecl('UTF-8');
-    $writer->startTag('AnalyzerReport' ,'tool_name' => "$tool_name", 'tool_version' => "$tool_version", 'uuid'=> "$uuid");
-    foreach my $object (sort{$a <=> $b} keys %bughash)
-    {
-	$bughash{$object}->printXML($writer,$bugassfile{$object},$build_id);
+    $writer->startTag('AnalyzerReport', 'tool_name' => "$toolName", 'tool_version' => "$toolVersion", 'uuid'=> "$uuid");
+    foreach my $object (sort{$a <=> $b} keys %bughash)  {
+	$bughash{$object}->printXML($writer, $bugassfile{$object}, $buildId);
     }
     $writer->endTag();
     $writer->end();
@@ -497,16 +440,17 @@ sub PrintXML()
 }
 
 
+#####################################################################################################
 
-###################################################################################################### diff script#######################################################################################################################
-sub diff_scarf()
+# diff script########################################################################################
+sub diff_scarf
 {
     my $file1 = shift;
     my $file2 = shift;
     my $fh_out = shift;
     my $tag_elem = shift;
     print "$file1 and $file2\n";
-    open(my $fh,"<",$file2) or die ("file not found");
+    open(my $fh, "<", $file2) or die ("file not found");
 
     #####################parsing file1######
     my $twig = XML::Twig->new();
@@ -518,69 +462,55 @@ sub diff_scarf()
     my %hash_csv;
     my %hash_xml2;
     my $count_dup = 0;
-    my $start_line;
-    my $end_line;
-    foreach my $elem (@kids){
-	if ($elem->first_child('BugLocations') == 0){
-	    next;
-	}
-	my $file_name = $elem->first_child('BugLocations')->first_child('Location')->first_child('SourceFile')->field;
-	$file_name = lc($file_name);
-	$file_name =~ s/(.*?)\///;
-	if ( $elem->first_child('BugLocations')->first_child('Location')->first_child('StartLine') != 0)
-	{
-	    $start_line = $elem->first_child('BugLocations')->first_child('Location')->first_child('StartLine')->field;
-	}
-	else
-	{
-	    $start_line = 'NA';
+    my $startLine;
+    my $endLine;
+    foreach my $elem (@kids)  {
+	next if ($elem->first_child('BugLocations') == 0);
+
+	my $filename = $elem->first_child('BugLocations')->first_child('Location')->first_child('SourceFile')->field;
+	$filename = lc($filename);
+	$filename =~ s/(.*?)\///;
+	if ($elem->first_child('BugLocations')->first_child('Location')->first_child('StartLine') != 0)  {
+	    $startLine = $elem->first_child('BugLocations')->first_child('Location')->first_child('StartLine')->field;
+	}  else  {
+	    $startLine = 'NA';
 	}
 
-	if ($elem->first_child('BugLocations')->first_child('Location')->first_child('EndLine') != 0)
-	{
-	    $end_line = $elem->first_child('BugLocations')->first_child('Location')->first_child('EndLine')->field;
+	if ($elem->first_child('BugLocations')->first_child('Location')->first_child('EndLine') != 0)  {
+	    $endLine = $elem->first_child('BugLocations')->first_child('Location')->first_child('EndLine')->field;
+	}  else  {
+	     $endLine = 'NA';
 	}
-	else
-	{
-	     $end_line = 'NA';
-	}
-	my $bug_code;
-	if ($elem->first_child('BugCode') != 0)
-	{
-	    $bug_code = $elem->first_child('BugCode')->field;
-	    $bug_code = lc($bug_code);
+	my $bugCode;
+	if ($elem->first_child('BugCode') != 0)  {
+	    $bugCode = $elem->first_child('BugCode')->field;
+	    $bugCode = lc($bugCode);
 	}
 	my $location = $elem->first_child('BugLocations')->first_child('Location')->{'att'}->{primary};
-	my $bug_id  = $elem->{'att'}->{id};
-	my $bug_msg;
-	if ($elem->first_child('BugMessage') != 0)
-	{
-	    $bug_msg = $elem->first_child('BugMessage')->field;
-	    $bug_msg =~ s/"//g; 
-	    $bug_msg = lc ($bug_msg);
-	    $bug_msg =~ s/\s+$//;
+	my $bugId  = $elem->{'att'}->{id};
+	my $bugMsg;
+	if ($elem->first_child('BugMessage') != 0)  {
+	    $bugMsg = $elem->first_child('BugMessage')->field;
+	    $bugMsg =~ s/"//g; 
+	    $bugMsg = lc ($bugMsg);
+	    $bugMsg =~ s/\s+$//;
 	}
 	my $tag;
-	switch ($tag_elem)
-	{
-	    case "4" {$tag = $file_name.':'.$start_line.":".$end_line.":".$bug_code.":".$bug_msg}
-	    case "3" {$tag = $file_name.':'.$start_line.":".$end_line.":".$bug_code}
-	    case "2" {$tag = $file_name.':'.$start_line.":".$end_line}
-	    case "1" {$tag = $file_name}
+	switch ($tag_elem)  {
+	    case "4" {$tag = $filename.':'.$startLine.":".$endLine.":".$bugCode.":".$bugMsg}
+	    case "3" {$tag = $filename.':'.$startLine.":".$endLine.":".$bugCode}
+	    case "2" {$tag = $filename.':'.$startLine.":".$endLine}
+	    case "1" {$tag = $filename}
 	}
 
-	if (!exists($hash_xml{$tag}))
-	{
-	     $hash_xml{$tag} = {'count'=>1,'bugid'=>$bug_id, 'startline'=>$start_line, 'endline'=>$end_line, 'location'=>$location};
+	if (!exists($hash_xml{$tag}))  {
+	     $hash_xml{$tag} = {'count' => 1, 'bugid' => $bugId, 'startline' => $startLine, 'endline' => $endLine, 'location' => $location};
 	     $count_xml++;
-	}
-	else
-	{
+	}  else  {
 	     $hash_xml{$tag}->{count} = $hash_xml{$tag}->{count}+1;
-	     $hash_xml{$tag}->{bugid} = $hash_xml{$tag}->{bugid}."\n\t".$bug_id;
+	     $hash_xml{$tag}->{bugid} = $hash_xml{$tag}->{bugid}."\n\t".$bugId;
 	     $count_dup++;	
 	}
-
     }
     ###################################parsing CSV as XML#################################
 
@@ -595,63 +525,49 @@ sub diff_scarf()
     my $start_line_csv;
     my $end_line_csv;
 
-    foreach my $elem_csv (@kids_csv){
+    foreach my $elem_csv (@kids_csv)  {
+	next if ($elem_csv->first_child('BugLocations') == 0);
 
-	if ($elem_csv->first_child('BugLocations') == 0){
-	    next;
-	}
 	my $file_name_csv = $elem_csv->first_child('BugLocations')->first_child('Location')->first_child('SourceFile')->field;
 	$file_name_csv = lc($file_name_csv);
 	$file_name_csv =~ s/(.*?)\///;
-	if ( $elem_csv->first_child('BugLocations')->first_child('Location')->first_child('StartLine') != 0)
-	{
+	if ($elem_csv->first_child('BugLocations')->first_child('Location')->first_child('StartLine') != 0)  {
 	    $start_line_csv = $elem_csv->first_child('BugLocations')->first_child('Location')->first_child('StartLine')->field;
-	}
-	else
-	{
+	}  else  {
 	    $start_line_csv = 'NA';
 	}
-	if ($elem_csv->first_child('BugLocations')->first_child('Location')->first_child('EndLine') != 0)
-	{
+	if ($elem_csv->first_child('BugLocations')->first_child('Location')->first_child('EndLine') != 0)  {
 	    $end_line_csv = $elem_csv->first_child('BugLocations')->first_child('Location')->first_child('EndLine')->field;
-	}
-	else
-	{
+	}  else  {
 	    $end_line_csv = 'NA';
 	}
 	my $bug_code_csv;
-	if ($elem_csv->first_child('BugCode') != 0)
-	{
+	if ($elem_csv->first_child('BugCode') != 0)  {
 	    $bug_code_csv = $elem_csv->first_child('BugCode')->field;
 	    $bug_code_csv = lc($bug_code_csv);
 	}
 	my $location_csv = $elem_csv->first_child('BugLocations')->first_child('Location')->{'att'}->{primary};
 	my $bug_id_csv	= $elem_csv->{'att'}->{id};
 	my $bug_msg_csv;
-	if ($bug_msg_csv = $elem_csv->first_child('BugMessage') != 0)
-	{
+	if ($bug_msg_csv = $elem_csv->first_child('BugMessage') != 0)  {
 	    $bug_msg_csv = $elem_csv->first_child('BugMessage')->field;
 	    $bug_msg_csv =~ s/"//g; 
 	    $bug_msg_csv = lc ($bug_msg_csv);
 	    $bug_msg_csv =~ s/\s+$//;
 	}
 	my $tag_csv;
-	switch ($tag_elem)
-	{
+	switch ($tag_elem)  {
 	    case "4" {$tag_csv = $file_name_csv.':'.$start_line_csv.':'.$end_line_csv.':'.$bug_code_csv.":".$bug_msg_csv}
 	    case "3" {$tag_csv = $file_name_csv.':'.$start_line_csv.':'.$end_line_csv.':'.$bug_code_csv}
 	    case "2" {$tag_csv = $file_name_csv.':'.$start_line_csv.':'.$end_line_csv}
 	    case "1" {$tag_csv = $file_name_csv}
 	}
-	if ($hash_csv{$tag_csv} == 0)
-	{
-	     $hash_csv{$tag_csv} = {'count'=>1,'bugid'=>$bug_id_csv, 'startline'=>$start_line_csv, 'endline'=>$end_line_csv, 'location'=>$location_csv};
+	if ($hash_csv{$tag_csv} == 0)  {
+	     $hash_csv{$tag_csv} = {'count' => 1, 'bugid' => $bug_id_csv, 'startline' => $start_line_csv, 'endline' => $end_line_csv, 'location' => $location_csv};
 	     $count_csv++;
-	}
-	else
-	{
+	}  else  {
 	     $hash_csv{$tag_csv}->{count} = $hash_csv{$tag_csv}->{count}+1;
-	     $hash_csv{$tag_csv}->{bugid} = $hash_csv{$tag_csv}->{bugid}.",".$bug_id_csv;
+	     $hash_csv{$tag_csv}->{bugid} = $hash_csv{$tag_csv}->{bugid}.", ".$bug_id_csv;
 	}
     }	
     my $serial_number = 1;
@@ -660,20 +576,15 @@ sub diff_scarf()
     my $elem_xml;
     my $elem_csv2;
     my $count_cmp = 0;
-    foreach my $elem_xml (keys %hash_xml)
-    {
+    foreach my $elem_xml (keys %hash_xml)  {
 	$count_cmp++;
 	$elem_csv2 = $elem_xml;
-	if (($hash_csv{$elem_csv2} == 0))
-	{
+	if (($hash_csv{$elem_csv2} == 0))  {
 	    print $fh_out "$serial_number\.)\t$hash_xml{$elem_xml}->{bugid}\t\t$hash_xml{$elem_xml}->{count}\t\t$hash_xml{$elem_xml}->{startline}\t\t$hash_xml{$elem_xml}->{endline}\t\tNA\t\tNA\t\t$hash_xml{$elem_xml}->{location}\n";
 	    $serial_number++;
 	    $total_difference = $total_difference+$hash_xml{$elem_xml}->{count}; 
-	}
-	else
-	{
-	    if(($hash_csv{$elem_csv2}->{count} != $hash_xml{$elem_xml}->{count}))
-	    {
+	}  else  {
+	    if (($hash_csv{$elem_csv2}->{count} != $hash_xml{$elem_xml}->{count}))  {
 		print $fh_out "$serial_number\.)\t$hash_xml{$elem_xml}->{bugid}\t\t$hash_xml{$elem_xml}->{count}\t\t$hash_xml{$elem_xml}->{startline}\t\t$hash_xml{$elem_xml}->{endline}\t\t$hash_csv{$elem_csv2}->{bugid}\t\t$hash_csv{$elem_csv2}->{count}\t\t$hash_xml{$elem_xml}->{location}\n";
 		$serial_number++;
 		$total_difference = $total_difference+$hash_xml{$elem_xml}->{count}-$hash_csv{$elem_csv2}->{count};

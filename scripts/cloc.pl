@@ -7,68 +7,65 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
-	$help, $version );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
     ) or die("Error");
 
-Util::Usage()   if defined($help);
-Util::Version() if defined($version);
+Util::Usage()   if defined $help;
+Util::Version() if defined $version;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-			= Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
 
-my $twig = XML::Twig->new( twig_roots => { 'files/file' => \&metrics } );
+my $twig = XML::Twig->new(twig_roots => {'files/file' => \&metrics});
 
 #Initialize the counter values
 my $bugId   = 0;
-my $file_Id = 0;
+my $fileId = 0;
 my %h;
 my $count = 0;
-my $temp_input_file;
+my $tempInputFile;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-foreach my $input_file (@input_file_arr) {
-    $temp_input_file = $input_file;
-    $build_id = $build_id_arr[$count];
+foreach my $inputFile (@inputFiles)  {
+    $tempInputFile = $inputFile;
+    $buildId = $buildIds[$count];
     $count++;
-    $twig->parsefile("$input_dir/$input_file");
+    $twig->parsefile("$inputDir/$inputFile");
 }
 $xmlWriterObj->writeMetricObjectUtil(%h);
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-if ( defined $weakness_count_file ) {
-    Util::PrintWeaknessCountFile( $weakness_count_file,
-	    $xmlWriterObj->getBugId() - 1 );
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
 }
 
+
 sub metrics {
-    my ( $twig, $rev ) = @_;
+    my ($twig, $rev) = @_;
+
     my $root  = $twig->root;
     my @nodes = $root->descendants;
     my $line  = $twig->{twig_parser}->current_line;
     my $col   = $twig->{twig_parser}->current_column;
 
-    foreach my $n (@nodes) {
+    foreach my $n (@nodes)  {
 	my $comment    = $n->{'att'}->{'comment'};
 	my $code       = $n->{'att'}->{'code'};
 	my $blank      = $n->{'att'}->{'blank'};

@@ -7,107 +7,98 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
-	$help, $version );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
     ) or die("Error");
 
-Util::Usage()   if defined($help);
-Util::Version() if defined($version);
+Util::Usage()   if defined $help;
+Util::Version() if defined $version;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-			= Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
-my $temp_input_file;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
+my $tempInputFile;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 my $count = 0;
 
-foreach my $input_file (@input_file_arr) {
-    $temp_input_file = $input_file;
-    $build_id = $build_id_arr[$count];
+foreach my $inputFile (@inputFiles)  {
+    $tempInputFile = $inputFile;
+    $buildId = $buildIds[$count];
     $count++;
     my $build_stdout_check_flag = 1;
-    if ( !-e "$input_dir/$input_file" ) {
+    if (!-e "$inputDir/$inputFile")  {
 	print "no inputfile";
 	$build_stdout_check_flag = 0;
     }
-    die
-"ERROR!! Revealdroid assessment run did not complete. build_stdout.out file is missing. \n"
-      if ( $build_stdout_check_flag eq 0 );
+    die "ERROR!! Revealdroid assessment run did not complete. build_stdout.out file is missing. \n"
+	    if ($build_stdout_check_flag eq 0);
 
     my $file = "build_stdout.out";
-    open my $fh, "<", "$input_dir/$input_file"
-      or die "Could not open file $input_dir/$input_file";
+    open my $fh, "<", "$inputDir/$inputFile"
+	    or die "Could not open file $inputDir/$inputFile";
     my @lines = Readline($fh);
     close $fh;
     chomp @lines;
     my $confidence = "";
     my $bugType    = "";
     my $flag       = 0;
-    foreach (@lines) {
-
-	if ( $_ =~ /^[Reputation]/ ) {
+    foreach (@lines)  {
+	if ($_ =~ /^[Reputation]/)  {
 	    my @rep_conf_split = split /:/, $_;
 	    $rep_conf_split[1] =~ s/^\s+//;
 	    $rep_conf_split[1] =~ s/\s+$//;
-	    if ( $flag == 1 ) {
+	    if ($flag == 1)  {
 		$bugType = $rep_conf_split[1];
 		last;
-	    }
-	    else {
+	    }  else  {
 		$confidence = $rep_conf_split[1];
 		$flag       = 1;
 	    }
 	}
     }
-    if ( ( $bugType eq "Benign" ) and ( $confidence == 1 ) ) {
-	    return 1;
+    if (($bugType eq "Benign") and ($confidence == 1))  {
+	return 1;
     }
 
     #Create Bug Object#
     my $file_data;
-    my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
+    my $bug = new bugInstance($xmlWriterObj->getBugId());
     {
-	open FILE, "$input_dir/$input_file"
-		or die "open $input_dir/$input_file: $!";
+	open FILE, "$inputDir/$inputFile"
+		or die "open $inputDir/$inputFile: $!";
 	local $/;
 	$file_data = <FILE>;
-	close FILE or die "close $input_dir/$input_file: $!";
+	close FILE or die "close $inputDir/$inputFile: $!";
     }
-    $bug_object->setBugMessage($file_data);
-    foreach (@lines) {
-	if ( $_ =~ /^[Reputation]/ ) {
+    $bug->setBugMessage($file_data);
+    foreach (@lines)  {
+	if ($_ =~ /^[Reputation]/)  {
 	    my @reputation_split = split /:/, $_;
 	    $reputation_split[1] =~ s/^\s+//;
 	    $reputation_split[1] =~ s/\s+$//;
-	    $bug_object->setBugGroup( $reputation_split[1] );
-	}
-	elsif ( $_ =~ /^[Family]/ ) {
+	    $bug->setBugGroup($reputation_split[1]);
+	}  elsif ($_ =~ /^[Family]/)  {
 	    my @family_split = split /:/, $_;
 	    $family_split[1] =~ s/^\s+//;
 	    $family_split[1] =~ s/\s+$//;
-	    $bug_object->setBugCode( $family_split[1] );
+	    $bug->setBugCode($family_split[1]);
 	}
     }
-    $xmlWriterObj->writeBugObject($bug_object);
+    $xmlWriterObj->writeBugObject($bug);
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
-

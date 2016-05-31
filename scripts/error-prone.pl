@@ -6,244 +6,238 @@ use bugInstance;
 use xmlWriterObject;
 use Util;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
-	$help, $version );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
-    ) or die("Error");
+) or die("Error");
 
-Util::Usage()   if defined($help);
-Util::Version() if defined($version);
+Util::Usage()   if defined $help;
+Util::Version() if defined $version;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-			  = Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
-my $temp_input_file;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
+my $tempInputFile;
 
 #Initialize the counter values
 my $bugId   = 0;
-my $file_Id = 0;
+my $fileId = 0;
 my $count   = 0;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-my $prev_msg;
+my $prevMsg;
 my $prev_fn;
 my $prev_line;
-my $trace_start_line;
+my $traceStartLine;
 my $suggested_message;
-my $current_line_no;
+my $currentLineNum;
 my $not_msg;
 my $first_report
   ; #this variable is defined so that the first bug report of a file doesnot try to change the bug instance of its previous bug report.
 my $input_text;
-my $temp_bug_object;
+my $tempBug;
 
-foreach my $input_file (@input_file_arr) {
-    $temp_input_file = $input_file;
-    $build_id = $build_id_arr[$count];
+foreach my $inputFile (@inputFiles)  {
+    $tempInputFile = $inputFile;
+    $buildId = $buildIds[$count];
     $count++;
     $not_msg	       = 0;
     $prev_line         = "";
     $first_report      = 1;
     $suggested_message = "";
-    $current_line_no   = 0;
-    $prev_msg          = "";
+    $currentLineNum   = 0;
+    $prevMsg          = "";
     $prev_fn           = "";
-    $trace_start_line  = 1;
-    $input_text        = new IO::File("<$input_dir/$input_file");
+    $traceStartLine  = 1;
+    $input_text        = new IO::File("<$inputDir/$inputFile");
 
-    my $temp_bug_object;
-    $input_text = defined($input_text) ? $input_text : "";
+    my $tempBug;
+    $input_text = (defined $input_text) ? $input_text : "";
     my $temp;
 
   LINE:
-    while ( my $line = <$input_text> ) {
+    while (my $line = <$input_text>)  {
 	chomp($line);
-	$current_line_no = $.;
-	my @tokens = split( ':', $line );
-	if ( ( $#tokens != 3 && $not_msg == 1 ) |
-		( ( $#tokens == 3 ) && !( $tokens[3] =~ /^\s*\[.*\]/ ) ) )
-	{
+	$currentLineNum = $.;
+	my @tokens = split(':', $line);
+	#FIXME | should be ||
+	if (($#tokens != 3 && $not_msg == 1) | (($#tokens == 3) && !($tokens[3] =~ /^\s*\[.*\]/)))  {
 	    $not_msg = 1;
 	    next;
-	}
-	else {
+	}  else  {
 	    $not_msg = 0;
 	}
 
-	if ( $line eq $prev_line ) {
+	if ($line eq $prev_line)  {
 	    next LINE;
-	}
-	else {
+	}  else  {
 	    $prev_line = $line;
 	}
-	ParseLine( $current_line_no, $line, $input_file );
+	ParseLine($currentLineNum, $line, $inputFile);
 	$temp = $line;
     }
-    RegisterBugPath( $current_line_no, $input_file );
+    RegisterBugPath($currentLineNum, $inputFile);
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-if ( defined $weakness_count_file ) {
-    Util::PrintWeaknessCountFile( $weakness_count_file,
-	    $xmlWriterObj->getBugId() - 1 );
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
 }
 
+
 sub ParseLine {
-    my ( $bug_report_line, $line, $input_file ) = @_;
+    my ($bugReportLine, $line, $inputFile) = @_;
+
     my @tokens        = SplitString($line);
     my $num_of_tokens = @tokens;
-    my ( $file, $line_no, $message, $severity, $code, $resolution_msg );
+    my ($file, $lineNum, $message, $severity, $code, $resolution_msg);
     my $flag = 1;
-    if ( $num_of_tokens eq 4 && !( $line =~ m/^\s*Did you mean.*$/i ) ) {
-	$file     = Util::AdjustPath( $package_name, $cwd, $tokens[0] );
-	$line_no  = $tokens[1];
-	$severity = Util::Trim( $tokens[2] );
+    if ($num_of_tokens eq 4 && !($line =~ m/^\s*Did you mean.*$/i))  {
+	$file     = Util::AdjustPath($packageName, $cwd, $tokens[0]);
+	$lineNum  = $tokens[1];
+	$severity = Util::Trim($tokens[2]);
 	$message  = $tokens[3];
 	$code     = $message;
 	$code =~ /^\s*\[(.*)\].*$/;
 	$code = $1;
-    }
-    elsif ( $line =~ m/^\s*Did you mean.*$/i ) {
+    }  elsif ($line =~ m/^\s*Did you mean.*$/i)  {
 	$resolution_msg = Util::Trim($line);
 	SetResolutionMsg($resolution_msg);
 	$flag = 0;
-    }
-    elsif ( $line =~ m/^\s*required:.*/i ) {
+    }  elsif ($line =~ m/^\s*required:.*/i)  {
 	$suggested_message = Util::Trim($line);
 	$flag              = 0;
-    }
-    elsif ( $line =~ m/^\s*found:.*/i ) {
-	$suggested_message = $suggested_message . " , " . Util::Trim($line);
+    }  elsif ($line =~ m/^\s*found:.*/i)  {
+	$suggested_message = $suggested_message . ", " . Util::Trim($line);
 	SetResolutionMsg($suggested_message);
 	$flag              = 0;
 	$suggested_message = "";
-    }
-    elsif ( $line =~ m/^\s*see http:.*/i ) {
+    }  elsif ($line =~ m/^\s*see http:.*/i)  {
 	my $url_text = Util::Trim($line);
 	SetURLText($url_text);
 	$flag = 0;
-    }
-    elsif ( $line =~ m/^\s*\^.*/i ) {
+    }  elsif ($line =~ m/^\s*\^.*/i)  {
 	my $column = length $line;
 	$column = $column - 1;
 	$flag   = 0;
 	SetColumnNumber($column);
-    }
-    else {
+    }  else  {
 	$flag = 0;
     }
-    if ( $flag ne 0 ) {
+
+    if ($flag ne 0)  {
 	$message = Util::Trim($message);
 
-	$temp_bug_object =
-	      CreateBugObject( $bug_report_line, $file, $line_no, $message,
-		    $severity, $code, $input_file );
+	$tempBug = CreateBugObject($bugReportLine, $file, $lineNum, $message,
+		$severity, $code, $inputFile);
 	$first_report = 0;
     }
 }
 
+
 sub RegisterBugPath {
-    my ($bug_report_line) = shift;
-    my $input_file = shift;
-    if ( $first_report == 1 ) {
-	return;
-    }
-    if ( defined $temp_bug_object ) {  #Store the information for prev bug trace
-	my ( $bugLineStart, $bugLineEnd );
-	if ( $trace_start_line eq $bug_report_line - 1 ) {
-	    $bugLineStart = $trace_start_line;
-	    $bugLineEnd   = $trace_start_line;
+    my ($bugReportLine, $inputFile) = @_;
+
+    return if $first_report == 1;
+
+    if (defined $tempBug)  {#Store the information for prev bug trace
+	my ($bugLineStart, $bugLineEnd);
+	if ($traceStartLine eq $bugReportLine - 1)  {
+	    $bugLineStart = $traceStartLine;
+	    $bugLineEnd   = $traceStartLine;
+	}  else  {
+	    $bugLineStart = $traceStartLine;
+	    $bugLineEnd   = $bugReportLine - 1;
 	}
-	else {
-	    $bugLineStart = $trace_start_line;
-	    $bugLineEnd   = $bug_report_line - 1;
-	}
-	$temp_bug_object->setBugLine( $bugLineStart, $bugLineEnd );
-	$temp_bug_object->setBugBuildId($build_id);
-	$temp_bug_object->setBugReportPath($temp_input_file);
-	$trace_start_line = $bug_report_line;
+	$tempBug->setBugLine($bugLineStart, $bugLineEnd);
+	$tempBug->setBugBuildId($buildId);
+	$tempBug->setBugReportPath($tempInputFile);
+	$traceStartLine = $bugReportLine;
     }
 
-    if ( defined $temp_bug_object ) {
-	$xmlWriterObj->writeBugObject($temp_bug_object);
+    if (defined $tempBug)  {
+	$xmlWriterObj->writeBugObject($tempBug);
     }
 }
 
+
 sub CreateBugObject {
-    my ( $bug_report_line, $file, $line_no, $message, $severity, $code,
-	    $input_file )
-	    = @_;
+    my ($bugReportLine, $file, $lineNum, $message, $severity, $code, $inputFile) = @_;
 
     #Store the information for prev bug trace
-    RegisterBugPath( $bug_report_line, $input_file );
+    RegisterBugPath($bugReportLine, $inputFile);
 
     #New Bug Instance
     my $methodId   = 0;
     my $locationId = 0;
-    my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
-    $bug_object->setBugMessage($message);
-    if ( defined($code) and $code ne '' ) { $bug_object->setBugCode($code); }
-    if ( defined($severity) and $severity ne '' ) {
-	$bug_object->setBugSeverity($severity);
+    my $bug = new bugInstance($xmlWriterObj->getBugId());
+    $bug->setBugMessage($message);
+    if (defined $code && $code ne '')  {
+	$bug->setBugCode($code);
+    }
+    if (defined $severity && $severity ne '')  {
+	$bug->setBugSeverity($severity);
     }
 
-    $bug_object->setBugLocation( ++$locationId, "", $file, $line_no, $line_no,
-	    0, 0, "", "true", "true" );
+    $bug->setBugLocation(++$locationId, "", $file, $lineNum, $lineNum,
+	    0, 0, "", "true", "true");
 
-    undef $temp_bug_object;
-    return $bug_object;
+    undef $tempBug;
+    return $bug;
 }
+
 
 sub SetResolutionMsg {
     my ($res_msg) = @_;
-    if ( defined $temp_bug_object ) {
-	$temp_bug_object->setBugSuggestion($res_msg);
+
+    if (defined $tempBug)  {
+	$tempBug->setBugSuggestion($res_msg);
     }
 }
+
 
 sub SetURLText {
     my ($url_txt) = @_;
-    if ( defined $temp_bug_object ) {
-	$temp_bug_object->setURLText($url_txt);
+
+    if (defined $tempBug)  {
+	$tempBug->setURLText($url_txt);
     }
 }
+
 
 sub SetColumnNumber {
     my ($column) = @_;
-    if ( defined $temp_bug_object ) {
-	$temp_bug_object->setBugColumn( $column, $column, 1 );
+
+    if (defined $tempBug)  {
+	$tempBug->setBugColumn($column, $column, 1);
     }
 }
+
 
 sub SplitString {
     my ($str) = @_;
-    $str =~ s/::+/~#~/g;
-    my @tokens = split( ':', $str, 4 );
-    my @ret;
-    foreach $a (@tokens) {
 
-	#                print $a,"\n";
+    $str =~ s/::+/~#~/g;
+    my @tokens = split(':', $str, 4);
+    my @ret;
+    foreach $a (@tokens)  {
+	#                print $a, "\n";
 	$a =~ s/~#~/::/g;
-	push( @ret, $a );
+	push(@ret, $a);
     }
     return (@ret);
 }
-

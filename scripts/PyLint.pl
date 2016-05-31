@@ -7,37 +7,33 @@ use XML::Twig;
 use xmlWriterObject;
 use Util;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
-	$help, $version );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
     ) or die("Error");
 
-Util::Usage()   if defined($help);
-Util::Version() if defined($version);
+Util::Usage()   if defined $help;
+Util::Version() if defined $version;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-  = Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
-my $temp_input_file;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
+my $tempInputFile;
 
 #Initialize the counter values
 my $bugId   = 0;
-my $file_Id = 0;
+my $fileId = 0;
 my $count   = 0;
 
 my %severity_hash = (
@@ -47,97 +43,98 @@ my %severity_hash = (
 	'E' => 'Error',
 	'F' => 'Fatal',
 	'I' => 'Information'
-    );
+);
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-foreach my $input_file (@input_file_arr) {
-    $temp_input_file = $input_file;
-    $build_id        = $build_id_arr[$count];
+foreach my $inputFile (@inputFiles)  {
+    $tempInputFile = $inputFile;
+    $buildId = $buildIds[$count];
     $count++;
-    open( my $fh, "<", "$input_dir/$input_file" )
-      or die "input file not found\n";
+    open(my $fh, "<", "$inputDir/$inputFile")
+	    or die "input file not found\n";
     my $msg = " ";
-    my $temp_bug_object;
-    while (<$fh>) {
-	my ( $file, $line_num, $bug_code, $bug_ex, $bug_msg );
+    my $tempBug;
+    while (<$fh>)  {
+	my ($file, $lineNum, $bugCode, $bugExample, $bugMsg);
 	my $line = $_;
 	chomp($line);
-	if ( $line =~ /^Report$/ ) {
+	if ($line =~ /^Report$/)  {
 	    last;
 	}
-	if (   !( $line =~ /^\*\*\*\*\*\*\*\*\*\*\*\*\*/ )
-		&& !( $line =~ /^$/ ) )   ## checking for comment line or empty line
-	{
-	    ( $file, $line_num, $bug_code, $bug_ex, $bug_msg ) =
-	      ParseLine($line);
-	    if ( $file eq "invalid_line" ) {
+
+	## checking for comment line or empty line
+	if (!($line =~ /^\*{13}/) && !($line =~ /^$/))  {
+	    ($file, $lineNum, $bugCode, $bugExample, $bugMsg) = ParseLine($line);
+	    if ($file eq "invalid_line")  {
 		$msg = $msg . "\n" . $line;
 		print "\n*** invalid line";
-		if ( defined $temp_bug_object ) {
-		    $temp_bug_object->setBugMessage($msg);
+		if (defined $tempBug)  {
+		    $tempBug->setBugMessage($msg);
 		}
-	    }
-	    else {
-		my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
-		if ( defined $temp_bug_object ) {
-		    $xmlWriterObj->writeBugObject($temp_bug_object);
+	    }  else  {
+		my $bug = new bugInstance($xmlWriterObj->getBugId());
+		if (defined $tempBug)  {
+		    $xmlWriterObj->writeBugObject($tempBug);
 		}
-		my $bug_severity = SeverityDet( substr( $bug_code, 0, 1 ) );
-		$bug_object->setBugLocation( 1, "", $file, $line_num, $line_num,
-			0, 0, "", 'true', 'true' );
-		$msg = $bug_object->setBugMessage($bug_msg);
-		$bug_object->setBugSeverity($bug_severity);
-		$bug_object->setBugCode($bug_code);
-		$bug_object->setBugBuildId($build_id);
-		$bug_object->setBugReportPath($temp_input_file);
-		$temp_bug_object = $bug_object;
+		my $bugSeverity = SeverityDet(substr($bugCode, 0, 1));
+		$bug->setBugLocation(1, "", $file, $lineNum, $lineNum, 0, 0, "", 'true', 'true');
+		$msg = $bug->setBugMessage($bugMsg);
+		$bug->setBugSeverity($bugSeverity);
+		$bug->setBugCode($bugCode);
+		$bug->setBugBuildId($buildId);
+		$bug->setBugReportPath($tempInputFile);
+		$tempBug = $bug;
 	    }
 	}
     }
-    if ( defined $temp_bug_object ) {
-	$xmlWriterObj->writeBugObject($temp_bug_object);
+    if (defined $tempBug)  {
+	$xmlWriterObj->writeBugObject($tempBug);
     }
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-sub ParseLine {
-    my $line = shift;
-    my @tokens1 = split( ":", $line );
-    if ( $#tokens1 < 2 ) {
+
+sub ParseLine
+{
+    my ($line) = @_;
+
+    my @tokens1 = split(":", $line);
+    if ($#tokens1 < 2)  {
 	return "invalid_line";
     }
-    my $file      = Util::AdjustPath( $package_name, $cwd, $tokens1[0] );
-    my $line_num  = $tokens1[1];
-    my $line_trim = $tokens1[2]
-      ; ## code to join rest of the message (this is done to recover from unwanted split due to : present in message)
-    for ( my $i = 3 ; $i <= $#tokens1 ; $i++ )    #
-    {                                             #
-	$line_trim = $line_trim . ":" . $tokens1[$i];    #
-    }    #
+    my $file      = Util::AdjustPath($packageName, $cwd, $tokens1[0]);
+    my $lineNum  = $tokens1[1];
+    my $line_trim = $tokens1[2];
+
+     ## code to join rest of the message (this is done to recover from unwanted split due to : present in message)
+    for (my $i = 3 ; $i <= $#tokens1 ; $i++)  {
+	$line_trim = $line_trim . ":" . $tokens1[$i];
+    }
     $line_trim =~ /\[(.*?)\](.*)/;
-    my $bug_des = $1;
-    my $bug_msg = $2;
-    $bug_msg =~ s/^\s+//;
-    $bug_msg =~ s/\s+$//;
-    my ( $bug_code, $bug_ex );
-    ( $bug_code, $bug_ex ) = split( ",", $bug_des );
-    $bug_code =~ s/^\s+//;
-    $bug_code =~ s/\s+$//;
-    $bug_ex   =~ s/^\s+//;
-    $bug_ex   =~ s/\s+$//;
-    return ( $file, $line_num, $bug_code, $bug_ex, $bug_msg );
+    my $bugDescription = $1;
+    my $bugMsg = $2;
+    $bugMsg =~ s/^\s+//;
+    $bugMsg =~ s/\s+$//;
+    my ($bugCode, $bugExample);
+    ($bugCode, $bugExample) = split(", ", $bugDescription);
+    $bugCode =~ s/^\s+//;
+    $bugCode =~ s/\s+$//;
+    $bugExample   =~ s/^\s+//;
+    $bugExample   =~ s/\s+$//;
+    return ($file, $lineNum, $bugCode, $bugExample, $bugMsg);
 }
 
-sub SeverityDet {
-    my $char = shift;
-    if ( exists $severity_hash{$char} ) {
-	return ( $severity_hash{$char} );
-    }
-    else {
+
+sub SeverityDet
+{
+    my ($char) = @_;
+
+    if (exists $severity_hash{$char})  {
+	return ($severity_hash{$char});
+    }  else  {
 	die "Unknown Severity $char";
     }
 }
-

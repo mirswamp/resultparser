@@ -7,47 +7,43 @@ use xmlWriterObject;
 use Util;
 use JSON;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file,
-	$weakness_count_file );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile
     ) or die("Error");
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-			= Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 my $count = 0;
 
-foreach my $input_file (@input_file_arr) {
-    $build_id = $build_id_arr[$count];
+foreach my $inputFile (@inputFiles)  {
+    $buildId = $buildIds[$count];
     $count++;
-    my $json_data;
+    my $jsonData;
     {
-	open FILE, "$input_dir/$input_file"
-	  or die "open $input_dir/$input_file.: $!";
+	open FILE, "$inputDir/$inputFile"
+	  or die "open $inputDir/$inputFile.: $!";
 	local $/;
-	$json_data = <FILE>;
-	close FILE or die "close $input_dir/$input_file: $!";
+	$jsonData = <FILE>;
+	close FILE or die "close $inputDir/$inputFile: $!";
     }
 
-    my @data = @{ decode_json($json) };
-    foreach my $arr (@data) {
-	my $bug_object = new bugInstance($bug_id);
+    my @data = @{decode_json($json)};
+    foreach my $arr (@data)  {
+	my $bug = new bugInstance($bugId);
 	my $jt         = $arr;
 	my $file       = $jt->{"file"};
 	my @results    = $jt->{"results"};
@@ -56,24 +52,24 @@ foreach my $input_file (@input_file_arr) {
 	my $detection  = $r->{"detection"};
 	my $version    = $r->{"version"};
 	my @vulns      = $r->{"vulnerabilities"}[0];
-	foreach my $v (@vulns) {
+	foreach my $v (@vulns)  {
 	    my $sev         = $v->{"severity"};
 	    my $identifiers = $v->{"identifiers"};
-	    if ( exists $identifiers->{"summary"} ) {
+	    if (exists $identifiers->{"summary"})  {
 		my $summary = $identifiers->{"summary"};
 	    }
-	    if ( exists $identifiers->{"bug"} ) {
+	    if (exists $identifiers->{"bug"})  {
 		my $bug = $identifiers->{"bug"};
 	    }
-	    if ( exists $identifiers->{"CVE"} ) {
+	    if (exists $identifiers->{"CVE"})  {
 		my @cve = $identifiers->{"CVE"};
 		my $cv  = $cve[0][0];
 	    }
 	}
 
 	#FIXME: Decide BugObject Population
-	my $bug_object = new bugInstance( $xmlWriterObj->getBugId() );
-	$xmlWriterObj->writeBugObject($bug_object);
+	my $bug = new bugInstance($xmlWriterObj->getBugId());
+	$xmlWriterObj->writeBugObject($bug);
     }
 
     $xmlWriterObj->writeSummary();
@@ -81,7 +77,6 @@ foreach my $input_file (@input_file_arr) {
 
 }
 
-if ( defined $weakness_count_file ) {
-    Util::PrintWeaknessCountFile( $weakness_count_file,
-	    $xmlWriterObj->getBugId() - 1 );
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
 }

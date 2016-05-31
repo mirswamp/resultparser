@@ -6,115 +6,104 @@ use bugInstance;
 use xmlWriterObject;
 use Util;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
-	$help, $version );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile,
+	$help, $version);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
 ) or die("Error");
 
-Util::Usage()   if defined($help);
-Util::Version() if defined($version);
+Util::Usage()   if defined $help;
+Util::Version() if defined $version;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-			    = Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion,
+	@inputFiles) = Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
 my $count = 0;
 
 #Initialize the counter values
 my $bugId   = 0;
-my $file_Id = 0;
-my ( $bugCode, $bugmsg, $line_no, $filepath );
+my $fileId = 0;
+my ($bugCode, $bugMsg, $lineNum, $filePath);
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
-my $temp_input_file;
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
+my $tempInputFile;
 
-if ( $tool_version ne "8ba3536" ) {
-    my $begin_line;
-    my $end_line;
-    my $json_data = "";
-    foreach my $input_file (@input_file_arr) {
+if ($toolVersion ne "8ba3536")  {
+    my $beginLine;
+    my $endLine;
+    my $jsonData = "";
+    foreach my $inputFile (@inputFiles)  {
 	{
-	    $temp_input_file = $input_file;
-	    $build_id        = $build_id_arr[$count];
+	    $tempInputFile = $inputFile;
+	    $buildId = $buildIds[$count];
 	    $count++;
-	    open FILE, "$input_dir/$input_file"
-		    or die "open $input_dir/$input_file : $!";
+	    open FILE, "$inputDir/$inputFile"
+		    or die "open $inputDir/$inputFile : $!";
 	    local $/;
-	    $json_data = <FILE>;
-	    close FILE or die "close $input_file : $!";
+	    $jsonData = <FILE>;
+	    close FILE or die "close $inputFile : $!";
 	}
-	my $json_object = JSON->new->utf8->decode($json_data);
+	my $jsonObject = JSON->new->utf8->decode($jsonData);
 
-	foreach my $warning ( @{ $json_object->{"results"} } ) {
-	    my $bug_object =
-		    GetBanditBugObjectFromJson( $warning, $xmlWriterObj->getBugId() );
-	    $xmlWriterObj->writeBugObject($bug_object);
+	foreach my $warning (@{$jsonObject->{"results"}})  {
+	    my $bug = GetBanditBugObjectFromJson($warning, $xmlWriterObj->getBugId());
+	    $xmlWriterObj->writeBugObject($bug);
 	}
     }
-}
-else {
-    foreach my $input_file (@input_file_arr) {
-	$temp_input_file = $input_file;
-	$build_id        = $build_id_arr[$count];
+}  else  {
+    foreach my $inputFile (@inputFiles)  {
+	$tempInputFile = $inputFile;
+	$buildId        = $buildIds[$count];
 	$count++;
-	my $start_bug = 0;
-	open( my $fh, "<", "$input_dir/$input_file" )
-		or die "unable to open the input file $input_file";
-	while (<$fh>) {
+	my $startBug = 0;
+	open(my $fh, "<", "$inputDir/$inputFile")
+		or die "unable to open the input file $inputFile";
+	while (<$fh>)  {
 	    my $line = $_;
 	    chomp($line);
-	    if ( $line = ~/Test results:/ ) {
-		$start_bug = 1;
+	    if ($line =~ /Test results:/)  {
+		$startBug = 1;
 		next;
 	    }
-	    next if ( $start_bug == 0 );
-	    my $first_line_seen = 0;
-	    if ( $line =~ /^\>\>/ ) {
-		if ( $first_line_seen > 0 ) {
-		    my $bug_object =
-			    new bugInstance( $xmlWriterObj->getBugId() );
-		    $bug_object->setBugLocation(
-			    1,        "", $filepath, $line_no,
-			    $line_no, "", "",        "",
-			    'true',   'true'
-			    );
-		    $bug_object->setBugCode($bugCode);
-		    $bug_object->setBugMessage($bugmsg);
-		    $bug_object->setBugBuildId($build_id);
-		    $bug_object->setBugReportPath($temp_input_file);
-		    $xmlWriterObj->writeBugObject($bug_object);
+	    next if ($startBug == 0);
+	    my $firstLineSeen = 0;
+	    if ($line =~ /^\>\>/)  {
+		if ($firstLineSeen > 0)  {
+		    my $bug = new bugInstance($xmlWriterObj->getBugId());
+		    $bug->setBugLocation(1, "", $filePath, $lineNum, $lineNum,
+			    "", "", "", 'true', 'true');
+		    $bug->setBugCode($bugCode);
+		    $bug->setBugMessage($bugMsg);
+		    $bug->setBugBuildId($buildId);
+		    $bug->setBugReportPath($tempInputFile);
+		    $xmlWriterObj->writeBugObject($bug);
 		    undef $bugCode;
-		    undef $bugmsg;
-		    undef $filepath;
-		    undef $line_no;
+		    undef $bugMsg;
+		    undef $filePath;
+		    undef $lineNum;
 		}
-		$first_line_seen = 1;
+		$firstLineSeen = 1;
 		$line =~ s/^\>\>//;
 		$bugCode = $line;
-		$bugmsg  = $line;
-	    }
-	    else {
-		my @tokens = split( "::", $line );
-		if ( $#tokens == 1 ) {
+		$bugMsg  = $line;
+	    }  else  {
+		my @tokens = split("::", $line);
+		if ($#tokens == 1)  {
 		    $tokens[0] =~ s/^ - //;
-		    $filepath =
-			    Util::AdjustPath( $package_name, $cwd, $tokens[0] );
-		    $line_no = $tokens[1];
+		    $filePath = Util::AdjustPath($packageName, $cwd, $tokens[0]);
+		    $lineNum = $tokens[1];
 		}
 	    }
 	}
@@ -125,33 +114,30 @@ else {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-if ( defined $weakness_count_file ) {
-    Util::PrintWeaknessCountFile( $weakness_count_file,
-	    $xmlWriterObj->getBugId() - 1 );
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
 }
 
 sub GetBanditBugObjectFromJson {
-    my $warning    = shift;
-    my $bug_id     = shift;
-    my $bug_object = new bugInstance($bug_id);
-    $bug_object->setBugCode( $warning->{"test_name"} );
-    $bug_object->setBugMessage( $warning->{"issue_text"} );
-    $bug_object->setBugSeverity( $warning->{"issue_severity"} );
-    $bug_object->setBugBuildId($build_id);
-    $bug_object->setBugReportPath($temp_input_file);
-    my $begin_line = $warning->{"line_number"};
-    my $end_line;
+    my ($warning, $bugId) = @_;
 
-    foreach my $number ( @{ $warning->{"line_range"} } ) {
-	$end_line = $number;
+    my $bug = new bugInstance($bugId);
+    $bug->setBugCode($warning->{"test_name"});
+    $bug->setBugMessage($warning->{"issue_text"});
+    $bug->setBugSeverity($warning->{"issue_severity"});
+    $bug->setBugBuildId($buildId);
+    $bug->setBugReportPath($tempInputFile);
+    my $beginLine = $warning->{"line_number"};
+    my $endLine;
+
+    foreach my $number (@{$warning->{"line_range"}})  {
+	$endLine = $number;
     }
-    my $filename =
-	    Util::AdjustPath( $package_name, $cwd, $warning->{"filename"} );
-    $bug_object->setBugLocation(
-	    1,         "",  $filename, $begin_line,
-	    $end_line, "0", "0",       "",
-	    'true',    'true'
+    my $filename = Util::AdjustPath($packageName, $cwd, $warning->{"filename"});
+    $bug->setBugLocation(
+	    1, "", $filename, $beginLine,
+	    $endLine, "0", "0", "",
+	    'true', 'true'
 	);
-    return $bug_object;
+    return $bug;
 }
-

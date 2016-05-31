@@ -6,68 +6,70 @@ use bugInstance;
 use xmlWriterObject;
 use Util;
 
-my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
-);
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
-	"input_dir=s"   => \$input_dir,
-	"output_file=s"  => \$output_file,
-	"tool_name=s"    => \$tool_name,
-	"summary_file=s" => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"   => \$inputDir,
+	"output_file=s"  => \$outputFile,
+	"tool_name=s"    => \$toolName,
+	"summary_file=s" => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help" => \$help,
 	"version" => \$version
-    ) or die("Error");
+) or die("Error");
 
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
+Util::Usage() if defined $help;
+Util::Version() if defined $version;
 
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
-
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
-my $temp_input_file;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
+my $tempInputFile;
 
 #Initialize the counter values
 my $bugId   = 0;
-my $file_Id = 0;
+my $fileId = 0;
 
-my %severity_hash = ('C'=>'Convention','R'=>'Refactor','W'=>'Warning','E'=>'Error','F'=>'Fatal','I'=>'Information');
+my %severity_hash = (
+	'C' => 'Convention',
+	'R' => 'Refactor',
+	'W' => 'Warning',
+	'E' => 'Error',
+	'F' => 'Fatal',
+	'I' => 'Information',
+);
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-foreach my $input_file (@input_file_arr) {
-    $temp_input_file = $input_file;
-    open( my $fh, "<", "$input_dir/$input_file" )
-	    or die "Input file $input_dir/$input_file not found \n";
-    while (<$fh>) {
-	my ( $file, $line_num, $bug_code, $bug_msg, $bug_severity );
+foreach my $inputFile (@inputFiles)  {
+    $tempInputFile = $inputFile;
+    open(my $fh, "<", "$inputDir/$inputFile")
+	    or die "Input file $inputDir/$inputFile not found \n";
+    while (<$fh>)  {
+	my ($file, $lineNum, $bugCode, $bugMsg, $bugSeverity);
 	my $line = $_;
 	chomp($line);
-	my @tokens = split( ':', $line );
-	next if ( $#tokens != 2 );
-	$file = Util::AdjustPath( $package_name, $cwd, $tokens[0] );
-	$line_num = $tokens[1];
+	my @tokens = split(':', $line);
+	next if ($#tokens != 2);
+	$file = Util::AdjustPath($packageName, $cwd, $tokens[0]);
+	$lineNum = $tokens[1];
 	$tokens[2] =~ /\[(.*?)\](.*)/;
-	$bug_code = $1;
-	$bug_msg  = $2;
-	my $sever = substr( $bug_code, 0, 1 );
-	$bug_severity = SeverityDet($sever);
+	$bugCode = $1;
+	$bugMsg  = $2;
+	my $sever = substr($bugCode, 0, 1);
+	$bugSeverity = SeverityDet($sever);
 	my $bugObj = new bugInstance($xmlWriterObj->getBugId());
-	$bugObj->setBugLocation( 1, "", $file, $line_num, $line_num, 0, 0, "",
-		'true', 'true' );
-	$bugObj->setBugMessage($bug_msg);
-	$bugObj->setBugCode($bug_code);
-	$bugObj->setBugSeverity($bug_severity);
-	$bugObj->setBugBuildId($build_id);
-	$bugObj->setBugReportPath($temp_input_file);
+	$bugObj->setBugLocation(1, "", $file, $lineNum, $lineNum, 0, 0, "", 'true', 'true');
+	$bugObj->setBugMessage($bugMsg);
+	$bugObj->setBugCode($bugCode);
+	$bugObj->setBugSeverity($bugSeverity);
+	$bugObj->setBugBuildId($buildId);
+	$bugObj->setBugReportPath($tempInputFile);
 	$xmlWriterObj->writeBugObject($bugObj);
     }
     $fh->close;
@@ -76,19 +78,18 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-if(defined $weakness_count_file){
-    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
 }
+
 
 sub SeverityDet
 {
-    my $char = shift;
-    if (exists $severity_hash{$char})
-    {
+    my ($char) = @_;
+
+    if (exists $severity_hash{$char})  {
         return($severity_hash{$char});
-    }
-    else
-    {
+    }  else  {
         die "Unknown Severity $char";
     }
 }

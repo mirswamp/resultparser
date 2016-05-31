@@ -6,60 +6,53 @@ use bugInstance;
 use xmlWriterObject;
 use Util;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file );
+my ($inputDir, $outputFile, $toolName, $summaryFile);
 
 GetOptions(
-	"input_dir=s"    => \$input_dir,
-	"output_file=s"  => \$output_file,
-	"tool_name=s"    => \$tool_name,
-	"summary_file=s" => \$summary_file
-    ) or die("Error");
+	"input_dir=s"    => \$inputDir,
+	"output_file=s"  => \$outputFile,
+	"tool_name=s"    => \$toolName,
+	"summary_file=s" => \$summaryFile
+) or die("Error");
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-			= Util::InitializeParser($summary_file);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser($summaryFile);
 
 #Initialize the counter values
 my $bugId   = 0;
-my $file_Id = 0;
+my $fileId = 0;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-foreach my $input_file (@input_file_arr) {
-    my $start_bug = 0;
-    open( my $fh, "<", "$input_dir/$input_file" )
-	    or die "Unable to open the input file $input_file";
-    while (<$fh>) {
+foreach my $inputFile (@inputFiles)  {
+    my $startBug = 0;
+    open(my $fh, "<", "$inputDir/$inputFile")
+	    or die "Unable to open the input file $inputFile";
+    while (<$fh>)  {
 	my $line = $_;
 	chomp($line);
-	if ( ($line =~ /^$/) or ($line eq '^') ) {
+	if (($line =~ /^$/) or ($line eq '^'))  {
 	    next;
 	}
 	my @fields = split /:/, $line, 4;
-	if (scalar @fields eq 4) {
-	    my $bug_object =
-	    new bugInstance( $xmlWriterObj->getBugId() );
-	    $bug_object->setBugLocation(
-		    1,        "", trim($fields[0]), trim($fields[1]),
-		    trim($fields[1]), "", "",        "",
-		    'true',   'true'
+	if (scalar @fields eq 4)  {
+	    my $bug =
+	    new bugInstance($xmlWriterObj->getBugId());
+	    $bug->setBugLocation(
+		    1, "", trim($fields[0]), trim($fields[1]),
+		    trim($fields[1]), "", "", "",
+		    'true', 'true'
 	    );
 	    #FIXME: Decide on BugCode for xmllint
-	    $bug_object->setBugCode(trim($fields[3]));
-	    $bug_object->setBugMessage(trim($fields[3]));
-	    $bug_object->setBugSeverity(trim($fields[2]));
-	    $bug_object->setBugBuildId($build_id);
-	    $bug_object->setBugReportPath(
-		    Util::AdjustPath(
-			    $package_name, $cwd, "$input_dir/$input"
-		    )
-	    );
-	    $xmlWriterObj->writeBugObject($bug_object);
+	    $bug->setBugCode(trim($fields[3]));
+	    $bug->setBugMessage(trim($fields[3]));
+	    $bug->setBugSeverity(trim($fields[2]));
+	    $bug->setBugBuildId($buildId);
+	    $bug->setBugReportPath(Util::AdjustPath($packageName, $cwd, "$inputDir/$input"));
+	    $xmlWriterObj->writeBugObject($bug);
 	}
     }
     $fh->close();
@@ -68,7 +61,11 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-sub trim {
-    (my $s = $_[0]) =~ s/^\s+|\s+$//g;
+
+sub trim
+{
+    my ($s) = @_;
+
+    $s =~ s/^\s+|\s+$//g;
     return $s;
 }

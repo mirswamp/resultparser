@@ -1,339 +1,386 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 package bugInstance;
 
-#use strict;
+use strict;
 
 use bugLocation;
 use bugMethod;
 
+
 sub new
 {
-    my $class=shift;
+    my $class = shift;
     my $self= {
-	_bugId=>shift
+	_bugId => shift
     };
     #my %_bugLocationHash;
-    bless $self,$class;
+    bless $self, $class;
     return $self;
 }
 
+
 sub setBugMessage
 {
-    my ($self,$bugMessage)=@_;
-    $self->{_bugMessage}=$bugMessage if defined ($bugMessage);
+    my ($self, $bugMessage) = @_;
+    $self->{_bugMessage}=$bugMessage if defined $bugMessage;
     return $self->{_bugMessage};
 }
 
 
 sub setBugLocation_old
 {
-    my ($self,$bugLocation)=@_;
-    $self->{_bugLocation}=$bugLocation if defined ($bugLocation);
+    my ($self, $bugLocation) = @_;
+    $self->{_bugLocation}=$bugLocation if defined $bugLocation;
     return $self->{_bugLocation};
 }
 
+
 sub setBugLocation
 {
-    my ($self,$bugLocationId,$bugClassname,$SourceFile,$startLineNo,$endLineNo,$beginColumn,$endColumn,$bugMessage,$primary,$resolvedFlag)=@_;
+    my ($self, $bugLocationId, $bugClassname, $SourceFile, $startLineNo,
+	    $endLineNo, $beginColumn, $endColumn, $bugMessage, $primary, $resolvedFlag) = @_;
     my $locationObject;
-    if ( $resolvedFlag eq 'true' or (defined ($startLineNo) && $startLineNo ne ""))
-    {
-	$locationObject = new bugLocation($bugLocationId,$bugClassname,$SourceFile,$startLineNo,$endLineNo,$beginColumn,$endColumn,$bugMessage,$primary);
-}
-else
-{	
-    $locationObject = new bugLocation($bugLocationId,$bugClassname,$self->{_classSourceFile},$self->{_classStartLine},$self->{_classEndLine},$beginColumn,$endColumn,$self->{_classMessage},$primary);
-}	
+    if ($resolvedFlag eq 'true' or (defined $startLineNo && $startLineNo ne ""))  {
+	$locationObject = new bugLocation($bugLocationId, $bugClassname, $SourceFile, $startLineNo,
+		$endLineNo, $beginColumn, $endColumn, $bugMessage, $primary);
+    }  else  {
+	$locationObject = new bugLocation($bugLocationId, $bugClassname, $self->{_classSourceFile},
+		$self->{_classStartLine}, $self->{_classEndLine}, $beginColumn, $endColumn,
+		$self->{_classMessage}, $primary);
+    }	
     $self->{_bugLocationHash}{$bugLocationId}=$locationObject;
 }
 
+
 sub setBugColumn
 {
-my ($self, $start_column, $end_column, $bugLocationId) = @_;
-my $locationObject = $self->{_bugLocationHash}{$bugLocationId}->setBugColumn($start_column, $end_column);
+    my ($self, $start_column, $end_column, $bugLocationId) = @_;
+    #FIXME: why $locationObject
+    my $locationObject = $self->{_bugLocationHash}{$bugLocationId}->setBugColumn($start_column, $end_column);
 }
+
 
 sub setBugMethod
 {
-    my ($self,$methodId,$className,$methodName,$primary)=@_;
-    my $methodObject = new bugMethod($methodId,$methodName,$className,$primary);
-    $self->{_bugMethodHash}{$methodId}=$methodObject;
+    my ($self, $methodId, $className, $methodName, $primary) = @_;
+    my $methodObject = new bugMethod($methodId, $methodName, $className, $primary);
+    $self->{_bugMethodHash}{$methodId} = $methodObject;
     #print $self->{_bugMethodHash}{$methodId}, "\n";
 }
 
+
 sub setSourceFile
 {
-    my ($self,$sourceFile)=@_;
-    $self->{_sourceFile}=$sourceFile if defined ($sourceFile);
+    my ($self, $sourceFile) = @_;
+    $self->{_sourceFile}=$sourceFile if defined $sourceFile;
     return $self->{_sourceFile};
 }
 
+
 sub setClassName
 {
-    my ($self,$className)=@_;
-    $self->{_className}=$className if defined ($className);
+    my ($self, $className) = @_;
+    $self->{_className}=$className if defined $className;
     return $self->{_className};
 }
 
+
 sub setClassAttribs
 {
-    my($self,$classname,$sourcefile,$start,$end,$classMessage) = @_;
+    my ($self, $classname, $sourcefile, $start, $end, $classMessage) = @_;
     #print $sourcefile, "\n";
-    $self->{_classSourceFile}=$sourcefile if defined ($sourcefile);
-    $self->{_className}=$classname if defined ($classname);
-    $self->{_classStartLine}=$start if defined ($start);
-    $self->{_classEndLine}=$end if defined ($end);
-    $self->{_classMessage}=$classMessage if defined ($classMessage);
+    $self->{_classSourceFile}=$sourcefile if defined $sourcefile;
+    $self->{_className}=$classname if defined $classname;
+    $self->{_classStartLine}=$start if defined $start;
+    $self->{_classEndLine}=$end if defined $end;
+    $self->{_classMessage}=$classMessage if defined $classMessage;
 }
+
 
 sub setBugSeverity
 {
-    my ($self,$bugSeverity)=@_;
-    $self->{_bugSeverity}=$bugSeverity if defined ($bugSeverity);
+    my ($self, $bugSeverity) = @_;
+    $self->{_bugSeverity}=$bugSeverity if defined $bugSeverity;
     return $self->{_bugSeverity};
 }
 
+
 sub setBugRank
 {
-    my ($self,$bugRank)=@_;
-    $self->{_bugRank}=$bugRank if defined ($bugRank);
+    my ($self, $bugRank) = @_;
+    $self->{_bugRank}=$bugRank if defined $bugRank;
     return $self->{_bugRank};
 }
 
+
 sub setCweId
 {
-    my ($self,$cweId)=@_;
-    push(@{$self->{_cweId}},$cweId) if defined ($cweId);
+    my ($self, $cweId) = @_;
+    push(@{$self->{_cweId}}, $cweId) if defined $cweId;
     return $self->{_cweId};
 }
 
+
 sub setBugGroup
 {
-   my($self,$group)=@_;
-   $self->{_bugGroup}=$group if defined ($group);
+   my ($self, $group) = @_;
+   $self->{_bugGroup}=$group if defined $group;
    return $self->{_bugGroup};
 }
 
+
 sub getBugGroup
 {
-    my ($self)=@_;
-    return $self->{_bugGroup} if defined ($self->{_bugGroup});
+    my ($self) = @_;
+    return $self->{_bugGroup} if defined $self->{_bugGroup};
 }
+
 
 sub setBugCode
 {
-    my($self,$code)=@_;
-    $self->{_bugCode}=$code if defined ($code);
+    my ($self, $code) = @_;
+    $self->{_bugCode}=$code if defined $code;
     return $self->{_bugCode};
 }
 
+
 sub getBugCode
 {
-    my($self)=@_;
-    return $self->{_bugCode} if defined ($self->{_bugCode});
+    my ($self) = @_;
+    return $self->{_bugCode} if defined $self->{_bugCode};
 }
+
 
 sub setBugSuggestion
 {
-    my($self,$suggestion)=@_;
-    $self->{_bugSuggestion}=$suggestion if defined ($suggestion);
+    my ($self, $suggestion) = @_;
+    $self->{_bugSuggestion}=$suggestion if defined $suggestion;
     return $self->{_bugSuggestion};
 }
 
+
 sub setBugPath
 {
-    my ($self,$bugPath)=@_;
-    $self->{_bugPath}=$bugPath if defined ($bugPath);
+    my ($self, $bugPath) = @_;
+    $self->{_bugPath}=$bugPath if defined $bugPath;
     return $self->{_bugPath};
 }
 
 
-
 sub setBugLine
 {
-    my ($self,$bugLineStart,$bugLineEnd)=@_;
-    $self->{_bugLineStart}=$bugLineStart if defined ($bugLineStart);
-    $self->{_bugLineEnd}=$bugLineEnd if defined ($bugLineEnd);
+    my ($self, $bugLineStart, $bugLineEnd) = @_;
+    $self->{_bugLineStart}=$bugLineStart if defined $bugLineStart;
+    $self->{_bugLineEnd}=$bugLineEnd if defined $bugLineEnd;
 }
+
 
 sub setBugReportPath
 {
     my ($self, $reportPath) = @_;
-    $self->{_reportPath} = $reportPath if defined ($reportPath);
+    $self->{_reportPath} = $reportPath if defined $reportPath;
     return $self->{_reportPath};
 }
 
+
 sub getBugReportPath
 {
-    my ($self)=@_;
-    return $self->{_reportPath} if defined ($self->{_reportPath});	
+    my ($self) = @_;
+    return $self->{_reportPath} if defined $self->{_reportPath};	
 }
+
 
 sub setBugBuildId
 {
     my ($self, $buildId) = @_;
-    $self->{_buildId} = $buildId if defined ($buildId);
+    $self->{_buildId} = $buildId if defined $buildId;
     return $self->{_buildId};
 }
 
+
 sub getBugBuildId
 {
-    my ($self)=@_;
-    return $self->{_buildId} if defined ($self->{_buildId});	
+    my ($self) = @_;
+    ### FIXME what is returned if $self->{_buildId} is not defined???
+    return $self->{_buildId} if defined $self->{_buildId};	
 }
+
 
 sub setURLText
 {
-    my ($self, $url_txt)=@_;
-    $self->{_url}=$url_txt if defined ($url_txt);
+    my ($self, $url_txt) = @_;
+    $self->{_url}=$url_txt if defined $url_txt;
 }
+
 
 sub getURLText
 {
     my ($self) = @_;
-    return $self->{_url} if defined ($self->{_url});
+    return $self->{_url} if defined $self->{_url};
 }
+
 
 sub setBugPackage
 {
-    my ($self,$bugPackage)=@_;
-    $self->{_package}=$bugPackage if defined ($bugPackage);
+    my ($self, $bugPackage) = @_;
+    $self->{_package}=$bugPackage if defined $bugPackage;
     return $self->{_package};
 }
+
 
 sub getBugPackage
 {
     my ($self) = @_;
-    return $self->{_package} if defined ($self->{_package});
+    return $self->{_package} if defined $self->{_package};
 }
+
 
 sub setBugPathLength
 {
-    my ($self,$bugPathLength)=@_;
-    $self->{_bugPathLength}=$bugPathLength if defined ($bugPathLength);
+    my ($self, $bugPathLength) = @_;
+    $self->{_bugPathLength}=$bugPathLength if defined $bugPathLength;
     return $self->{_bugPathLength};
 }
+
 
 sub getBugPathLength
 {
     my ($self) = @_;
-    return $self->{_bugPathLength} if defined ($self->{_bugPathLength});
+    return $self->{_bugPathLength} if defined $self->{_bugPathLength};
 }
+
 
 sub setCWEInfo
 {
     my ($self, $info) = @_;
-    $self->{_cwe}=$info if defined ($info);
+    $self->{_cwe}=$info if defined $info;
     return $self->{_cwe};
 }
+
 
 sub getCWEInfo
 {
     my ($self) = @_;
-    return $self->{_cwe} if defined ($self->{_cwe});
+    return $self->{_cwe} if defined $self->{_cwe};
 }
+
 
 sub setCWEArray
 {
     my $self = shift; 
-    if (length @_!=0){
+    if (length @_ != 0)  {
 	$self->{_cwe_array} = [];
 	@{$self->{_cwe_array}} = @_;
     }
     return @{$self->{_cwe_array}};
 }
 
+
 sub getCWEArray
 {
     my ($self) = @_;
-    return @{$self->{_cwe_array}} if defined ($self->{_cwe_array});
+    return @{$self->{_cwe_array}} if defined $self->{_cwe_array};
 }
+
 
 sub setBugPosition
 {
     my ($self, $info) = @_;
-    $self->{_position}=$info if defined ($info);
+    $self->{_position}=$info if defined $info;
     return $self->{_position};
 }
+
 
 sub getBugPosition
 {
     my ($self) = @_;
-    return $self->{_position} if defined ($self->{_position});
+    return $self->{_position} if defined $self->{_position};
 }
+
 
 sub setBugWarningCode
 {
     my ($self, $info) = @_;
-    $self->{_warningCode}=$info if defined ($info);
+    $self->{_warningCode}=$info if defined $info;
     return $self->{_warningCode};
 }
+
 
 sub getBugWarningCode
 {
     my ($self) = @_;
-    return $self->{_warningCode} if defined ($self->{_warningCode});
+    return $self->{_warningCode} if defined $self->{_warningCode};
 }
+
 
 sub setBugToolSpecificCode
 {
     my ($self, $info) = @_;
-    $self->{_toolSpecificCode}=$info if defined ($info);
+    $self->{_toolSpecificCode}=$info if defined $info;
     return $self->{_toolSpecificCode};
 }
+
 
 sub getBugToolSpecificCode
 {
     my ($self) = @_;
-    return $self->{_toolSpecificCode} if defined ($self->{_toolSpecificCode});
+    return $self->{_toolSpecificCode} if defined $self->{_toolSpecificCode};
 }
+
 
 sub setBugLongMessage
 {
-	my ($self, $info)=@_;
-	$self->{_long_message}=$info if defined ($info);
+    my ($self, $info) = @_;
+    $self->{_long_message}=$info if defined $info;
 }
+
 
 sub getBugLongMessage
 {
     my ($self) = @_;
-    return $self->{_long_message} if defined ($self->{_long_message});
+    return $self->{_long_message} if defined $self->{_long_message};
 }
+
 
 sub setBugShortMessage
 {
-    my ( $self, $info ) = @_;
-    $self->{_short_message} = $info if defined ($info);
+    my ($self, $info) = @_;
+    $self->{_short_message} = $info if defined $info;
 }
+
 
 sub getBugShortMessage
 {
     my ($self) = @_;
-    return $self->{_short_message} if defined ($self->{_short_message});
+    return $self->{_short_message} if defined $self->{_short_message};
 }
+
 
 sub setBugInconclusive
 {
     my ($self, $info) = @_;
-    $self->{_inconclusive} = $info if defined ($info);
+    $self->{_inconclusive} = $info if defined $info;
     return $self->{_inconclusive};
 }
 
+
 sub getBugInconclusive
 {
-    my ($self)=@_;
-    return $self->{_inconclusive} if defined ($self->{_inconclusive});	  
+    my ($self) = @_;
+    return $self->{_inconclusive} if defined $self->{_inconclusive};	  
 }
+
 
 sub printBugId
 {
-    my($self)=@_;
-    return $self->{_bugId} if defined ($self->{_bugId});
+    my ($self) = @_;
+    return $self->{_bugId} if defined $self->{_bugId};
 }
+
 
 sub printBugInstance
 {
-      my ($self)=@_;
+      my ($self) = @_;
       my $locn;
       foreach $locn (keys %{$self->{_bugLocationHash}})
       {
@@ -341,7 +388,7 @@ sub printBugInstance
 	  print $self->{_bugLocationHash}{$locn}->printBugLocation(), "\n";
       }
       my $method;
-      #print $self->{_bugMethodHash}{1}->printBugMethod(),"\n";
+      #print $self->{_bugMethodHash}{1}->printBugMethod(), "\n";
       foreach $method (keys %{$self->{_bugMethodHash}})
       {
 	  print "Method : ";
@@ -350,15 +397,16 @@ sub printBugInstance
       return $self->{_bugId} . " :: ". $self->{_bugMessage} . " :: " . $self->{_bugSeverity} . " :: " . $self->{_bugRank} . " :: " . $self->{_bugPath} . " :: " . $self->{_cweId} . " :: " . $self->{_bugSuggestion} . " :: " . $self->{_bugGroup};
 }
 
+
 sub printXML_sate
 {
-    my($self,$writer)=@_;
-#  if(keys %{$self->{_bugLocationHash}} > 0)
+    my ($self, $writer) = @_;
+#  if (keys %{$self->{_bugLocationHash}} > 0)
 #  {
-    $writer->startTag('weakness', 'id'=>$self->{_bugId});
+    $writer->startTag('weakness', 'id' => $self->{_bugId});
     if (defined $self->{_cweId})
     {
-	$writer->startTag('name', 'cweid'=>$self->{_cweId});
+	$writer->startTag('name', 'cweid' => $self->{_cweId});
     } else {
 	$writer->startTag('name');
     }
@@ -367,8 +415,8 @@ sub printXML_sate
     my $locn;
     foreach $locn (sort{$a <=> $b} keys %{$self->{_bugLocationHash}})
     {
-#		 print $self->{_classStartLine},$self->{_classEndLine},"\n";
-	$self->{_bugLocationHash}{$locn}->printXML($writer,$self->{_classStartLine},$self->{_classEndLine});
+#		 print $self->{_classStartLine}, $self->{_classEndLine}, "\n";
+	$self->{_bugLocationHash}{$locn}->printXML($writer, $self->{_classStartLine}, $self->{_classEndLine});
 	}
 	$writer->emptyTag('grade', 'severity' => $self->{_bugSeverity});
 #	 $writer->endTag(); #grade end tag
@@ -378,13 +426,14 @@ sub printXML_sate
 	$writer->endTag(); #textoutput end tag
 	$writer->endTag(); #output end tag
 	$writer->endTag(); #weakness end tag
-#   }
+#}
 }
+
 
 sub printXML
 {
-    my($self,$writer)=@_;
-    $writer->startTag('BugInstance', 'id'=>$self->{_bugId});
+    my ($self, $writer) = @_;
+    $writer->startTag('BugInstance', 'id' => $self->{_bugId});
 
     if (defined $self->{_className})
     {
@@ -405,7 +454,7 @@ sub printXML
     my $locn;
     foreach $locn (sort{$a <=> $b} keys %{$self->{_bugLocationHash}})
     {
-	$self->{_bugLocationHash}{$locn}->printXML($writer,$self->{_classStartLine},$self->{_classEndLine});
+	$self->{_bugLocationHash}{$locn}->printXML($writer, $self->{_classStartLine}, $self->{_classEndLine});
     }
     $writer->endTag();
     if (defined $self->{_cweId})

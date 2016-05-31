@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 package Parser;
 
 use strict;
@@ -6,9 +6,10 @@ use Getopt::Long;
 use Util;
 use xmlWriterObject;
 
-my @input_file_arr;
-my @build_id_arr;
+my @inputFiles;
+my @buildIds;
 my $xmlWriterObj;
+
 
 sub new {
     my $class = shift;
@@ -16,6 +17,7 @@ sub new {
     bless $self, $class;
     return $self;
 }
+
 
 sub InitializeParser {
     my $self = shift;
@@ -29,68 +31,72 @@ sub InitializeParser {
 	    "version"               => \$self->{_version}
     ) or die("Error");
 
-    Util::Usage()   if defined( $self->{_help} );
-    Util::Version() if defined( $self->{_version} );
+    Util::Usage()   if defined $self->{_help};
+    Util::Version() if defined $self->{_version};
 
-    if ( !defined $self->{_summary_file} ) {
+    if (!defined $self->{_summary_file})  {
 	    die "No summary file specified. Exiting.";
     }
-    if ( !defined $self->{_tool_name} ) {
-	$self->{_tool_name} = Util::GetToolName( $self->{_summary_file} );
+    if (!defined $self->{_tool_name})  {
+	$self->{_tool_name} = Util::GetToolName($self->{_summary_file});
     }
 
-    my @parsed_summary = Util::ParseSummaryFile( $self->{_summary_file} );
+    my @parsedSummary = Util::ParseSummaryFile($self->{_summary_file});
 
-    (
-	$self->{_uuid},         $self->{_package_name},
-	$self->{_build_id},     $self->{_input},
-	$self->{_cwd},          $self->{_replace_dir},
-	$self->{_tool_version}, @input_file_arr
-    ) = Util::InitializeParser(@parsed_summary);
+    ($self->{_uuid}, $self->{_package_name}, $self->{_build_id}, $self->{_input},
+	    $self->{_cwd}, $self->{_replace_dir}, $self->{_tool_version}, @inputFiles)
+	    = Util::InitializeParser(@parsedSummary);
 
-    @build_id_arr = Util::GetBuildIds(@parsed_summary);
-    undef @parsed_summary;
-    $xmlWriterObj = new xmlWriterObject( $self->{_output_file} );
-    $xmlWriterObj->addStartTag( $self->{_tool_name}, $self->{_tool_version},
-    $self->{_uuid} );
+    @buildIds = Util::GetBuildIds(@parsedSummary);
+    undef @parsedSummary;
+    $xmlWriterObj = new xmlWriterObject($self->{_output_file});
+    $xmlWriterObj->addStartTag($self->{_tool_name}, $self->{_tool_version},
+    $self->{_uuid});
 }
+
 
 sub GetInputFileArr {
-    return @input_file_arr;
+    return @inputFiles;
 }
+
 
 sub GetBuildID {
     my $index = shift;
-    return $build_id_arr[$index];
+    return $buildIds[$index];
 }
+
 
 sub GetInputDir {
     my $self = shift;
     return $self->{_input_dir};
 }
 
+
 sub GetPackageName {
     my $self = shift;
     return $self->{_package_name};
 }
+
 
 sub GetCWD {
     my $self = shift;
     return $self->{_cwd};
 }
 
+
 sub WriteBugObject {
-    my ( $self, $bugObject ) = @_;
-    $xmlWriterObj->writeBugObject($bugObject);
+    my ($self, $bug) = @_;
+    $xmlWriterObj->writeBugObject($bug);
 }
+
 
 sub EndXML {
     my $self = shift;
     $xmlWriterObj->writeSummary();
     $xmlWriterObj->addEndTag();
-    if ( defined $self->{_weakness_count_file} ) {
-	Util::PrintWeaknessCountFile( $self->{_weakness_count_file},
-	$xmlWriterObj->getBugId() - 1 );
+    if (defined $self->{_weakness_count_file})  {
+	Util::PrintWeaknessCountFile($self->{_weakness_count_file},
+	$xmlWriterObj->getBugId() - 1);
     }
 }
 1

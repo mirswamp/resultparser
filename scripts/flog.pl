@@ -9,72 +9,67 @@ use Util;
 use 5.010;
 
 my (
-    $input_dir,  $output_file,  $tool_name, $summary_file, $weakness_count_file, $help, $version
+    $inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version
 );
 
 GetOptions(
-	"input_dir=s"   => \$input_dir,
-	"output_file=s"  => \$output_file,
-	"tool_name=s"    => \$tool_name,
-	"summary_file=s" => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"   => \$inputDir,
+	"output_file=s"  => \$outputFile,
+	"tool_name=s"    => \$toolName,
+	"summary_file=s" => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help" => \$help,
 	"version" => \$version
     ) or die("Error");
 
-Util::Usage() if defined ( $help );
-Util::Version() if defined ( $version );
+Util::Usage() if defined $help;
+Util::Version() if defined $version;
 
-if( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ($uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version, @input_file_arr) = Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
 my $count = 0;
-my $temp_input_file;
+my $tempInputFile;
 
-foreach my $input_file (@input_file_arr) {
-    $temp_input_file = $input_file;
-    $build_id = $build_id_arr[$count];
+foreach my $inputFile (@inputFiles)  {
+    $tempInputFile = $inputFile;
+    $buildId = $buildIds[$count];
     $count++;
-    open my $file, "$input_dir/$input_file" or die ("Unable to open file $input_dir/$input_file");
+    open my $file, "$inputDir/$inputFile" or die ("Unable to open file $inputDir/$inputFile");
     state $counter = 0;
     my %h;
 
-    while ( my $line = <$file> ) {
-    	if ($line =~ /flog total/) {
+    while (my $line = <$file>)  {
+    	if ($line =~ /flog total/)  {
             my @fields = split /:/, $line;
             $h{'summary'}{'total'} = $fields[0];
             $h{'summary'}{'location'} = $.;
             $xmlWriterObj->writeMetricObject($h{'summary'});
-        }
-        elsif ($line =~ /method average/) {
+        }  elsif ($line =~ /method average/)  {
             my @fields = split /:/, $line;
             $h{'summary'}{'average'} = $fields[0];
             $h{'summary'}{'location'} = $.;
             $xmlWriterObj->writeMetricObject($h{'summary'});
-        }
-        elsif ($line =~/^$/) {
+        }  elsif ($line =~/^$/)  {
             #Ignore Empty Lines
-        }
-        elsif ($line =~ /none/) {
+        }  elsif ($line =~ /none/)  {
             $h{'none'}{'location'} = $.;
             my @fields = split /:/, $line;
             $h{'none'}{'CCN'} = $fields[0];
             $xmlWriterObj->writeMetricObject($h{'none'});
-        }
-        else {
+        }  else  {
             $line =~ /(\d+\.\d+):\s+([A-Za-z:]+)\#(\w+).*:(\d+)/;
-            $h{ $3 }{'CCN'} = $1;
-            $h{ $3 }{'line'} = $4;
-            $h{ $3 }{'location'} = $.;
+            $h{$3}{'CCN'} = $1;
+            $h{$3}{'line'} = $4;
+            $h{$3}{'location'} = $.;
             $xmlWriterObj->writeMetricObject($h{$3});
         }
         $counter++;
@@ -83,6 +78,6 @@ foreach my $input_file (@input_file_arr) {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
-if(defined $weakness_count_file){
-    Util::PrintWeaknessCountFile($weakness_count_file,$xmlWriterObj->getBugId()-1);
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
 }

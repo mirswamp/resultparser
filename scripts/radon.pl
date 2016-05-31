@@ -8,52 +8,48 @@ use xmlWriterObject;
 use Util;
 use 5.010;
 
-my ( $input_dir, $output_file, $tool_name, $summary_file, $weakness_count_file,
-	$help, $version );
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
-	"input_dir=s"           => \$input_dir,
-	"output_file=s"         => \$output_file,
-	"tool_name=s"           => \$tool_name,
-	"summary_file=s"        => \$summary_file,
-	"weakness_count_file=s" => \$weakness_count_file,
+	"input_dir=s"           => \$inputDir,
+	"output_file=s"         => \$outputFile,
+	"tool_name=s"           => \$toolName,
+	"summary_file=s"        => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
     ) or die("Error");
 
-Util::Usage()   if defined($help);
-Util::Version() if defined($version);
+Util::Usage()   if defined $help;
+Util::Version() if defined $version;
 
-if ( !$tool_name ) {
-    $tool_name = Util::GetToolName($summary_file);
-}
+$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
-my @parsed_summary = Util::ParseSummaryFile($summary_file);
-my ( $uuid, $package_name, $build_id, $input, $cwd, $replace_dir, $tool_version,
-	@input_file_arr )
-		= Util::InitializeParser(@parsed_summary);
-my @build_id_arr = Util::GetBuildIds(@parsed_summary);
-undef @parsed_summary;
+my @parsedSummary = Util::ParseSummaryFile($summaryFile);
+my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
+	= Util::InitializeParser(@parsedSummary);
+my @buildIds = Util::GetBuildIds(@parsedSummary);
+undef @parsedSummary;
 
-my $xmlWriterObj = new xmlWriterObject($output_file);
-$xmlWriterObj->addStartTag( $tool_name, $tool_version, $uuid );
+my $xmlWriterObj = new xmlWriterObject($outputFile);
+$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 my $count = 0;
 
-foreach my $input_file (@input_file_arr) {
+foreach my $inputFile (@inputFiles)  {
     state counter = 0;
-    $build_id = $build_id_arr[$count];
+    $buildId = $buildIds[$count];
     $count++;
     my $json;
     {
 	local $/;
-	open my $fh, "<", "$input_dir/$input_file";
+	open my $fh, "<", "$inputDir/$inputFile";
 	$json = <$fh>;
 	close $fh;
     }
     my $data    = decode_json($json);
-    my $k       = ( keys %{$data} )[0];
-    my @records = @{ $data->{$k} };
-    foreach my $v (@records) {
+    my $k       = (keys %{$data})[0];
+    my @records = @{$data->{$k}};
+    foreach my $v (@records)  {
 	my %h;
 	$h{$counter}{'name'}       = $v->{"name"};
 	$h{$counter}{'col_offset'} = $v->{"col_offset"};
@@ -63,7 +59,7 @@ foreach my $input_file (@input_file_arr) {
 	$h{$counter}{'lineno'}     = $v->{"lineno"};
 	$h{$counter}{'endline'}    = $v->{"endline"};
 	$h{$counter}{'type'}       = $v->{"type"};
-	$xmlWriterObj->writeMetricObject( $h{$counter} );
+	$xmlWriterObj->writeMetricObject($h{$counter});
 	$counter++;
     }
 }
