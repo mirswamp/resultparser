@@ -36,10 +36,10 @@ cd $TARGET_DIR/in-files/
 tar czf resultparser-$VERSION.tar.gz resultparser-$VERSION
 
 ./resultparser-$VERSION/genConf.sh resultparser-$VERSION.tar.gz
+cd $CURRENT_DIR
 rm -rf $TARGET_DIR/in-files/resultparser-$VERSION
 
 
-cd $CURRENT_DIR
 cp -f ../lib/* $TARGET_DIR/in-files
 
 cp -rf ../swamp-conf $TARGET_DIR
@@ -48,8 +48,9 @@ cp ../RELEASE_NOTES.txt $TARGET_DIR
 
 cd $TARGET_DIR
 
-find . -type f -exec md5sum {} \; > $TARGET_DIR/md5sum
+find . -type f -exec md5sum {} \; > md5sum
 
+cd $CURRENT_DIR
 cd $OUTPUT_DIR
 
 tar cf resultparser-$VERSION.tar resultparser-$VERSION
@@ -61,10 +62,3 @@ rm -rf $TARGET_DIR
 echo "Release TAR is available $OUTPUT_DIR/resultparser-$VERSION.tar"
 
 exit 0
-
-
-
-
-
-
-
