@@ -102,8 +102,9 @@
 	      </xs:element>
 	      <xs:element type="xs:string" name="Method" minOccurs="0"/>
   	      <xs:element type="xs:string" name="Type" minOccurs="0"/>
-	      <xs:element type="xs:long" name="Value" minOccurs="0"/>
+	      <xs:element type="xs:string" name="Value" minOccurs="0"/>
 	    </xs:sequence>
+            <xs:attribute type="xs:long" name="id" />
 	  </xs:complexType>
 	</xs:element>
 	<xs:element name="MetricSummaries" maxOccurs="1" minOccurs="0">
