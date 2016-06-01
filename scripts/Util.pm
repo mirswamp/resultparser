@@ -273,7 +273,7 @@ sub Version
 sub Usage
 {
 print <<EOF;
-"Usage: resultParser.pl [-h] [-v]
+Usage: resultParser.pl [-h] [-v]
           [--summary_file=<PATH_TO_SUMMARY_FILE>]
           [--input_dir=<PATH_TO_RESULTS_DIR>]
           [--output_dir=<PATH_TO_OUTPUT_DIR>]
@@ -297,7 +297,7 @@ Arguments
                                             (relative to the output_dir)
     --log_file                          Name of the log file
 EOF
-    exit 0;"
+    exit 0;
 }
 
 
