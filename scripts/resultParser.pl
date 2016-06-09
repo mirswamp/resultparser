@@ -75,7 +75,7 @@ sub executeParser
     my ($toolName) = @_;
 
     my @execString = ("perl", $script_dir."/".$toolName.".pl", "--tool_name=$toolName", "--summary_file=$summaryFile", "--output_file=$outputFile", "--input_dir=$in_dir", "--weakness_count_file=$weaknessCountFile");
-    my $out = system(@execString);
+    exec @execString;
 }
 
 
