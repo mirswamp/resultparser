@@ -270,7 +270,7 @@ sub writeSummary
 	    $writer->endTag();
 
 	    my $square_of_sum = $self->{metricSums}{$summary} * $self->{metricSums}{$summary};
-	    my $denominator = ($self->{metricCounts}{$summary} * $self->{metricCounts}{$summary}-1);
+	    my $denominator = $self->{metricCounts}{$summary} * ($self->{metricCounts}{$summary}-1);
 	    my $stddev = 0;
 	    if ($denominator != 0)  {
 		$stddev = sqrt(($self->{metricSumOfSquares}{$summary}
