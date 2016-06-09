@@ -5,27 +5,45 @@ use XML::Writer;
 use IO qw(File);
 
 
-
 sub new
 {
     my ($class, $outputFile) = @_;
-    my $self = {};
+
     $class = ref $class if ref $class;
 
-    $self->{_output} = new IO::File(">$outputFile");
-    $self->{_writer}=new XML::Writer(OUTPUT => $self->{_output}, DATA_MODE => 'true', DATA_INDENT => 2, ENCODING => 'utf-8');
-    $self->{byteCountHash} = {};
-    $self->{bugCounts} = {};
-    $self->{metricCounts} = {};
-    $self->{metricSums} = {};
-    $self->{metricSumOfSquares} = {};
-    $self->{metricinValues} = {};
-    $self->{metricMaxValues} = {};
-    $self->{bugId} = 1;
-    $self->{metricId} = 1;
+    my $output = new IO::File(">$outputFile");
+    my $writer = new XML::Writer(OUTPUT => $output, DATA_MODE => 'true', DATA_INDENT => 2, ENCODING => 'utf-8');
+    my $self = {
+	    output		=> $output,
+	    writer		=> $writer,
+	    metricCounts	=> {},
+	    metricSums		=> {},
+	    metricSumOfSquares	=> {},
+	    metricMinValues	=> {},
+	    metricMaxValues	=> {},
+	    bugId		=> 1,
+	    metricId		=> 0,
+	    };
 
     bless $self, $class;
+
     return $self;
+}
+
+
+sub getOutputFileReference
+{
+    my ($self) = @_;
+
+    return $self->{output};
+}
+
+
+sub getWriter
+{
+    my ($self) = @_;
+
+    return $self->{writer};
 }
 
 
@@ -33,72 +51,56 @@ sub addStartTag
 {
     my ($self, $toolName, $toolVersion, $uuid) = @_;
 
+    my $writer = $self->getWriter();
+
     ## This adds an XML Declaration to say that the output is UTF-8
     ## compliant.    It's a different thing than generating UTF-8.
     ## W/out this there is no XML declaration in the output document.
-    $self->{_writer}->xmlDecl('UTF-8');
-    $self->{_writer}->startTag('AnalyzerReport', 'tool_name' => "$toolName",
-	    'tool_version' => "$toolVersion", 'uuid'=> "$uuid");
+    $writer->xmlDecl('UTF-8');
+
+    my %attrs = (
+	    'tool_name'		=> "$toolName",
+	    'tool_version'	=> "$toolVersion",
+	    'uuid'		=> "$uuid"
+	    );
+    $writer->startTag('AnalyzerReport', %attrs);
 }
 
 
 sub addEndTag
 {
     my ($self) = @_;
-    $self->{_writer}->endTag();
-}
 
+    my $writer = $self->getWriter();
 
-sub getWriter
-{
-    my ($self) = @_;
-    return $self->{_writer};
+    $writer->endTag();
 }
 
 
 sub writeBugObject
 {
     my ($self, $bug) = @_;
+
+    my $writer = $self->getWriter();
+
     my $byte_count = 0;
     my $initial_byte_count = 0;
-    my $final_byte_count = tell($self->{_output});
+    my $output = $self->getOutputFileReference();
+    my $final_byte_count = tell($output);
     $initial_byte_count = $final_byte_count;
 
-    $bug->printXML($self->{_writer});
+    $bug->printXML($writer);
 
-    $final_byte_count = tell($self->{_output});
+    $final_byte_count = tell($output);
     $byte_count = $final_byte_count - $initial_byte_count;
 
     my $code = $bug->getBugCode();
     my $group = $bug->getBugGroup();
     my $tag;
 
-    if ($code ne "")  {
-	$tag = $code;
-    }  else  {
-	$tag = "undefined";
-    }
+    ++$self->{summary}{$group}{$code}{count};
+    $self->{summary}{$group}{$code}{bytes} += $byte_count;;
 
-    if ($group ne "")  {
-	$tag = $tag."~#~".$group; 
-    }  else  {
-	$tag = $tag."~#~"."undefined"; 
-    }
-
-    if (!(defined $tag))  {
-	die ("bug group and bug code doesnot exist for grouping the bugs");
-    }  else  {
-	if (exists $self->{bugCounts}{$tag})  {
-	    $self->{bugCounts}{$tag}++;
-	}  else  {
-	    $self->{bugCounts}{$tag} = 1; 
-	}
-	if (exists $self->{byteCountHash}{$tag})  {
-	    $self->{byteCountHash}{$tag} = $self->{byteCountHash}{$tag} + $byte_count;
-	}  else  {
-	    $self->{byteCountHash}{$tag} = $byte_count;
-	}
-    }
     $self->{bugId}++;
     undef $bug if defined $bug;
 }
@@ -106,15 +108,18 @@ sub writeBugObject
 
 sub writeMetricObjectUtil
 {
-    my ($self, %metricInstanceHash) = @_;
-    foreach my $object (keys(%metricInstanceHash))  {
-	foreach my $fnName (keys(%{$metricInstanceHash{$object}}))  {
-	    if ($fnName eq "func-stat")  {
-		foreach my $function (keys(%{$metricInstanceHash{$object}{$fnName}}))  {
-		    writeMetricObject($self, \%{$metricInstanceHash{$object}{$fnName}{$function}})
+    my ($self, $metrics) = @_;
+
+    foreach my $file (keys %$metrics)  {
+	foreach my $type (keys %{$metrics->{$file}})  {
+	    if ($type eq "func-stat")  {
+		foreach my $function (keys %{$metrics->{$file}{$type}})  {
+		    $self->writeMetricObject($metrics->{$file}{$type}{$function})
 		}
+	    }  elsif ($type eq 'file-stat')  {
+		$self->writeMetricObject($metrics->{$file}{$type});
 	    }  else  {
-		writeMetricObject($self, \%{$metricInstanceHash{$object}{$fnName}});
+		die "unknown type '$type' for metric for file '$file'";
 	    }
 	}
     }
@@ -123,91 +128,87 @@ sub writeMetricObjectUtil
 
 sub writeMetricObject
 {
-    my($self, $metricInstance) = @_;
-    my $filename = ${$metricInstance}{"file"};
+    my ($self, $metric) = @_;
+
+    my $writer = $self->getWriter();
+
+    my $filename = $metric->{"file"};
     my $functionName = "";
     my $class = "";
-    if (exists ${$metricInstance}{"function"})  {
-	$functionName = ${$metricInstance}{"function"};
+    if (exists $metric->{"function"})  {
+	$functionName = $metric->{"function"};
     }
-    if (exists ${$metricInstance}{"class"})  {
-	$class = ${$metricInstance}{"class"};
+    if (exists $metric->{"class"})  {
+	$class = $metric->{"class"};
     }
-    my $metricHash;
-    if (exists ${$metricInstance}{"metrics"})  {
-	$metricHash = ${$metricInstance}{"metrics"};
+    my $metrics;
+    if (exists $metric->{"metrics"})  {
+	$metrics = $metric->{"metrics"};
     }  else  {
 	return;
     }
 
-    foreach my $name (keys (%{$metricHash}))  {
-	if ($name eq "location" or $name eq "file")  {
+    foreach my $type (keys %$metrics)  {
+	if ($type !~ /^((blank|total|comment|code)-lines|language|ccn|params|token)$/)  {
+	    die "unknown metric type '$type'";
+	}
+	
+	++$self->{metricId};
+	$writer->startTag('Metric', 'id' => $self->{metricId});
 
-	}  else  {
-	    $self->{_writer}->startTag('Metric', 'id' => $self->{metricId});
+	$writer->startTag('Location');
+	$writer->startTag('SourceFile');
+	#$writer->characters($metric->{'SourceFile'});
+	$writer->characters($filename);
+	$writer->endTag();
+	$writer->endTag();
 
-	    $self->{_writer}->startTag('Location');
-	    $self->{_writer}->startTag('SourceFile');
-	    #$self->{_writer}->characters(${$metricInstance}{'SourceFile'});
-	    $self->{_writer}->characters($filename);
-	    $self->{_writer}->endTag();
-	    $self->{_writer}->endTag();
+	if ($class ne "")  {
+	    $writer->startTag('Class');
+	    $writer->characters($class);
+	    $writer->endTag();
+	}
 
-	    if ($class ne "")  {
-		$self->{_writer}->startTag('Class');
-		$self->{_writer}->characters($class);
-		$self->{_writer}->endTag();
+	if ($functionName ne "")  {
+	    $writer->startTag('Method');
+	    $writer->characters($functionName);
+	    $writer->endTag();
+	}
+	$writer->startTag('Type');
+	$writer->characters($type);
+	$writer->endTag();
+
+	my $value = $metrics->{$type};
+	$writer->startTag('Value');
+	$writer->characters($value);
+	$writer->endTag();
+
+	$writer->endTag();
+
+	if ($type ne "language" and exists $self->{metricCounts}{$type})  {
+	    $self->{metricSums}{$type} += $value;
+	    $self->{metricCounts}{$type} += 1;
+	    $self->{metricSumOfSquares}{$type} += $value * $value;
+	    if ($self->{metricMaxValues}{$type} < $value)  {
+		$self->{metricMaxValues}{$type} = $value;
+	    }  elsif ($self->{metricMinValues}{$type} > $value)  {
+		$self->{metricMinValues}{$type} = $value;
 	    }
-
-	    if (exists ${$metricHash}{'function'})  {
-		$self->{_writer}->startTag('Method');
-		$self->{_writer}->characters(${$metricHash}{'method'});
-		$self->{_writer}->endTag();
-	    }  elsif ($functionName ne "")  {
-		$self->{_writer}->startTag('Method');
-		$self->{_writer}->characters($functionName);
-		$self->{_writer}->endTag();
-	    }
-	    $self->{_writer}->startTag('Type');
-	    $self->{_writer}->characters($name);
-	    $self->{_writer}->endTag();
-	    $self->{_writer}->startTag('Value');
-	    $self->{_writer}->characters(${$metricHash}{$name});
-	    $self->{_writer}->endTag();
-	    $self->{_writer}->endTag();
-	    if ($name ne "language" and exists $self->{metricCounts}{$name})  {
-		$self->{metricSums}{$name} += ${$metricHash}{$name};
-		$self->{metricCounts}{$name} += 1;
-		$self->{metricSumOfSquares}{$name} += ${$metricHash}{$name}*${$metricHash}{$name};
-		if ($self->{metricMaxValues}{$name}<${$metricHash}{$name})  {
-		    $self->{metricMaxValues}{$name} = ${$metricHash}{$name};
-		}  elsif ($self->{metricinValues}{$name}>${$metricHash}{$name})  {
-		    $self->{metricinValues}{$name} = ${$metricHash}{$name};
-		}
-	    }  elsif ($name ne "language")  {
-		$self->{metricSums}{$name} = ${$metricHash}{$name};
-		$self->{metricCounts}{$name} = 1;
-		my $x = ${$metricHash}{$name};
-		$self->{metricSumOfSquares}{$name} = $x * $x;
-		$self->{metricMaxValues}{$name} = ${$metricHash}{$name};
-		$self->{metricinValues}{$name} = ${$metricHash}{$name};
-	    }
-	    $self->{metricId}++;
+	}  elsif ($type ne "language")  {
+	    $self->{metricSums}{$type} = $value;
+	    $self->{metricCounts}{$type} = 1;
+	    $self->{metricSumOfSquares}{$type} = $value * $value;
+	    $self->{metricMaxValues}{$type} = $value;
+	    $self->{metricMinValues}{$type} = $value;
 	}
     }
-}
-
-
-sub getOutputFileReference
-{
-    my ($self) = @_;
-    return $self->{_output};
 }
 
 
 sub getBugId
 {
     my ($self) = @_;
+
     return $self->{bugId};
 }
 
@@ -215,53 +216,58 @@ sub getBugId
 sub writeSummary
 {
     my ($self) = @_;
-    if (%{$self->{bugCounts}})  {
-	$self->{_writer}->startTag('BugSummary') ;
-	foreach my $object (keys %{$self->{bugCounts}})  {
-	    my ($code, $group) = split ('~#~', $object);
-	    $self->{_writer}->emptyTag('BugCategory', 'group' => "$group", 'code' => "$code",
-		    'count' => $self->{bugCounts}{$object},
-		    'bytes' => $self->{byteCountHash}{$object});
+
+    my $writer = $self->getWriter();
+
+    if ($self->{summary})  {
+	$writer->startTag('BugSummary');
+	foreach my $group (sort keys %{$self->{summary}})  {
+	    foreach my $code (sort keys ${$self->{summary{$group}}})  {
+		my $data = $self->{summary}{$group}{$code};
+		$writer->emptyTag('BugCategory', 'group' => "$group", 'code' => "$code",
+			'count' => $data->{count}, 'bytes' => $data->{bytes});
+	    }
 	}
-	$self->{_writer}->endTag();
+	$writer->endTag();
     }
+
     if (%{$self->{metricCounts}})  {
-	$self->{_writer}->startTag('MetricSummaries');
+	$writer->startTag('MetricSummaries');
 	foreach my $summary (keys %{$self->{metricCounts}})  {
-	    $self->{_writer}->startTag('MetricSummary');
+	    $writer->startTag('MetricSummary');
 
-	    $self->{_writer}->startTag('Type');
-	    $self->{_writer}->characters($summary);
-	    $self->{_writer}->endTag();
+	    $writer->startTag('Type');
+	    $writer->characters($summary);
+	    $writer->endTag();
 
-	    $self->{_writer}->startTag('Count');
-	    $self->{_writer}->characters($self->{metricCounts}{$summary});
-	    $self->{_writer}->endTag();
+	    $writer->startTag('Count');
+	    $writer->characters($self->{metricCounts}{$summary});
+	    $writer->endTag();
 
-	    $self->{_writer}->startTag('Sum');
-	    $self->{_writer}->characters($self->{metricSums}{$summary});
-	    $self->{_writer}->endTag();
+	    $writer->startTag('Sum');
+	    $writer->characters($self->{metricSums}{$summary});
+	    $writer->endTag();
 
-	    $self->{_writer}->startTag('SumOfSquares');
-	    $self->{_writer}->characters($self->{metricSumOfSquares}{$summary});
-	    $self->{_writer}->endTag();
+	    $writer->startTag('SumOfSquares');
+	    $writer->characters($self->{metricSumOfSquares}{$summary});
+	    $writer->endTag();
 
-	    $self->{_writer}->startTag('Minimum');
-	    $self->{_writer}->characters($self->{metricinValues}{$summary});
-	    $self->{_writer}->endTag();
+	    $writer->startTag('Minimum');
+	    $writer->characters($self->{metricMinValues}{$summary});
+	    $writer->endTag();
 
-	    $self->{_writer}->startTag('Maximum');
-	    $self->{_writer}->characters($self->{metricMaxValues}{$summary});
-	    $self->{_writer}->endTag();
+	    $writer->startTag('Maximum');
+	    $writer->characters($self->{metricMaxValues}{$summary});
+	    $writer->endTag();
 
-	    $self->{_writer}->startTag('Average');
+	    $writer->startTag('Average');
 	    my $count = $self->{metricCounts}{$summary};
 	    my $avg = 0;
 	    if ($count != 0)  {
 		$avg = $self->{metricSums}{$summary}/$count;
 	    }
-	    $self->{_writer}->characters(sprintf("%.2f", $avg));
-	    $self->{_writer}->endTag();
+	    $writer->characters(sprintf("%.2f", $avg));
+	    $writer->endTag();
 
 	    my $square_of_sum = $self->{metricSums}{$summary} * $self->{metricSums}{$summary};
 	    my $denominator = ($self->{metricCounts}{$summary} * $self->{metricCounts}{$summary}-1);
@@ -270,13 +276,13 @@ sub writeSummary
 		$stddev = sqrt(($self->{metricSumOfSquares}{$summary}
 			* $self->{metricCounts}{$summary} - $square_of_sum) / $denominator);
 	    }
-	    $self->{_writer}->startTag('StandardDeviation');
-	    $self->{_writer}->characters(sprintf("%.2f", $stddev));
-	    $self->{_writer}->endTag();
+	    $writer->startTag('StandardDeviation');
+	    $writer->characters(sprintf("%.2f", $stddev));
+	    $writer->endTag();
 
-	    $self->{_writer}->endTag();
+	    $writer->endTag();
 	}
-	$self->{_writer}->endTag();
+	$writer->endTag();
     }
 }
 
