@@ -222,7 +222,7 @@ sub writeSummary
     if ($self->{summary})  {
 	$writer->startTag('BugSummary');
 	foreach my $group (sort keys %{$self->{summary}})  {
-	    foreach my $code (sort keys ${$self->{summary{$group}}})  {
+	    foreach my $code (sort keys %{$self->{summary}{$group}})  {
 		my $data = $self->{summary}{$group}{$code};
 		$writer->emptyTag('BugCategory', 'group' => "$group", 'code' => "$code",
 			'count' => $data->{count}, 'bytes' => $data->{bytes});
