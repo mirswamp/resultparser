@@ -48,7 +48,7 @@ foreach my $inputFile (@inputFiles)  {
     $count++;
     $twig->parsefile("$inputDir/$inputFile");
 }
-$xmlWriterObj->writeMetricObjectUtil(%h);
+$xmlWriterObj->writeMetricObjectUtil(\%h);
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
@@ -72,7 +72,7 @@ sub metrics {
 	my $total      = $comment + $code + $blank;
 	my $sourcefile = $n->{'att'}->{'name'};
 	my $language   = $n->{'att'}->{'language'};
-	$h{$sourcefile}{'func-stat'}                             = "";
+	$h{$sourcefile}{'func-stat'}                             = {};
 	$h{$sourcefile}{'file-stat'}{'file'}                     = $sourcefile;
 	$h{$sourcefile}{'file-stat'}{'location'}{'startline'}    = "";
 	$h{$sourcefile}{'file-stat'}{'location'}{'endline'}      = "";

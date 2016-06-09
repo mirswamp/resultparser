@@ -99,7 +99,7 @@ foreach my $inputFile (@inputFiles)  {
 	if (exists $h{$fn_name})  {
 		# Update uniquifier
 	}
-	$h{$sourcefile}{'file-stat'} = "";
+	$h{$sourcefile}{'file-stat'} = {};
 	$h{$sourcefile}{'func-stat'}{$fn_name}{'class'} = $class;
 	if ($fn eq '')  {
 	    $h{$sourcefile}{'func-stat'}{$fn_name}{'function'} = $fn_name;
@@ -116,7 +116,7 @@ foreach my $inputFile (@inputFiles)  {
 	$h{$sourcefile}{'func-stat'}{$fn_name}{'location'}{'endline'} = $fm[1];
     }
 }
-$xmlWriterObj->writeMetricObjectUtil(%h);
+$xmlWriterObj->writeMetricObjectUtil(\%h);
 undef %h;
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
