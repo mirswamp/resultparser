@@ -93,6 +93,8 @@ sub summary {
 }
 
 
+my $counter = 0;
+
 sub modules {
     my ($twig, $mod) = @_;
 
@@ -100,8 +102,6 @@ sub modules {
     my @nodes = $root->descendants;
     my $line  = $twig->{twig_parser}->current_line;
     my $col   = $twig->{twig_parser}->current_column;
-
-    state $counter = 0;
 
     my $name = $mod->first_child('name')->text;
     my $loc  = $mod->first_child('lines_of_code')->att('value');

@@ -38,13 +38,13 @@ $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
 my $count = 0;
 my $tempInputFile;
+my $counter = 0;
 
 foreach my $inputFile (@inputFiles)  {
     $tempInputFile = $inputFile;
     $buildId = $buildIds[$count];
     $count++;
     open my $file, "$inputDir/$inputFile" or die ("Unable to open file $inputDir/$inputFile");
-    state $counter = 0;
     my %h;
 
     while (my $line = <$file>)  {

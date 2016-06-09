@@ -34,9 +34,9 @@ undef @parsedSummary;
 my $xmlWriterObj = new xmlWriterObject($outputFile);
 $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 my $count = 0;
+my counter = 0;
 
 foreach my $inputFile (@inputFiles)  {
-    state counter = 0;
     $buildId = $buildIds[$count];
     $count++;
     my $json;
