@@ -308,7 +308,7 @@ sub bugSuggestion {
 
     if (defined $type)  {
 	my $suggestion = $suggestionHash{$type};
-	$suggestion =~ s/(^ *)|(*$)//g;
+	$suggestion =~ s/(^ *)|( *$)//g;
 	$suggestion =~ s/\n|\r/ /g;
 	$bug->setBugSuggestion($suggestion);
     }
