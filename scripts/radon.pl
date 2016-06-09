@@ -34,11 +34,11 @@ undef @parsedSummary;
 my $xmlWriterObj = new xmlWriterObject($outputFile);
 $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 my $count = 0;
-my counter = 0;
 
 foreach my $inputFile (@inputFiles)  {
     $buildId = $buildIds[$count];
     $count++;
+
     my $json;
     {
 	local $/;
@@ -47,20 +47,31 @@ foreach my $inputFile (@inputFiles)  {
 	close $fh;
     }
     my $data    = decode_json($json);
-    my $k       = (keys %{$data})[0];
-    my @records = @{$data->{$k}};
-    foreach my $v (@records)  {
-	my %h;
-	$h{$counter}{'name'}       = $v->{"name"};
-	$h{$counter}{'col_offset'} = $v->{"col_offset"};
-	$h{$counter}{'rank'}       = $v->{"rank"};
-	$h{$counter}{'classname'}  = $v->{"classname"};
-	$h{$counter}{'complexity'} = $v->{"complexity"};
-	$h{$counter}{'lineno'}     = $v->{"lineno"};
-	$h{$counter}{'endline'}    = $v->{"endline"};
-	$h{$counter}{'type'}       = $v->{"type"};
-	$xmlWriterObj->writeMetricObject($h{$counter});
-	$counter++;
+
+    foreach my $file (keys %$data)  {
+	foreach my $object (@{$data->{$file}})  {
+	    my $type = $object->{type};
+	    my $class = '';
+	    my $startline = $object->{lineno};
+	    my $endline = $object->{endline};
+	    if ($type ne 'function')  {
+		$class = $object->{$type eq 'class' ? 'name' : 'classname'};
+	    }
+	    my $function = ($type eq 'class') ? '' : $object->{name};
+	    my %m = (
+		    file		=> $file,
+		    class		=> $class,
+		    function		=> $function,
+		    location		=> {
+					    startline		=> $startline,
+					    endline		=> $endline,
+					},
+		    metrics		=> {},
+	    );
+	    $m{metrics}{'code-lines'} = $endline - $startline + 1;
+	    $m{metrics}{ccn} = $object->{complexity} if exists $object->{complexity};
+	    $xmlWriterObj->writeMetricObject(\%m);
+	}
     }
 }
 $xmlWriterObj->writeSummary();
