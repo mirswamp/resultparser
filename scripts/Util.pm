@@ -254,11 +254,12 @@ sub GetBuildIds {
 
 
 sub PrintWeaknessCountFile {
-    my ($weaknessCountFile, $weakness_count) = @_;
+    my ($weaknessCountFile, $weaknessCount) = @_;
+
     if (defined $weaknessCountFile)  {
-        open my $wkfh, ">", $weaknessCountFile;
-        print $wkfh "weaknesses : " . $weakness_count . "\n";
-        $wkfh->close();
+        open WFILE, ">", $weaknessCountFile or die "open $weaknessCountFile: $!";
+        print WFILE "weaknesses: $weaknessCount\n";
+        close WFILE or die "close $weaknessCountFile: $!";
     }
 }
 
