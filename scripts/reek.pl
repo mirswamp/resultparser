@@ -4,6 +4,7 @@ use strict;
 use Getopt::Long;
 use bugInstance;
 use XML::Twig;
+use JSON;
 use xmlWriterObject;
 use Util;
 
@@ -44,7 +45,6 @@ if ($inputFiles[0] =~ /\.json$/)  {
 	$buildId = $buildIds[$count];
 	$count++;
 	my $bug = ParseJsonOutput("$inputDir/$inputFile");
-	$xmlWriterObj->writeBugObject($bug);
     }
 }  elsif ($inputFiles[0] =~ /\.xml$/)  {
     my $twig = XML::Twig->new(
@@ -65,8 +65,11 @@ if (defined $weaknessCountFile)  {
     Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
 }
 
+# writer object hash was not closed and buffered data lost, so force it to close
+undef $xmlWriterObj;
 
-sub parseJsonOutput
+
+sub ParseJsonOutput
 {
     my ($inputFile) = @_;
 
@@ -99,6 +102,8 @@ sub parseJsonOutput
 	my $startLine = @{$lines}[0];
 	my $endLine;
 
+	# FIX ME dumb way to get the last array element
+	# FIX ME these lines are not a range, but individual locations
 	foreach (@{$lines})  {
 	    $endLine = $_;
 	}
@@ -122,6 +127,7 @@ sub parseJsonOutput
 		}
 	    }
 	}  else  {
+	    # FIX ME use a hash
 	    my @smell_type_list = (
 		    'ModuleInitialize', 'UncommunicativeModuleName',
 		    'IrresponsibleModule', 'TooManyInstanceVariables',
