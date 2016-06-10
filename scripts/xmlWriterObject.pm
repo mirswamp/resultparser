@@ -11,7 +11,7 @@ sub new
 
     $class = ref $class if ref $class;
 
-    my $output = new IO::File(">$outputFile");
+    my $output = new IO::File(">$outputFile") or die "open $outputFile: $!";;
     my $writer = new XML::Writer(OUTPUT => $output, DATA_MODE => 'true', DATA_INDENT => 2, ENCODING => 'utf-8');
     my $self = {
 	    output		=> $output,
@@ -28,6 +28,17 @@ sub new
     bless $self, $class;
 
     return $self;
+}
+
+
+sub DESTROY
+{
+    my ($self) = @_;
+
+    if (exists $self->{output})  {
+	$self->{output}->close() or die "xmlWriterObject::DESTROY writer close failed: $!";
+	delete $self->{output};
+    }
 }
 
 
@@ -83,20 +94,16 @@ sub writeBugObject
 
     my $writer = $self->getWriter();
 
-    my $byte_count = 0;
-    my $initial_byte_count = 0;
     my $output = $self->getOutputFileReference();
-    my $final_byte_count = tell($output);
-    $initial_byte_count = $final_byte_count;
+    my $initial_byte_count = tell($output);
 
     $bug->printXML($writer);
 
-    $final_byte_count = tell($output);
-    $byte_count = $final_byte_count - $initial_byte_count;
+    my $final_byte_count = tell($output);
+    my $byte_count = $final_byte_count - $initial_byte_count;
 
     my $code = $bug->getBugCode();
     my $group = $bug->getBugGroup();
-    my $tag;
 
     ++$self->{summary}{$group}{$code}{count};
     $self->{summary}{$group}{$code}{bytes} += $byte_count;;
