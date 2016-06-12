@@ -2,6 +2,7 @@
 
 use strict;
 use Getopt::Long;
+use JSON;
 use bugInstance;
 use xmlWriterObject;
 use Util;
