@@ -74,3 +74,7 @@ foreach my $inputFile (@inputFiles)  {
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
+
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
+}
