@@ -49,8 +49,10 @@ my @bugCode_cweId;    # first element is bug code and other elements are cweids
 my $tempBug;
 my %buglocation_hash;
 
-opendir(DIR, $inputDir);
-my @filelist = grep {-f "$inputDir/$_" && $_ =~ m/\.xml$/} readdir(DIR);
+my $resultsDir = "$inputDir/$inputFiles[0]";
+
+opendir(DIR, $resultsDir);
+my @filelist = grep {-f "$resultsDir/$_" && $_ =~ m/\.xml$/} readdir(DIR);
 
 my $xmlWriterObj = new xmlWriterObject($outputFile);
 $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
@@ -67,7 +69,7 @@ foreach my $inputFile (@filelist)  {
     undef($filename);
     undef($bugGroup);
     undef($line);
-    $twig->parsefile("$inputDir/$inputFile");
+    $twig->parsefile("$resultsDir/$inputFile");
     my $bug = new bugInstance($xmlWriterObj->getBugId());
     $tempBug = $bug;
     $bug->setBugMessage($bugMsg);
