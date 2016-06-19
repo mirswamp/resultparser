@@ -50,7 +50,7 @@ foreach my $inputFile (@inputFiles)  {
     my $file = "build_stdout.out";
     open my $fh, "<", "$inputDir/$inputFile"
 	    or die "Could not open file $inputDir/$inputFile";
-    my @lines = Readline($fh);
+    my @lines = <$fh>;
     close $fh;
     chomp @lines;
     my $confidence = "";
