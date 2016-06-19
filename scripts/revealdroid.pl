@@ -71,7 +71,7 @@ foreach my $inputFile (@inputFiles)  {
 	}
     }
     if (($bugType eq "Benign") and ($confidence == 1))  {
-	return 1;
+	next;
     }
 
     #Create Bug Object#
