@@ -96,7 +96,8 @@ LINE:
 	}
     }
     if (defined $bug)  {
-	RegisterBugpath($currentLineNum);
+	$xmlWriterObj->writeBugObject($bug);
+	undef $bug;
     }
 }
 $xmlWriterObj->writeSummary();
