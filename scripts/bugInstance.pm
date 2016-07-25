@@ -268,7 +268,7 @@ sub getCWEInfo
 sub setCWEArray
 {
     my $self = shift; 
-    if (length @_ != 0)  {
+    if (@_ != 0)  {
 	$self->{_cwe_array} = [];
 	@{$self->{_cwe_array}} = @_;
     }
