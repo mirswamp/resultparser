@@ -36,7 +36,9 @@ sub DESTROY
     my ($self) = @_;
 
     if (exists $self->{output})  {
-	$self->{output}->close() or die "xmlWriterObject::DESTROY writer close failed: $!";
+	if (defined $self->{output})  {
+	    $self->{output}->close() or print STDERR "xmlWriterObject::DESTROY writer close failed: $!";
+	}
 	delete $self->{output};
     }
 }
