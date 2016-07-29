@@ -30,8 +30,8 @@ my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inp
 my @buildIds = Util::GetBuildIds(@parsedSummary);
 undef @parsedSummary;
 
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
+my $xmlWriter = new xmlWriterObject($outputFile);
+$xmlWriter->addStartTag($toolName, $toolVersion, $uuid);
 my $count = 0;
 
 foreach my $inputFile (@inputFiles)  {
@@ -48,20 +48,20 @@ foreach my $inputFile (@inputFiles)  {
     my $jsonObject = JSON->new->utf8->decode($jsonData);
 
     foreach my $error (@{$jsonObject->{"errors"}})  {
-	GetFlowObject($error, $xmlWriterObj->getBugId());
+	GetFlowObject($error, $xmlWriter->getBugId(), $xmlWriter);
     }
 }
 
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
+$xmlWriter->writeSummary();
+$xmlWriter->addEndTag();
 
 if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriter->getBugId() - 1);
 }
 
 
 sub GetFlowObject  {
-    my ($e, $bugId) = @_;
+    my ($e, $bugId, $xmlWriter) = @_;
 
     my $error_message = "";
     my @messages      = @{$e->{"message"}};
@@ -106,5 +106,5 @@ sub GetFlowObject  {
     $bug->setBugCode($bugCode);
     $bug->setBugSeverity($e->{"level"});
     $bug->setBugGroup($e->{"level"});
-    $xmlWriterObj->writeBugObject($bug);
+    $xmlWriter->writeBugObject($bug);
 }
