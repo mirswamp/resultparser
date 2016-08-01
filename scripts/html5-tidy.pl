@@ -52,31 +52,35 @@ foreach my $inputFile (@inputFiles)  {
     $count++;
     open($fh, "<", "$inputDir/$inputFile")
 	    or die "unable to open the input file $inputFile";
+    my $lineNum = 0;
     while (<$fh>)  {
 	my $line = $_;
 	chomp($line);
 
-	#print "$line \n";
-	#$line =~ /^line (\d+) column (\d+) - (\w+): (.*)/;
-	my @fields     = split /:/, $line;
-	my $fileName   = trim($fields[0]);
-	my $lineNum    = trim($fields[1]);
-	my $colNum     = trim($fields[2]);
-	my $err_typ    = trim($fields[3]);
-	my $msg        = trim($fields[4]);
-	my $bug = new bugInstance($xmlWriterObj->getBugId());
+	++$lineNum;
 
-	#FIXME: Decide on BugCode for tidy
-	$bug->setBugCode($msg);
-	$bug->setBugMessage($msg);
-	$bug->setBugSeverity($err_typ);
-	$bug->setBugBuildId($buildId);
-	$bug->setBugReportPath($inputFile);
-	$bug->setBugLocation(
-		1, "", Util::AdjustPath($packageName, $cwd, $fileName), $lineNum, $lineNum, $colNum,
-		"", "", 'true', 'true'
-	);
-	$xmlWriterObj->writeBugObject($bug);
+	if ($line =~ /^\s*(.+?)\s*:\s*(\d+)\s*:\s*(\d+)\s*:\s*(.+?)\s*:\s*(.*?)\s*$/)  {
+	    my ($file, $line, $col, $bugGroup, $bugMsg) = ($1, $2, $3, $4, $5);
+	    my $path = Util::AdjustPath($packageName, $cwd, $file);
+	    my $bugLocId = 1;
+	    my $bugCode = $bugMsg;
+	    $bugCode =~ s/\s*(<.*?>|(['"`]).*?\2)\s*/ /g;
+	    $bugCode =~ s/\+ \+|U\+[0-9a-f]+//ig;
+	    $bugCode =~ s/^\s+//;
+	    $bugCode =~ s/\s+$//;
+
+	    my $bug = new bugInstance($count);
+
+	    $bug->setBugGroup($bugGroup);
+	    $bug->setBugCode($bugCode);
+	    $bug->setBugMessage($bugMsg);
+	    $bug->setBugReportPath("$inputFile:$lineNum");
+	    $bug->setBugLocation($bugLocId, '', $path, $line, $line, $col, $col, $bugMsg, 'true', 'true');
+
+	    $xmlWriterObj->writeBugObject($bug);
+	}  else  {
+	    print STDERR "$0: bad line at $inputFile; $lineNum\n";
+	}
     }
 }
 close($fh);
