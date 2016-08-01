@@ -42,8 +42,8 @@ my $bugId   = 0;
 my $fileId = 0;
 my $count   = 0;
 
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
+my $xmlWriter = new xmlWriterObject($outputFile);
+$xmlWriter->addStartTag($toolName, $toolVersion, $uuid);
 
 my $fh;
 foreach my $inputFile (@inputFiles)  {
@@ -77,7 +77,7 @@ foreach my $inputFile (@inputFiles)  {
 	    $bug->setBugReportPath("$inputFile:$lineNum");
 	    $bug->setBugLocation($bugLocId, '', $path, $line, $line, $col, $col, $bugMsg, 'true', 'true');
 
-	    $xmlWriterObj->writeBugObject($bug);
+	    $xmlWriter->writeBugObject($bug);
 	}  else  {
 	    print STDERR "$0: bad line at $inputFile; $lineNum\n";
 	}
@@ -85,5 +85,9 @@ foreach my $inputFile (@inputFiles)  {
 }
 close($fh);
 
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
+$xmlWriter->writeSummary();
+$xmlWriter->addEndTag();
+
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriter->getBugId() - 1);
+}
