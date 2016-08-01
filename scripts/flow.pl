@@ -48,7 +48,7 @@ foreach my $inputFile (@inputFiles)  {
     my $jsonObject = JSON->new->utf8->decode($jsonData);
 
     foreach my $error (@{$jsonObject->{"errors"}})  {
-	GetFlowObject($error, $xmlWriter->getBugId(), $xmlWriter);
+	WriteFlowWeakness($error, $xmlWriter->getBugId(), $xmlWriter);
     }
 }
 
@@ -60,51 +60,49 @@ if (defined $weaknessCountFile)  {
 }
 
 
-sub GetFlowObject  {
+sub WriteFlowWeakness  {
     my ($e, $bugId, $xmlWriter) = @_;
 
-    my $error_message = "";
-    my @messages      = @{$e->{"message"}};
-    my $bugCode      = "";
-    my $location_id   = 0;
-    my $bug    = new bugInstance($bugId);
-    my $first_flag    = 1;
-    foreach my $msg (@{$e->{"message"}})  {
-	if ($error_message eq "")  {
-	    $error_message .= $msg->{"descr"};
-	}  else  {
-	    $error_message .= " " . $msg->{"descr"};
+    my $bug = new bugInstance($bugId);
+
+    $bug->setBugGroup($e->{kind}) if exists $e->{kind};
+    $bug->setBugSeverity($e->{level}) if exists $e->{level};
+    my $msgs = $e->{message};
+
+    my $bugCode;
+    my $bugMsg;
+    my $isPrimary = "true";
+    my $locCount = 0;
+    foreach my $msg (@$msgs)  {
+	++$locCount;
+	my $type = $msg->{type};
+	if (!defined $bugCode || $type eq 'Comment' && !defined  $msg->{context})  {
+	    $bugCode = $msg->{descr};
 	}
-	$location_id++;
-	my $file;
-	my $loc_arr = $messages[0]->{"loc"};
-	$file = $loc_arr->{"source"};
-	my $loc_arr = $msg->{"loc"};
-	if (defined $loc_arr)  {
-	    my $primary = "false";
-	    if ($first_flag)  {
-		    $primary    = "true";
-		    $first_flag = 0;
-	    }
-	    $bug->setBugLocation($location_id, "",
-		    Util::AdjustPath($packageName, $cwd, $file),
-		    $msg->{"start"}, $msg->{"end"}, 0, 0, $msg->{"descr"}, $primary,
-		    "true");
-	}
-	if ($msg->{"type"} eq "Comment")  {
-	    $bugCode = $msg->{"descr"};
+	$bugMsg .= ' ' if defined $bugMsg;
+	my $locMsg = $msg->{descr};
+	$bugMsg .= $locMsg;
+	
+	if (exists $msg->{loc} && $type ne 'libFile')  {
+	    my $loc = $msg->{loc};
+	    my $startLine = $loc->{start}{line};
+	    my $startCol = $loc->{start}{column};
+	    my $endLine = $loc->{end}{line};
+	    my $endCol = $loc->{end}{column};
+	    my $file = Util::AdjustPath($packageName, $cwd, $loc->{source});
+
+	    $bug->setBugLocation($locCount, '', $file, $startLine, $endLine,
+				    $startCol, $endCol, $locMsg, $isPrimary, 'true');
+
+	    $isPrimary = 'false';
 	}
     }
-    if ($bugCode eq "")  {
-	$bugCode = $messages[0]->{"descr"};
-    }
 
-    my $startLine = $messages[0]->{"start"};
-    my $endLine   = $messages[0]->{"end"};
+    # make error message generic instead of including the named export
+    $bugCode =~ s/called (['"`]).*?\1/called `*`/g;
 
-    $bug->setBugMessage($error_message);
     $bug->setBugCode($bugCode);
-    $bug->setBugSeverity($e->{"level"});
-    $bug->setBugGroup($e->{"level"});
+    $bug->setBugMessage($bugMsg);
+
     $xmlWriter->writeBugObject($bug);
 }
