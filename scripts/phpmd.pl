@@ -17,7 +17,7 @@ GetOptions(
 	"output_file=s"         => \$outputFile,
 	"tool_name=s"           => \$toolName,
 	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$$weaknessCountFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
 	"help"                  => \$help,
 	"version"               => \$version
     ) or die("Error");
@@ -52,13 +52,17 @@ foreach my $inputFile (@inputFiles)  {
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
 
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
+}
+
 
 sub setFileName
 {
-    my ($tree, $element) = @_;
+    my ($tree, $elem) = @_;
 
-    $filePath = $element->att('name');
-    $element->purge() if defined $element;
+    $filePath = Util::AdjustPath($packageName, $cwd, $elem->att('name'));
+    $elem->purge() if defined $elem;
     $fileId++;
 }
 
@@ -75,37 +79,35 @@ sub parseViolations
 }
 
 
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
-}
-
-
 sub getPHPMDBugObject
 {
     my ($violation, $bugId, $bugXpath) = @_;
 
-    my $adjustedFilePath = Util::AdjustPath($packageName, $cwd, $filePath);
-    my $beginLine        = $violation->att('beginline');
-    my $endLine          = $violation->att('endline');
-    my $beginColumn = (defined $violation->att('column')) ? $violation->att('column') : 0;
-    my $endColumn   = $beginColumn;
-    my $priority    = $violation->att('priority');
-    my $message     = $violation->text;
-    $message        =~ s/^\s+|\s+$//g;
-    my $rule        = $violation->att('rule');
-    my $ruleset     = $violation->att('ruleset');
-    my $package     = $violation->att('package');
-    my $class       = $violation->att('class');
+    my $beginLine	= $violation->att('beginline');
+    my $endLine		= $violation->att('endline');
+    my $beginColumn	= (defined $violation->att('column')) ? $violation->att('column') : 0;
+    my $endColumn	= $beginColumn;
+    my $priority	= $violation->att('priority');
+    my $message		= $violation->text;
+    $message		=~ s/^\s+|\s+$//g;
+    my $bugCode		= $violation->att('rule');
+    my $bugGroup	= $violation->att('ruleset');
+    my $package		= $violation->att('package');
+    my $class		= $violation->att('class');
+    my $infoUrl		= $violation->att('externalInfoUrl');
+    $message .= " (see $infoUrl)" if defined $infoUrl;
     my $bug   = new bugInstance($bugId);
-    ###################
-    $bug->setBugLocation(1, "", $adjustedFilePath, $beginLine, $endLine,
-	    $beginColumn, 0, "", 'true', 'true');
+
+    $bug->setBugLocation(1, $class, $filePath, $beginLine, $endLine,
+	    $beginColumn, $endColumn, "", 'true', 'true');
     $bug->setBugMessage($message);
     $bug->setBugSeverity($priority);
-    $bug->setBugGroup($priority);
-    $bug->setBugCode($ruleset);
+    $bug->setBugGroup($bugGroup);
+    $bug->setBugCode($bugCode);
     $bug->setBugPath($bugXpath . "[" . $fileId . "]" . "/error[" . $bugId . "]");
     $bug->setBugBuildId($buildId);
+    $bug->setClassName($class) if defined $class;
     $bug->setBugReportPath($tempInputFile);
+
     return $bug;
 }
