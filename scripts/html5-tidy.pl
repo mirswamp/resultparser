@@ -38,12 +38,11 @@ my $count   = 0;
 my $xmlWriter = new xmlWriterObject($outputFile);
 $xmlWriter->addStartTag($toolName, $toolVersion, $uuid);
 
-my $fh;
 foreach my $inputFile (@inputFiles)  {
     my $startBug = 0;
     $buildId = $buildIds[$count];
     $count++;
-    open($fh, "<", "$inputDir/$inputFile")
+    open my $fh, "<", "$inputDir/$inputFile"
 	    or die "unable to open the input file $inputFile";
     my $lineNum = 0;
     while (<$fh>)  {
@@ -75,8 +74,8 @@ foreach my $inputFile (@inputFiles)  {
 	    print STDERR "$0: bad line at $inputFile; $lineNum\n";
 	}
     }
+    close($fh);
 }
-close($fh);
 
 $xmlWriter->writeSummary();
 $xmlWriter->addEndTag();
