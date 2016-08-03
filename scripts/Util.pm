@@ -206,20 +206,25 @@ sub InitializeParser {
     my @inputFiles = GetFileList(@parsedSummary);
     my ($uuid, $packageName, $toolVersion, $buildArtifactId, $input, $cwd, $replaceDir);
 
-    chomp($parsedSummary[0]);
-    (
-        $uuid, $packageName, $toolVersion, $buildArtifactId, $input, $cwd,
-        $replaceDir
-    ) = split('~:~', $parsedSummary[0]);
+    if (@parsedSummary)  {
+	chomp($parsedSummary[0]);
+	(
+	    $uuid, $packageName, $toolVersion, $buildArtifactId, $input, $cwd,
+	    $replaceDir
+	) = split('~:~', $parsedSummary[0]);
 
-    print '-' x 86, "\n";
-    print "UUID: $uuid\n";
-    print "PACKAGE_NAME: $packageName\n";
-    print "TOOL_VERSION: $toolVersion\n";
-    print "BUILD_ARTIFACT_ID: $buildArtifactId\n";
-    print "REPLACE_DIR: $replaceDir\n";
-    print "CWD: $cwd\n";
-    print "\n";
+	print '-' x 86, "\n";
+	print "UUID: $uuid\n";
+	print "PACKAGE_NAME: $packageName\n";
+	print "TOOL_VERSION: $toolVersion\n";
+	print "BUILD_ARTIFACT_ID: $buildArtifactId\n";
+	print "REPLACE_DIR: $replaceDir\n";
+	print "CWD: $cwd\n";
+	print "\n";
+    }  else  {
+	print "NO ASSESSMENTS FOUND\n";
+    }
+
     return ($uuid, $packageName, $buildArtifactId, $input, $cwd,
             $replaceDir, $toolVersion, @inputFiles);
 }
