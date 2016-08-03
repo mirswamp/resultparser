@@ -6,14 +6,20 @@ use bugInstance;
 use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile);
+my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
 GetOptions(
 	"input_dir=s"    => \$inputDir,
 	"output_file=s"  => \$outputFile,
 	"tool_name=s"    => \$toolName,
-	"summary_file=s" => \$summaryFile
+	"summary_file=s" => \$summaryFile,
+	"weakness_count_file=s" => \$weaknessCountFile,
+	"help" => \$help,
+	"version" => \$version
 ) or die("Error");
+
+Util::Usage() if defined $help;
+Util::Version() if defined $version;
 
 $toolName = Util::GetToolName($summaryFile) unless defined $toolName;
 
@@ -60,6 +66,10 @@ foreach my $inputFile (@inputFiles)  {
 
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
+
+if (defined $weaknessCountFile)  {
+    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
+}
 
 
 sub trim
