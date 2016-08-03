@@ -154,20 +154,6 @@ sub GetFileList {
 }
 
 
-#Not used anywhere. Remove
-sub BuildParserHash {
-    my ($hash, $file) = @_;
-    open(IN, "<$file") or die("Failed to open $file for reading");
-    for my $line (<IN>)  {
-        chomp($line);
-        my ($tool, $parser_function) = split /#/, $line, 2;
-        $hash->{$tool} = $parser_function;
-    }
-    close(IN);
-    return $hash;
-}
-
-
 sub IsAbsolutePath {
     my ($path) = @_;
     if ($path =~ m/^\/.*/g)  {
