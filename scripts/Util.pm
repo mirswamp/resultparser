@@ -222,6 +222,13 @@ sub InitializeParser {
 	print "CWD: $cwd\n";
 	print "\n";
     }  else  {
+	#FIXME:  set to uuid an toolVersion to remove warnings.
+	#FIXME:  assessment_summary.xml processing code needs to be written
+	#FIXME:  to not process file multiple times, not combine multiple
+	#FIXME:  pieces of data into a string, and return fixed values
+	#FIXME:  separate from per assessment values
+	$uuid = '';
+	$toolVersion = '';
 	print "NO ASSESSMENTS FOUND\n";
     }
 
