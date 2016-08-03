@@ -30,13 +30,6 @@ my @buildIds = Util::GetBuildIds(@parsedSummary);
 undef @parsedSummary;
 
 
-sub trim
-{
-    (my $s = $_[0]) =~ s/^\s+|\s+$//g;
-    return $s;
-}
-
-
 #Initialize the counter values
 my $bugId   = 0;
 my $fileId = 0;
