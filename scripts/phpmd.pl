@@ -107,6 +107,7 @@ sub getPHPMDBugObject
     $bug->setBugPath($bugXpath . "[" . $fileId . "]" . "/error[" . $bugId . "]");
     $bug->setBugBuildId($buildId);
     $bug->setClassName($class) if defined $class;
+    $bug->setURLText($infoUrl);
     $bug->setBugReportPath($tempInputFile);
 
     return $bug;
