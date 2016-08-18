@@ -1,4 +1,11 @@
 -----------------------------------------------------
+resultparser version 3.0.0 (Aug 18, 2016)
+-----------------------------------------------------
+- initial release of the 3.0.0 version of the result parser
+- added support for parsing PHP, JavaScript, HTML, CSS, and XML tools
+- added support for new platforms
+
+-----------------------------------------------------
 resultparser version 2.1.6 (Fri Oct 9 12:13:18 2015 -0500)
 -----------------------------------------------------
 	Support to parse bandit JSON output, works with bandit versions greater than 8ba3536
