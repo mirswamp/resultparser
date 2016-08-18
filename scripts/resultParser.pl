@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 
 use strict;
+use FindBin;
+use lib "$FindBin::Bin";
 use Getopt::Long;
 use Cwd qw();
 use File::Basename;
