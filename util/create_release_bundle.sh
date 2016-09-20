@@ -18,35 +18,35 @@ fi
 
 echo "VERSION : $VERSION"
 
-TARGET_DIR="$OUTPUT_DIR/resultparser-$VERSION"
+INSTALL_DIR="$OUTPUT_DIR/resultparser-$VERSION"
 
-mkdir -p $TARGET_DIR/in-files/resultparser-$VERSION
+mkdir -p $INSTALL_DIR/in-files/resultparser-$VERSION
 RESULT=$?
 if [[ $RESULT != 0 ]]; then
-        echo "Failed to create $TARGET_DIR"
+        echo "Failed to create $INSTALL_DIR"
         exit 99
 fi
 
-cp -rf ../scripts/* $TARGET_DIR/in-files/resultparser-$VERSION
+cp -rf ../scripts/* $INSTALL_DIR/in-files/resultparser-$VERSION
 
-rm -f $TARGET_DIR/in-files/resultparser-$VERSION/version.txt
-echo "Result Parser $VERSION" > $TARGET_DIR/in-files/resultparser-$VERSION/version.txt
+rm -f $INSTALL_DIR/in-files/resultparser-$VERSION/version.txt
+echo "Result Parser $VERSION" > $INSTALL_DIR/in-files/resultparser-$VERSION/version.txt
 
-cd $TARGET_DIR/in-files/
+cd $INSTALL_DIR/in-files/
 tar czf resultparser-$VERSION.tar.gz resultparser-$VERSION
 
 ./resultparser-$VERSION/genConf.sh resultparser-$VERSION.tar.gz
 cd $CURRENT_DIR
-rm -rf $TARGET_DIR/in-files/resultparser-$VERSION
+rm -rf $INSTALL_DIR/in-files/resultparser-$VERSION
 
 
-cp -f ../lib/* $TARGET_DIR/in-files
+cp -f ../lib/* $INSTALL_DIR/in-files
 
-cp -rf ../swamp-conf $TARGET_DIR
+cp -rf ../swamp-conf $INSTALL_DIR
 
-cp ../RELEASE_NOTES.txt $TARGET_DIR
+cp ../RELEASE_NOTES.txt $INSTALL_DIR
 
-cd $TARGET_DIR
+cd $INSTALL_DIR
 
 find . -type f -exec md5sum {} \; > md5sum
 
@@ -57,7 +57,7 @@ tar cf resultparser-$VERSION.tar resultparser-$VERSION
 
 cd $CURRENT_DIR
 
-rm -rf $TARGET_DIR
+rm -rf $INSTALL_DIR
 
 echo "Release TAR is available $OUTPUT_DIR/resultparser-$VERSION.tar"
 
