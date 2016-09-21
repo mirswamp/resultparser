@@ -18,47 +18,115 @@ fi
 
 echo "VERSION : $VERSION"
 
-INSTALL_DIR="$OUTPUT_DIR/resultparser-$VERSION"
-
-mkdir -p $INSTALL_DIR/in-files/resultparser-$VERSION
-RESULT=$?
-if [[ $RESULT != 0 ]]; then
-        echo "Failed to create $INSTALL_DIR"
-        exit 99
-fi
-
-cp -rf ../scripts/* $INSTALL_DIR/in-files/resultparser-$VERSION
-
-rm -f $INSTALL_DIR/in-files/resultparser-$VERSION/version.txt
-echo "Result Parser $VERSION" > $INSTALL_DIR/in-files/resultparser-$VERSION/version.txt
-
-cd $INSTALL_DIR/in-files/
-tar czf resultparser-$VERSION.tar.gz resultparser-$VERSION
-
-./resultparser-$VERSION/genConf.sh resultparser-$VERSION.tar.gz
-cd $CURRENT_DIR
-rm -rf $INSTALL_DIR/in-files/resultparser-$VERSION
+PARSER_DIRNAME="resultparser-$VERSION"
+INSTALL_DIR="$OUTPUT_DIR/$PARSER_DIRNAME"
+PARSER_NONCOMM_DIRNAME="resultparser-noncomm-$VERSION"
+INSTALL_NONCOMM_DIR="$OUTPUT_DIR/$PARSER_NONCOMM_DIRNAME"
+COMM_PARSERS="ps-ctest.pl ps-jtest.pl gt-csonar.pl rl-goanna.pl"
+SRC_DIR="$CURRENT_DIR/.."
 
 
-cp -f ../lib/* $INSTALL_DIR/in-files
+function CreateReleaseTar
+{
+    local NAME="$1"
+    shift
+    local VER="$1"
+    shift
+    local SRC_DIR="$1"
+    shift
+    local OUT_DIR="$1"
+    shift
 
-cp -rf ../swamp-conf $INSTALL_DIR
+    local PARSER_DIRNAME="$NAME-$VER"
+    local INSTALL_DIRNAME="$PARSER_DIRNAME"
+    local INSTALL_DIR="$OUT_DIR/$INSTALL_DIRNAME"
+    local OUTERTAR="$OUT_DIR/$PARSER_DIRNAME.tar"
+    local INFILES_DIR="$INSTALL_DIR/in-files"
+    local INNERTAR_DIR="$INFILES_DIR/$INSTALL_DIRNAME"
+    local GENCONF="$SRC_DIR/scripts/genConf.sh"
+    local CONF_FILE="$INFILES_DIR/resultparser.conf"
+    local VERSION_TXT="$INNERTAR_DIR/version.txt"
+    local INNERTAR="$INNERTAR_DIR.tar.gz"
+    local MD5SUM="$INSTALL_DIR/md5sum"
 
-cp ../RELEASE_NOTES.txt $INSTALL_DIR
+    for d in $INSTALL_DIR $INFILES_DIR $INNERTAR_DIR; do
+	mkdir $d
+	if [ $? -ne 0 ]; then
+	    echo "Unable to mkdir $d"
+	    exit 1
+	fi
+    done
 
-cd $INSTALL_DIR
+    cp -rf $SRC_DIR/scripts/* $INNERTAR_DIR
+    if [ $? -ne 0 ]; then
+	echo FAILED: cp -rf $SRC_DIR/scripts/* $INNERTAR_DIR
+	exit 1
+    fi
 
-find . -type f -exec md5sum {} \; > md5sum
+    for f in "$@"; do
+	local file="$INNERTAR_DIR/$f"
+	if [ -f $file ]; then
+	    rm $file
+	    if [ $? -ne 0 ]; then
+		echo FAILED: rm $file
+		exit 1
+	    fi
+	else
+	    echo "Commercial tool $file not found"
+	    exit 1
+	fi
+    done
 
-cd $CURRENT_DIR
-cd $OUTPUT_DIR
+    rm -f $VERSION_TXT
+    echo "Result Parser $VER" > $VERSION_TXT
 
-tar cf resultparser-$VERSION.tar resultparser-$VERSION
+    tar czf $INNERTAR -C $INFILES_DIR $INSTALL_DIRNAME
+    if [ $? -ne 0 ]; then
+	echo FAILED: rm $file
+	exit 1
+    fi
 
-cd $CURRENT_DIR
+    $GENCONF $CONF_FILE $INNERTAR $INSTALL_DIRNAME $VER
+    if [ $? -ne 0 ]; then
+	echo FAILED: $GENCONF $CONF_FILE $INNERTAR $INSTALL_DIRNAME $VER
+	exit 1
+    fi
 
-rm -rf $INSTALL_DIR
+    cp -p $SRC_DIR/lib/* $INSTALL_DIR/in-files
+    if [ $? -ne 0 ]; then
+	echo FAILED: cp -p $SRC_DIR/lib/* $INSTALL_DIR/in-files
+	exit 1
+    fi
 
-echo "Release TAR is available $OUTPUT_DIR/resultparser-$VERSION.tar"
+    cp -rp $SRC_DIR/swamp-conf $INSTALL_DIR
+    if [ $? -ne 0 ]; then
+	echo FAILED: cp -rp $SRC_DIR/swamp-conf $INSTALL_DIR
+	exit 1
+    fi
+
+    cp $SRC_DIR/RELEASE_NOTES.txt $INSTALL_DIR
+    if [ $? -ne 0 ]; then
+	echo FAILED: cp $SRC_DIR/RELEASE_NOTES.txt $INSTALL_DIR
+	exit 1
+    fi
+
+    ( cd $INSTALL_DIR; find . -type f -exec md5sum {} \; ) > $MD5SUM
+
+    rm -rf $INNERTAR_DIR
+
+    tar cf $OUTERTAR -C $OUT_DIR $PARSER_DIRNAME
+    if [ $? -ne 0 ]; then
+	echo FAILED: tar cf $OUTERTAR -C $OUT_DIR $PARSER_DIRNAME
+	exit 1
+    fi
+
+    rm -rf $INSTALL_DIR
+
+    echo "Release TAR is available $OUTPUT_DIR/resultparser-$VERSION.tar"
+}
+
+
+CreateReleaseTar resultparser $VERSION $SRC_DIR $OUTPUT_DIR
+CreateReleaseTar resultparser noncomm-$VERSION $SRC_DIR $OUTPUT_DIR $COMM_PARSERS
 
 exit 0
