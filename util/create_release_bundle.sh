@@ -3,6 +3,11 @@
 OUTPUT_DIR="$1"
 VERSION="$2"
 
+if [ $# -ne 2 ]; then
+    echo "Usage;  $0 <OUTPUT_DIR> <VERSION>"
+    exit 1
+fi
+
 CURRENT_DIR=`pwd`
 
 echo "OUTPUT DIR : $OUTPUT_DIR"
@@ -28,6 +33,11 @@ SRC_DIR="$CURRENT_DIR/.."
 
 function CreateReleaseTar
 {
+    if [ $# -lt 4 ]; then
+	echo "CreateReleaseTar called with <4 parameters ($#)"
+	exit 1
+    fi
+
     local NAME="$1"
     shift
     local VER="$1"
@@ -41,7 +51,8 @@ function CreateReleaseTar
     local INSTALL_DIRNAME="$PARSER_DIRNAME"
     local INSTALL_DIR="$OUT_DIR/$INSTALL_DIRNAME"
     local OUTERTAR="$OUT_DIR/$PARSER_DIRNAME.tar"
-    local INFILES_DIR="$INSTALL_DIR/in-files"
+    local NOARCH_DIR="$INSTALL_DIR/noarch"
+    local INFILES_DIR="$NOARCH_DIR/in-files"
     local INNERTAR_DIR="$INFILES_DIR/$INSTALL_DIRNAME"
     local GENCONF="$SRC_DIR/scripts/genConf.sh"
     local CONF_FILE="$INFILES_DIR/resultparser.conf"
@@ -49,7 +60,7 @@ function CreateReleaseTar
     local INNERTAR="$INNERTAR_DIR.tar.gz"
     local MD5SUM="$INSTALL_DIR/md5sum"
 
-    for d in $INSTALL_DIR $INFILES_DIR $INNERTAR_DIR; do
+    for d in $INSTALL_DIR $NOARCH_DIR $INFILES_DIR $INNERTAR_DIR; do
 	mkdir $d
 	if [ $? -ne 0 ]; then
 	    echo "Unable to mkdir $d"
@@ -92,15 +103,15 @@ function CreateReleaseTar
 	exit 1
     fi
 
-    cp -p $SRC_DIR/lib/* $INSTALL_DIR/in-files
+    cp -p $SRC_DIR/lib/* $INFILES_DIR
     if [ $? -ne 0 ]; then
-	echo FAILED: cp -p $SRC_DIR/lib/* $INSTALL_DIR/in-files
+	echo FAILED: cp -p $SRC_DIR/lib/* $INFILES_DIR
 	exit 1
     fi
 
-    cp -rp $SRC_DIR/swamp-conf $INSTALL_DIR
+    cp -rp $SRC_DIR/swamp-conf $NOARCH_DIR
     if [ $? -ne 0 ]; then
-	echo FAILED: cp -rp $SRC_DIR/swamp-conf $INSTALL_DIR
+	echo FAILED: cp -rp $SRC_DIR/swamp-conf $NOARCH_DIR
 	exit 1
     fi
 
@@ -122,7 +133,7 @@ function CreateReleaseTar
 
     rm -rf $INSTALL_DIR
 
-    echo "Release TAR is available $OUTPUT_DIR/resultparser-$VERSION.tar"
+    echo "Release TAR is available $OUTERTAR"
 }
 
 
