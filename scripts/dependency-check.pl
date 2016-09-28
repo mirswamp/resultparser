@@ -107,7 +107,7 @@ sub ParseDependency {
 		foreach my $r ($references->children('reference'))  {
 		    my $name = $r->first_child('name')->text();
 		    my $source = $r->first_child('source')->text();
-		    my $url = GetOptionalElementText($r, 'url');
+		    my $url = GetOptionalElemText($r, 'url');
 		    my %ref = (name => $name, source => $source, url => $url);
 		    push @refs, \%ref;
 		}
