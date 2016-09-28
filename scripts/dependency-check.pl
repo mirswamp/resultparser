@@ -55,6 +55,19 @@ if (defined $weaknessCountFile)  {
 
 my $depNum = 0;
 
+sub GetOptionalElemText
+{
+    my ($elem, $child) = @_;
+
+    my $c = $elem->first_child($child);
+
+    if ($c)  {
+	return $c->text();
+    }  else  {
+	return;
+    }
+}
+
 sub ParseDependency {
     my ($tree, $elem) = @_;
     my $vulnerabilities = $elem->first_child('vulnerabilities');
@@ -72,7 +85,7 @@ sub ParseDependency {
 		my $type = $i->att('type');
 		my $confidence = $i->att('confidence');
 		my $name = $i->first_child('name')->text();
-		my $url = $i->first_child('url')->text();
+		my $url = GetOptionalElemText($i, 'url');
 		my %ident = (
 				type => $type,
 				confidence => $confidence,
@@ -94,7 +107,7 @@ sub ParseDependency {
 		foreach my $r ($references->children('reference'))  {
 		    my $name = $r->first_child('name')->text();
 		    my $source = $r->first_child('source')->text();
-		    my $url = $r->first_child('url')->text();
+		    my $url = GetOptionalElementText($r, 'url');
 		    my %ref = (name => $name, source => $source, url => $url);
 		    push @refs, \%ref;
 		}
@@ -116,7 +129,10 @@ sub ParseDependency {
 
 	    $msg .= "\n" if @refs;
 	    foreach my $r (@refs)  {
-		$msg .= "    - $r->{source}  -  $r->{name} ($r->{url})\n";
+		my $url = $r->{url};
+		$msg .= "    - $r->{source}  -  $r->{name}";
+		$msg .= " ($url)" if $url;
+		$msg .= "\n";
 	    }
 
 	    $msg .= "\n Vulnerable Versions:\n\n" if @vulnVers;
@@ -128,7 +144,10 @@ sub ParseDependency {
 
 	    $msg .= "\nIdentifiers:\n" if @identifiers;
 	    foreach my $i (@identifiers)  {
-		$msg .= "    - $i->{type}: $i->{name} ($i->{url})  confidence: $i->{confidence}\n";
+		my $url = $i->{url};
+		$msg .= "    - $i->{type}: $i->{name}";
+		$msg .= " ($url)" if $url;
+		$msg .= "   confidence: $i->{confidence}\n";
 	    }
 
 	    my $bug = new bugInstance($xmlWriterObj->getBugId());
