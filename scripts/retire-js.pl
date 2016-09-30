@@ -40,7 +40,7 @@ $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 foreach my $inputFile (@inputFiles)  {
     $buildId        = $buildIds[$count];
     $count++;
-    ParseFile($inputFile);
+    ParseFile("$inputDir/$inputFile");
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -158,8 +158,6 @@ sub ParseFile
 
     my $json = JSON->new->utf8->decode($data);
 
-    #jk print STDERR Dumper($json), "\n\n" if @ARGV == 1;
-    #jk print STDERR "$jsonFn   ===========================\n";
     my $num = -1;
     foreach my $group (@$json)  {
 	++$num;
@@ -196,15 +194,6 @@ sub ParseFile
 			    $msg .= "\n\nMore Inforation:\n\n";
 			    $msg .= join "\n", map {" - $_"} @{$v->{info}};
 			}
-			if (0)  {		#jk
-			print STDERR "=========\n";
-			print STDERR "bugCode:	$bugCode\n";
-			print STDERR "file:		$file\n" if defined $file;
-			print STDERR "jpath:		$vulnJsonPath\n";
-			print STDERR "severity:	$severity\n" if defined $severity;
-			print STDERR "----\n";
-			print STDERR "$msg\n";
-			}	#jk
 
 			my $bug = new bugInstance($xmlWriterObj->getBugId());
 			$bug->setBugGroup($bugGroup);
