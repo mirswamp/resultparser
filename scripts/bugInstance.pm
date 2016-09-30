@@ -27,14 +27,6 @@ sub setBugMessage
 }
 
 
-sub setBugLocation_old
-{
-    my ($self, $bugLocation) = @_;
-    $self->{_bugLocation}=$bugLocation if defined $bugLocation;
-    return $self->{_bugLocation};
-}
-
-
 sub setBugLocation
 {
     my ($self, $bugLocationId, $bugClassname, $SourceFile, $startLineNo,
