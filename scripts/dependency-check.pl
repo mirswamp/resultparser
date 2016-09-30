@@ -32,11 +32,14 @@ undef @parsedSummary;
 my $count = 0;
 my $tempInputFile;
 
+my $depNum;
+
 
 my $xmlWriterObj = new xmlWriterObject($outputFile);
 $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
 foreach my $inputFile (@inputFiles)  {
+    $depNum = 0;
     my $twig = XML::Twig->new(
 	    twig_roots    => {'analysis/dependencies' => 1},
 	    twig_handlers => {'dependency'  => \&ParseDependency}
@@ -52,8 +55,6 @@ $xmlWriterObj->addEndTag();
 if (defined $weaknessCountFile)  {
     Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
 }
-
-my $depNum = 0;
 
 sub GetOptionalElemText
 {
@@ -76,8 +77,8 @@ sub ParseDependency {
 	my $filePath = $elem->first_child('filePath')->text();
 	my $md5 = $elem->first_child('md5')->text();
 	my $sha1 = $elem->first_child('sha1')->text();
-	my $pDesc = $elem->first_child('description')->text();
-	my $license = $elem->first_child('license')->text();
+	my $pDesc = GetOptionalElemText($elem, 'description');
+	my $license = GetOptionalElemText($elem, 'license');
 	my @identifiers;
 	my $identifiers = $elem->first_child('identifiers');
 	if ($identifiers)  {
@@ -117,7 +118,8 @@ sub ParseDependency {
 	    if ($vulnVers)  {
 		foreach my $s ($vulnVers->children('software'))  {
 		    my $software = $s->text();
-		    my $allPrev = $s->att('allPreviousVersion') eq 'true';
+		    my $allAttr = $s->att('allPreviousVersion');
+		    my $allPrev = $allAttr && $allAttr eq 'true';
 		    my %s = (software => $software, allPrev => $allPrev);
 		    push @vulnVers, \%s;
 		}
@@ -151,7 +153,7 @@ sub ParseDependency {
 	    }
 
 	    my $bug = new bugInstance($xmlWriterObj->getBugId());
-	    $bug->setBugGroup('CVE');
+	    $bug->setBugGroup('Known-Vuln');
 	    $bug->setBugCode($name);
 	    $bug->setBugPath($xpath);
 	    $bug->setBugBuildId($buildId);
