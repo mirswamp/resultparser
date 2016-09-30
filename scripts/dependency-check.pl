@@ -39,7 +39,7 @@ my $xmlWriterObj = new xmlWriterObject($outputFile);
 $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
 foreach my $inputFile (@inputFiles)  {
-    $depNum = 0;
+    $depNum = -1;
     my $twig = XML::Twig->new(
 	    twig_roots    => {'analysis/dependencies' => 1},
 	    twig_handlers => {'dependency'  => \&ParseDependency}
@@ -71,6 +71,8 @@ sub GetOptionalElemText
 
 sub ParseDependency {
     my ($tree, $elem) = @_;
+
+    ++$depNum;
     my $vulnerabilities = $elem->first_child('vulnerabilities');
     if ($vulnerabilities)  {
 	my @vulnerabilities = $vulnerabilities->children('vulnerability');
@@ -96,8 +98,9 @@ sub ParseDependency {
 		push @identifiers, \%ident;
 	    }
 	}
-	my $vulnNum = 0;
+	my $vulnNum = -1;
 	foreach my $v (@vulnerabilities)  {
+	    ++$vulnNum;
 	    my $name = $v->first_child('name')->text();
 	    my $cvssScore = $v->first_child('cvssScore')->text();
 	    my $severity = $v->first_child('severity')->text();
@@ -164,11 +167,8 @@ sub ParseDependency {
 			undef, undef, '0', '0', '', 'true', 'true');
 	    $xmlWriterObj->writeBugObject($bug);
 	    undef $bug;
-
-	    ++$vulnNum
 	}
     }
     $tree->purge();
-    ++$depNum;
     return;
 }
