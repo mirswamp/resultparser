@@ -42,7 +42,7 @@ $summaryFile = (defined $summaryFile) ? $summaryFile : "$current_dir/assessment_
 $in_dir = (defined $in_dir) ? $in_dir : $current_dir;
 $outputFile = (defined $outputFile)
 	? ((Util::IsAbsolutePath($outputFile) eq 0) ? "$out_dir/$outputFile" : "$outputFile")
-	: "$out_dir/parsed_assessment_report.xml";
+	: "$out_dir/parsed_results.xml";
 
 if (defined $weaknessCountFile)  {
     $weaknessCountFile = (Util::IsAbsolutePath($weaknessCountFile) eq 0)
