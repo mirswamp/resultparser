@@ -49,6 +49,10 @@ foreach my $inputFile (@inputFiles)  {
     my $data    = decode_json($json);
 
     foreach my $file (keys %$data)  {
+	my $refType = ref $data->{$file};
+	if ($refType ne 'ARRAY')  {
+	    print STDERR "WARNING: _{$file} is $refType, expected 'ARRAY', ignoring\n";
+	}
 	foreach my $object (@{$data->{$file}})  {
 	    my $type = $object->{type};
 	    my $class = '';
