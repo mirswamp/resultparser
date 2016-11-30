@@ -55,6 +55,8 @@ sub AdjustPath {
 }
 
 
+# FIXME: remove all uses of this function.  It is very broken.
+#
 sub SplitString {
     my ($str) = @_;
     $str =~ s/::+/~#~/g;

@@ -6,6 +6,12 @@ use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
 use Util;
+use warnings FATAL => 'all';
+
+my $openSingleQuote = qr/['\x{2018}\x{201b}]/;
+my $closeSingleQuote = qr/['\x{2019}\x{201b}]/;
+my $openDoubleQuote = qr/["\x{201c}\x{201f}]/;
+my $closeDoubleQuote = qr/["\x{201d}]/;
 
 my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
@@ -65,8 +71,9 @@ foreach my $inputFile (@inputFiles)  {
     $buildId         = $buildIds[$count];
     $count++;
 
-    my $input = new IO::File("<$inputDir/$inputFile");
-    print "\n<$inputDir/$inputFile";
+    #my $input = new IO::File("<$inputDir/$inputFile");
+    open(my $input, "< :encoding(UTF-8)", "$inputDir/$inputFile") or die "open $inputDir/$inputFile; $!";
+    #print "\n<$inputDir/$inputFile";
     my $fn_flag = -1;
 LINE:
     while (my $line = <$input>)  {
@@ -79,11 +86,12 @@ LINE:
 	}
 	my $valid = ValidateLine($line);
 	if ($valid eq "function")  {
-	    my @tokens = Util::SplitString($line);
-	    $fnFile  = $tokens[0];
-	    $function = $tokens[1];
-	    $function =~ /‘(.*)’/;
-	    $function = $1;
+	    if ($line =~ /^(.*?): In (?:function|constructor) $openSingleQuote(.*?)$closeSingleQuote:/)  {
+		$fnFile  = $1;
+		$function = $2;
+	    }  else  {
+		die "Invalid 'In function' line: $line";
+	    }
 	    $fn_flag  = 1;
 	}  elsif ($valid ne "invalid")  {
 	    if ($fn_flag == 1)  {
@@ -215,32 +223,27 @@ sub RegisterBug {
 sub ParseMessage {
     my ($message) = @_;
 
-    my $temp      = $message;
-    my $orig_msg  = $message;
-    my $code      = $message;
+    my $code;
 
-    if (defined $code)  {
-	$code =~ /(.*)\[(.*)\]$/;
+    if ($message =~ /(.*)\[(.*)\]$/)  {
 	$message = $1;
-	$code    = $2;
-    }
-
-    if (!defined $code or $code eq "")  {
-	$code = $temp;
-	$code =~ s/(?: \d+)? of ‘.*?’//g;
-	$code =~ s/^".*?" / /;
-	$code =~ s/‘.*?’//g;
-	$code =~ s/ ".*?"/ /g;
-	$code =~ s/(?: to) ‘.*?’/ /g;
+	$code = $2;
+    }  else  {
+	$code = $message;
+	$code =~ s/$openSingleQuote|$closeSingleQuote/'/;
+	$code =~ s/$openDoubleQuote|$closeDoubleQuote/"/;
+	$code =~ s/(?: \d+)? of '.*?'//g;
+	$code =~ s/^".*?" //;
+	$code =~ s/ ".*?"//g;
+	$code =~ s/(?: to) '.*?'//g;
 	$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
 	$code =~ s/^(#(?:warning|error)) .*/$1/;
 	$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
+	$code =~ s/  +/ /g;
     }
 
     if ((defined $message) && ($message ne ''))  {
 	$bug->setBugMessage($message);
-    }  else  {
-	$bug->setBugMessage($orig_msg)
     }
     if ((defined $code) && ($code ne ''))  {
 	$bug->setBugCode($code);
