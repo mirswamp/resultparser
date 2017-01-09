@@ -51,7 +51,14 @@ foreach my $inputFile (@inputFiles)  {
     foreach my $file (keys %$data)  {
 	my $refType = ref $data->{$file};
 	if ($refType ne 'ARRAY')  {
+	    #
+	    # "FILE-NAME": {"error": "ERR-MSG"}
+	    #
+	    # "/home/kupsch/build/pkg1/luigi-1.0.20/build/lib/luigi/hive.py":
+	    # 		{"error": "invalid syntax (<unknown>, line 211)"}
+	    #
 	    print STDERR "WARNING: _{$file} is $refType, expected 'ARRAY', ignoring\n";
+	    next;
 	}
 	foreach my $object (@{$data->{$file}})  {
 	    my $type = $object->{type};
