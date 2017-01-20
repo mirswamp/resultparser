@@ -67,9 +67,8 @@ foreach my $inputFile (@inputFiles)  {
 	exit;
     }
     while (my $line = <$file>)  {
-	if ($line =~ /^-+/)  {
-	    last;
-	}
+	last if $line =~ /^[-=]+/;
+	next if $line =~ /^\s*$/;
 	my @v   = split /\s+/, $line, 7;
 	my $loc = $v[6];
 	my @l   = split /@/, $loc, 3;
