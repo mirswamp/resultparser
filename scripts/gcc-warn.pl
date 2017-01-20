@@ -6,7 +6,10 @@ use bugInstance;
 use XML::Twig;
 use xmlWriterObject;
 use Util;
-use warnings FATAL => 'all';
+# use warnings FATAL => 'all';
+
+binmode STDERR, ":encoding(UTF-8)" or die "binmode STDERR :encoding(UTF-8)";
+binmode STDOUT, ":encoding(UTF-8)" or die "binmode STDOUT :encoding(UTF-8)";
 
 my $openSingleQuote = qr/['\x{2018}\x{201b}]/;
 my $closeSingleQuote = qr/['\x{2019}\x{201b}]/;
@@ -86,21 +89,21 @@ LINE:
 	}
 	my $valid = ValidateLine($line);
 	if ($valid eq "function")  {
-	    if ($line =~ /^(.*?): In (?:function|constructor) $openSingleQuote(.*?)$closeSingleQuote:/)  {
-		$fnFile  = $1;
-		$function = $2;
-	    }  else  {
-		die "Invalid 'In function' line: $line";
-	    }
+	    my ($fn, $class, $func, $type, $instantionTypes) = ParseFunctionLine($line);
+	    $fnFile = $fn;
+	    $function = $func;
 	    $fn_flag  = 1;
 	}  elsif ($valid ne "invalid")  {
-	    if ($fn_flag == 1)  {
-		$fn_flag = -1;
-	    }  else  {
-		$function = "";
-		$fnFile  = "";
-	    }
+	    # --- FIXME: why is function and fnFile cleared
+	    # if ($fn_flag == 1)  {
+		# $fn_flag = -1;
+	    # }  else  {
+		# $function = "";
+		# $fnFile  = "";
+	    # }
 	    ParseLine($currentLineNum, $line, $function, $fnFile);
+	}  else  {
+	    print "WARNING: unhandled-line: $inputFile:  $line\n" if $line !~ /^\s/;	#jk
 	}
     }
     if (defined $bug)  {
@@ -235,7 +238,7 @@ sub ParseMessage {
 	$code =~ s/(?: \d+)? of '.*?'//g;
 	$code =~ s/^".*?" //;
 	$code =~ s/ ".*?"//g;
-	$code =~ s/(?: to) '.*?'//g;
+	$code =~ s/(?: (?:to|from))? '.*?'//g;
 	$code =~ s/^(ignoring return value, declared with attribute).*/$1/;
 	$code =~ s/^(#(?:warning|error)) .*/$1/;
 	$code =~ s/cc1: warning: .*: No such file or directory/-Wmissing-include-dirs/;
@@ -254,17 +257,67 @@ sub ParseMessage {
 sub ValidateLine {
     my ($line) = @_;
 
-    if ($line =~ m/^.*: *In .*function.*:$/i)  {
-	return "function";
-    }  elsif ($line =~ m/^.*: *In .*constructor.*:$/i)  {
-	return "function";
-    }  elsif ($line =~ m/.*: *warning *:.*/i)  {
+    if ($line =~ /.*: +warning *:.*/i)  {
 	return "warning";
-    }  elsif ($line =~ m/.*: *error *:.*/i)  {
+    }  elsif ($line =~ /.*: +error *:.*/i)  {
 	return "error";
-    }  elsif ($line =~ m/.*: *note *:.*/i)  {
+    }  elsif ($line =~ /.*: +note *:.*/i)  {
 	return "note";
+    }  elsif ($line =~ /^(?:.*: )?At (?:top level|global scope):/i)  {
+	return "function";
+    }  elsif ($line =~ /^.*: *In .*(function|constructor|destructor|instantiation).*$/)  {
+	return "function";
+    }  elsif ($line =~ /^.*: +In /i)  {
+	# check for missing types of "In * ..." lines
+	die "uknown 'In line': $line";
     }  else  {
 	return "invalid";
     }
+
+    # <FILE>: In instantiation of 'C<T>':
+    #   instantiated from '...'
+    #   instantiated from here
+    # In function <FUNC>,
+    # In file included from <FILE>:<LINE>:<COL>
+    #                  from <FILE>:<LINE>:<COL>
+    #
+    #  extern char *getenv()		[ one space before line
+    #               ^
+    #   required from '...'
+    #   required from here
+    #   recursively required from '...'
+    #   [ skipping <N> instantiation contexts, ... ]
+    #   compilation terminated
+    #   <FILE>:<LINE>: fatal error:
+    #
+    #   isn't nuumeric in numeric gt
+}
+
+
+sub ParseFunctionLine
+{
+    my ($line) = @_;
+    my ($filename, $class, $function, $type, $instantionTypes);
+
+    if ($line =~ /(.*):\s+In (.*?) $openSingleQuote(.*?)$closeSingleQuote/)  {
+	$filename = $1;
+	$type = $2;
+	my $signature = $3;
+	$type =~ s/ of$//;
+	if ($signature =~ s/ (\[with .*\])//)  {
+	    $instantionTypes = $1;
+	}
+	$function = $signature;
+	# FIXME: should parse into class, function, param types
+    }  elsif ($line =~/(?:(.*): )?At (top level|global scope):/)  {
+	# FIXME: filename here should be irrelevant
+	$filename = $1;
+	$filename = '' unless defined $filename;
+	$type = 'top-level';
+	$function = '';
+    }
+
+    my @r = ($filename, $class, $function, $type, $instantionTypes);
+
+    return @r;
 }
