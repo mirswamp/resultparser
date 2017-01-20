@@ -92,6 +92,7 @@ foreach my $inputFile (@filelist)  {
 	);
     }
     $xmlWriterObj->writeBugObject($bug);
+    %buglocation_hash = ();
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
