@@ -101,8 +101,13 @@ sub ParseSummaryFile {
     $packageName =~ s/\/[^\/]*$//;
 
     my @toolVersions = $twig->get_xpath('/assessment-summary/tool-version');
-    my $toolVersion  = $toolVersions[0]->text;
-    $toolVersion =~ s/\n/ /g;
+    my $toolVersion;
+    if (@toolVersions)  {
+	$toolVersion  = $toolVersions[0]->text;
+	$toolVersion =~ s/\n/ /g;
+    }  else  {
+	$toolVersion = '';
+    }
 
     my @assessmentRootDir = $twig->get_xpath('/assessment-summary/assessment-root-dir');
     my $size = @assessmentRootDir;
