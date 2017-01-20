@@ -1,4 +1,21 @@
 -----------------------------------------------------
+resultparser version 3.0.2 (Jan 20, 2017)
+-----------------------------------------------------
+- fix bug in gt-csonar parsing, was not clearing array of locations
+  for the weakness path so weaknesses with shorter location paths
+  had locations of previous weaknesses appended in the BugMessage
+- fix for lizard parsing as it was incorporating footer data
+- many fixes for gcc-warn parsing:  failed to handle utf-8 data,
+  other changes to eliminate warnings and make it more robust
+- handle missing tool version
+
+-----------------------------------------------------
+resultparser version 3.0.1 (Oct 06, 2016)
+-----------------------------------------------------
+- add support for dependency-check and retire-js
+- cleanup release script
+
+-----------------------------------------------------
 resultparser version 3.0.0 (Aug 18, 2016)
 -----------------------------------------------------
 - initial release of the 3.0.0 version of the result parser
