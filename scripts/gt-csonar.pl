@@ -84,7 +84,7 @@ foreach my $inputFile (@filelist)  {
 
     foreach my $elem (sort {$a <= $b} @events)  {
 	my $primary = ($elem eq $events[$#events]) ? "true" : "false";
-	my @tokens = split(":", $buglocation_hash{$elem});
+	my @tokens = split(":", $buglocation_hash{$elem}, 3);
 	$bug->setBugLocation(
 	    $elem, "", $tokens[0], $tokens[1],
 	    $tokens[1], "0", "0", $tokens[2],
