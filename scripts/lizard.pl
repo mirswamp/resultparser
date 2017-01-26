@@ -53,7 +53,8 @@ foreach my $inputFile (@inputFiles)  {
 	#Check Line-1
 	$state = '1';
     }
-    if ($l2 =~ /^\s+NLOC*/ && $state eq '1')  {
+
+    if ($l2 =~ /^\s+NLOC\s+CCN\s+token\s+PARAM\s+length\s+location/ && $state eq '1')  {
 	#Check Line-2
 	#@f = split /\s+/, $l2, 7;
 	$state = '2';
@@ -69,6 +70,11 @@ foreach my $inputFile (@inputFiles)  {
     while (my $line = <$file>)  {
 	last if $line =~ /^[-=]+/;
 	next if $line =~ /^\s*$/;
+	last if $line =~ /\d+\s+file.*analyzed\./;
+	if ($line !~ /^\s*(\d+\s+){5}/)  {
+	    print STDERR "Found invalid line: $line";
+	    last;  # FIXME should die here
+	}
 	my @v   = split /\s+/, $line, 7;
 	my $loc = $v[6];
 	my @l   = split /@/, $loc, 3;
