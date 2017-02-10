@@ -100,7 +100,7 @@ foreach my $warning (@warningData)  {
     undef($bugCode);
     undef($line);
     my $file = "$resultsDir/$inputFile";
-    my $filterCmd = "iconv -f US-ASCII -t UTF-8 -c $file | tr -c '\\11\\12\\15\\40-\\176' ' '";
+    my $filterCmd = "iconv -f ISO-8859-15 -t US-ASCII -c $file | tr -c '\\11\\12\\15\\40-\\176' ' '";
     print "Filtering CodeSonar XML files to fix invalid XML:\n    $filterCmd\n";
     open my $filteredInput, '-|', $filterCmd or die "open -| $filterCmd: $!";
     $twig->parse($filteredInput);
