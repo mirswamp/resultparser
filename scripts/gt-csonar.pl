@@ -31,7 +31,9 @@ my @buildIds = Util::GetBuildIds(@parsedSummary);
 undef @parsedSummary;
 my $tempInputFile;
 
+
 my $count = 0;
+my @warningData;
 
 my $twig = XML::Twig->new(
 	twig_handlers => {
@@ -44,42 +46,82 @@ my $twig = XML::Twig->new(
 #Initialize the counter values
 my $filePath = "";
 my $eventNum;
-my ($line, $bugGroup, $filename, $severity, $method, $bugMsg, $file);
-my @bugCode_cweId;    # first element is bug code and other elements are cweids
-my $tempBug;
+my ($line, $bugGroup, $bugCode, $filename, $method, $bugMsg, $file);
+my @weaknessCategories;
 my %buglocation_hash;
+my $resultsDir = $inputDir;
+$resultsDir = '.' if $resultsDir eq '';
 
-my $resultsDir = "$inputDir/$inputFiles[0]";
-
-opendir(DIR, $resultsDir);
-my @filelist = grep {-f "$resultsDir/$_" && $_ =~ m/\.xml$/} readdir(DIR);
+foreach my $inputFile (@inputFiles)  {
+    my $resultFile = "$inputDir/$inputFile";
+    if (-f $resultFile)  {
+	if ($resultFile =~ /^(.*)\/.*?$/)  {
+	    $resultsDir = $1;
+	}  else  {
+	    $resultsDir = '.';
+	}
+	my $analysisTwig = XML::Twig->new(
+		twig_handlers => {
+		    'analysis/warning'	=> \&ProcessAnalysis
+		}
+	    );
+	$analysisTwig->parsefile($resultFile);
+    }  elsif (-d $resultFile)  {
+	# old CodeSonar runs set this to the result directory
+	opendir DIR, $resultsDir or die "opendir $resultsDir: $!";
+	while (readdir(DIR))  {
+	    my $file = $_;
+	    next unless -f $file && $file =~ /\.xml$/;
+	    my $r = { file => $file, score => undef };
+	    push @warningData, $r;
+	}
+	closedir DIR or die "closedir $resultsDir";
+    }  else  {
+	die "Result file 'resultFile' not found";
+    }
+}
 
 my $xmlWriterObj = new xmlWriterObject($outputFile);
 $xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-foreach my $inputFile (@filelist)  {
+foreach my $warning (@warningData)  {
+    my $inputFile = $warning->{file};
+    my $score = $warning->{score};
     $tempInputFile = $inputFile;
     $buildId = $buildIds[$count];
     $count++;
     $eventNum	 = 1;
     $bugMsg = "";
     undef($method);
-    undef(@bugCode_cweId);
-    undef($severity);
+    undef(@weaknessCategories);
     undef($filename);
     undef($bugGroup);
+    undef($bugCode);
     undef($line);
-    $twig->parsefile("$resultsDir/$inputFile");
+    my $file = "$resultsDir/$inputFile";
+    my $filterCmd = "iconv -f US-ASCII -t UTF-8 -c $file | tr -c '\\11\\12\\15\\40-\\176' ' '";
+    print "Filtering CodeSonar XML files to fix invalid XML:\n    $filterCmd\n";
+    open my $filteredInput, '-|', $filterCmd or die "open -| $filterCmd: $!";
+    $twig->parse($filteredInput);
+    my @cwes;
+    foreach my $c (@weaknessCategories)  {
+	if ($c =~ /^\s*cwe:(\d+)\s*$/i)  {
+	    push @cwes, $1;
+	}
+    }
+    my $cwe;
+    $cwe = $cwes[0] if @cwes;
     my $bug = new bugInstance($xmlWriterObj->getBugId());
-    $tempBug = $bug;
     $bug->setBugMessage($bugMsg);
-    $bug->setBugSeverity($severity);
+    $bug->setBugRank($score);
+    #$bug->setBugSeverity($score);
     $bug->setBugGroup($bugGroup);
-    $bug->setBugCode(shift(@bugCode_cweId));
+    $bug->setBugCode($bugCode);
+    $bug->setCweId($cwe) if defined $cwe;
     $bug->setBugReportPath($tempInputFile);
     $bug->setBugBuildId($buildId,);
     $bug->setBugMethod(1, "", $method, "true");
-    $bug->setCWEArray(@bugCode_cweId);
+    $bug->setCWEArray(@weaknessCategories);
     my @events = sort {$a <=> $b} (keys %buglocation_hash);
 
     foreach my $elem (sort {$a <= $b} @events)  {
@@ -93,6 +135,7 @@ foreach my $inputFile (@filelist)  {
     }
     $xmlWriterObj->writeBugObject($bug);
     %buglocation_hash = ();
+    close $filteredInput or die "close -| $filteredInput: $! (?=$?)";
 }
 $xmlWriterObj->writeSummary();
 $xmlWriterObj->addEndTag();
@@ -102,12 +145,43 @@ if (defined $weaknessCountFile)  {
 }
 
 
+
+sub ProcessAnalysis
+{
+    my ($tree, $elem) = @_;
+    my $url = $elem->att('url');
+    my @scores = $elem->children('score');
+    my $score;
+    if (@scores >= 1)  {
+	$score = $scores[0]->text();
+	if (@scores > 1)  {
+	    print STDERR "analysis XML file (url=$url) contains more than 1 score element\n";
+	}
+	if ($score !~ /\d+/)  {
+	    print STDERR "analysis XML (url=$url) score, '$score' is not numeric\n";
+	}  elsif ($score < 0 or $score > 100)  {
+	    print STDERR "analysis XML (url=$url) score, '$score' is not 0-100\n";
+	}
+    }  else  {
+	print STDERR "analysis XML file (url=$url) contain no score element\n";
+    }
+
+    my $file = $url;
+    $file =~ s/^\/?(.*?)(\?.*)?$/$1/;
+
+    my $r = { file => $file, score => $score };
+    push @warningData, $r;
+
+    $tree->purge();
+}
+
+
 sub GetFileDetails
 {
     my ($tree, $elem) = @_;
     $line      = $elem->att('line_number');
-    $bugGroup = $elem->att('warningclass');
-    $severity  = $elem->att('priority');
+    $bugGroup   = $elem->att('significance');
+    $bugCode   = $elem->att('warningclass');
     $filename = Util::AdjustPath($packageName, $cwd, $elem->att('filename'));
     $method = $elem->att('procedure');
 }
@@ -118,7 +192,7 @@ sub GetCWEDetails
     my ($tree, $elem) = @_;
 
     foreach my $cwe ($elem->children('category'))  {
-	push(@bugCode_cweId, $cwe->field);
+	push(@weaknessCategories, $cwe->text);
     }
 }
 
