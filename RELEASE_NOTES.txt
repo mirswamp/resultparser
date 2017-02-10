@@ -1,4 +1,15 @@
 -----------------------------------------------------
+resultparser version 3.0.5 (Feb 10, 2017)
+-----------------------------------------------------
+- fix gt-csonar parsing to include cwe, better group
+  and code, and a rank
+
+-----------------------------------------------------
+resultparser version 3.0.4 (Jan 26, 2017)
+-----------------------------------------------------
+- minor fixes for lizard and gt-csonar parsers
+
+-----------------------------------------------------
 resultparser version 3.0.2 (Jan 20, 2017)
 -----------------------------------------------------
 - fix bug in gt-csonar parsing, was not clearing array of locations
