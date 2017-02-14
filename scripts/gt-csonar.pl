@@ -114,8 +114,7 @@ foreach my $warning (@warningData)  {
     $cwe = $cwes[0] if @cwes;
     my $bug = new bugInstance($xmlWriterObj->getBugId());
     $bug->setBugMessage($bugMsg);
-    $bug->setBugRank($score) if defined $score;
-    #$bug->setBugSeverity($score) if defined $score;
+    $bug->setBugSeverity($score) if defined $score;
     $bug->setBugGroup($bugGroup);
     $bug->setBugCode($bugCode);
     $bug->setCweId($cwe) if defined $cwe;
