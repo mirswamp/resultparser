@@ -259,11 +259,20 @@ sub GetBuildIds {
 
 
 sub PrintWeaknessCountFile {
-    my ($weaknessCountFile, $weaknessCount) = @_;
+    my ($weaknessCountFile, $weaknessCount, $status, $longMsg) = @_;
 
     if (defined $weaknessCountFile)  {
         open WFILE, ">", $weaknessCountFile or die "open $weaknessCountFile: $!";
         print WFILE "weaknesses: $weaknessCount\n";
+	if (defined $status)  {
+	    die "unknown status type '$status'"
+		    unless $status =~ /^(PASS|FAIL|SKIP|NOTE)$/;
+	    print WFILE "$status\n";
+	}
+	if (defined $longMsg && $longMsg !~ /^\s*$/)  {
+	    $longMsg =~ s/\n*$//;
+	    print WFILE "-----\n$longMsg\n";
+	}
         close WFILE or die "close $weaknessCountFile: $!";
     }
 }
