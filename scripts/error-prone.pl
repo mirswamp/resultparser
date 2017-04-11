@@ -1,42 +1,16 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
-
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $tempInputFile;
 
 #Initialize the counter values
 my $bugId   = 0;
 my $fileId = 0;
-my $count   = 0;
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
 my $prevMsg;
 my $prev_fn;
@@ -50,10 +24,10 @@ my $first_report
 my $input_text;
 my $tempBug;
 
-foreach my $inputFile (@inputFiles)  {
-    $tempInputFile = $inputFile;
-    $buildId = $buildIds[$count];
-    $count++;
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
+
     $not_msg	       = 0;
     $prev_line         = "";
     $first_report      = 1;
@@ -62,10 +36,9 @@ foreach my $inputFile (@inputFiles)  {
     $prevMsg          = "";
     $prev_fn           = "";
     $traceStartLine  = 1;
-    $input_text        = new IO::File("<$inputDir/$inputFile");
+    $input_text        = new IO::File($fn) or die "open $fn: $!";
 
     my $tempBug;
-    $input_text = (defined $input_text) ? $input_text : "";
     my $temp;
 
   LINE:
@@ -86,28 +59,22 @@ foreach my $inputFile (@inputFiles)  {
 	}  else  {
 	    $prev_line = $line;
 	}
-	ParseLine($currentLineNum, $line, $inputFile);
+	ParseLine($parser, $currentLineNum, $line);
 	$temp = $line;
     }
-    RegisterBugPath($currentLineNum, $inputFile);
-}
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
+    RegisterBugPath($parser, $currentLineNum);
 }
 
 
 sub ParseLine {
-    my ($bugReportLine, $line, $inputFile) = @_;
+    my ($parser, $bugReportLine, $line) = @_;
 
     my @tokens        = SplitString($line);
     my $num_of_tokens = @tokens;
     my ($file, $lineNum, $message, $severity, $code, $resolution_msg);
     my $flag = 1;
     if ($num_of_tokens eq 4 && !($line =~ m/^\s*Did you mean.*$/i))  {
-	$file     = Util::AdjustPath($packageName, $cwd, $tokens[0]);
+	$file     = $tokens[0];
 	$lineNum  = $tokens[1];
 	$severity = Util::Trim($tokens[2]);
 	$message  = $tokens[3];
@@ -142,49 +109,42 @@ sub ParseLine {
     if ($flag ne 0)  {
 	$message = Util::Trim($message);
 
-	$tempBug = CreateBugObject($bugReportLine, $file, $lineNum, $message,
-		$severity, $code, $inputFile);
+	$tempBug = CreateBugObject($parser, $bugReportLine, $file, $lineNum, $message,
+		$severity, $code);
 	$first_report = 0;
     }
 }
 
 
 sub RegisterBugPath {
-    my ($bugReportLine, $inputFile) = @_;
+    my ($parser, $bugReportLine) = @_;
 
     return if $first_report == 1;
 
     if (defined $tempBug)  {#Store the information for prev bug trace
 	my ($bugLineStart, $bugLineEnd);
-	if ($traceStartLine eq $bugReportLine - 1)  {
-	    $bugLineStart = $traceStartLine;
-	    $bugLineEnd   = $traceStartLine;
-	}  else  {
-	    $bugLineStart = $traceStartLine;
-	    $bugLineEnd   = $bugReportLine - 1;
-	}
+	$bugLineStart = $traceStartLine;
+	$bugLineEnd   = $bugReportLine - 1;
 	$tempBug->setBugLine($bugLineStart, $bugLineEnd);
-	$tempBug->setBugBuildId($buildId);
-	$tempBug->setBugReportPath($tempInputFile);
 	$traceStartLine = $bugReportLine;
     }
 
     if (defined $tempBug)  {
-	$xmlWriterObj->writeBugObject($tempBug);
+	$parser->WriteBugObject($tempBug);
     }
 }
 
 
 sub CreateBugObject {
-    my ($bugReportLine, $file, $lineNum, $message, $severity, $code, $inputFile) = @_;
+    my ($parser, $bugReportLine, $file, $lineNum, $message, $severity, $code) = @_;
 
     #Store the information for prev bug trace
-    RegisterBugPath($bugReportLine, $inputFile);
+    RegisterBugPath($parser, $bugReportLine);
 
     #New Bug Instance
     my $methodId   = 0;
     my $locationId = 0;
-    my $bug = new bugInstance($xmlWriterObj->getBugId());
+    my $bug = $parser->NewBugInstance();
     $bug->setBugMessage($message);
     if (defined $code && $code ne '')  {
 	$bug->setBugCode($code);
@@ -241,3 +201,6 @@ sub SplitString {
     }
     return (@ret);
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

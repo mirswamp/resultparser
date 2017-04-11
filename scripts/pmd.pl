@@ -1,93 +1,53 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
 use XML::Twig;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $tempInputFile;
-
-my $twig = XML::Twig->new(
-	start_tag_handlers => {'file'      => \&SetFileName},
-	twig_handlers      => {'violation' => \&ParseViolations}
-);
-
-#Initialize the counter values
-my $bugId   = 0;
-my $fileId = 0;
-my $count   = 0;
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-
-foreach my $inputFile (@inputFiles)  {
-	$tempInputFile = $inputFile;
-	$buildId = $buildIds[$count];
-	$count++;
-	$twig->parsefile("$inputDir/$inputFile");
-}
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
-}
-
-
-my $filePath;
-
-
-sub SetFileName
+sub ParseFile
 {
-    my ($tree, $element) = @_;
+    my ($parser, $fn) = @_;
 
-    $filePath = $element->att('name');
-    $element->purge() if defined $element;
-    $fileId++;
+    my $fileName;
+    my $numFile = -1;
+    my $numViolation = -1;
+
+    my $twig = XML::Twig->new(
+	    twig_roots         => {'file'  => 1},
+	    start_tag_handlers => {
+		'file'  => sub {
+		    my ($twig, $e) = @_;
+		    ++$numFile;
+		    $numViolation = -1;
+		    $fileName = $e->att('name');
+		    return 1;
+		},
+	    },
+	    twig_handlers      => {
+		'violation' => sub {
+		    my ($twig, $e) = @_;
+		    ++$numViolation;
+		    my $xpath = "/pmd/file[$numFile]/violation[$numViolation]";
+		    parseViolation($parser, $e, $fileName, $xpath);
+		    $twig->purge();
+		    return 1;
+		},
+	    }
+    );
+
+    $twig->parsefile($fn);
 }
 
 
-sub ParseViolations
+sub parseViolation
 {
-    my ($tree, $elem) = @_;
+    my ($parser, $violation, $fileName, $bugXpath) = @_;
 
-    my $bugXpath = $elem->path();
-    my $bug = GetPmdBugObject($elem, $xmlWriterObj->getBugId(), $bugXpath);
-    $elem->purge() if defined $elem;
-
-    $xmlWriterObj->writeBugObject($bug);
-}
-
-
-sub GetPmdBugObject
-{
-    my ($violation, $bugId, $bugXpath) = @_;
-
-    my $adjustedFilePath = Util::AdjustPath($packageName, $cwd, $filePath);
     my $beginLine        = $violation->att('beginline');
     my $endLine          = $violation->att('endline');
     if ($beginLine > $endLine)  {
@@ -111,24 +71,25 @@ sub GetPmdBugObject
     if (defined $package && defined $class)  {
 	$class = $package . "." . $class;
     }
-    my $bug = new bugInstance($bugId);
+    my $bug = $parser->NewBugInstance();
     ###################
     $bug->setBugLocation(
-	    1, $class, $adjustedFilePath, $beginLine,
+	    1, $class, $fileName, $beginLine,
 	    $endLine, $beginColumn, $endColumn, $locMsg,
 	    'true', 'true'
     );
     $bug->setBugMessage($message);
-    $bug->setBugBuildId($buildId);
-    $bug->setClassAttribs($class, $adjustedFilePath, $beginLine, $endLine, "");
+    $bug->setClassAttribs($class, $fileName, $beginLine, $endLine, "");
     $bug->setBugSeverity($priority);
     $bug->setBugGroup($ruleset);
     $bug->setBugCode($rule);
-    $bug->setBugPath($bugXpath . "[" . $fileId . "]" . "/violation[" . $bugId . "]");
-    $bug->setBugBuildId($buildId);
-    $bug->setBugReportPath($tempInputFile);
+    $bug->setBugPath($bugXpath);
     $bug->setBugMethod(1, $class, $method, 'true') if defined $method;
     $bug->setBugPackage($package);
     $bug->setURLText($externalInfoURL);
-    return $bug;
+
+    $parser->WriteBugObject($bug);
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

@@ -1,267 +1,339 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
 use XML::Twig;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
-
-GetOptions(
-	    "input_dir=s"           => \$inputDir,
-	    "output_file=s"         => \$outputFile,
-	    "tool_name=s"           => \$toolName,
-	    "summary_file=s"        => \$summaryFile,
-	    "weakness_count_file=s" => \$weaknessCountFile,
-	    "help"                  => \$help,
-	    "version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $tempInputFile;
-
-my $file_xpath_stdviol  = 'ResultsSession/CodingStandards/StdViols/StdViol';
-my $file_xpath_dupviol  = 'ResultsSession/CodingStandards/StdViols/DupViol';
-my $file_xpath_flowviol = 'ResultsSession/CodingStandards/StdViols/FlowViol';
-my $location_hash_xpath = 'ResultsSession/Scope/Locations/Loc';
+my $resultsSessionXpath = '/ResultsSession';
+my $location_hash_xpath = "$resultsSessionXpath/Scope/Locations/Loc";
 
 #Initialize the counter values
-my $bugId        = 0;
-my $fileId      = 0;
-my $filePath    = "";
-my $stdviol_num  = 0;
-my $dupviol_num  = 0;
-my $flowviol_num = 0;
 my $locationId   = 0;
-my %location_hash;
-my $count = 0;
 
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-my $newerVersion = CompareVersion($toolVersion);
-my $twig;
+sub ParseProjectFile
+{
+    my ($parser, $projectFile, $proj) = @_;
 
-if (!$newerVersion)  {
-    $twig = XML::Twig->new(
-	    twig_handlers => {
-		    $file_xpath_stdviol  => \&ParseViolations_StdViol,
-		    $file_xpath_dupviol  => \&ParseViolations_DupViol,
-		    $file_xpath_flowviol => \&ParseViolations_FlowViol
-	    }
-	);
-}  else  {
-    $twig = XML::Twig->new(
-	    twig_roots    => {'ResultsSession' => 1},
-	    twig_handlers => {
-		    $location_hash_xpath => \&ParseLocationHash,
-		    $file_xpath_stdviol  => \&ParseViolations_StdViol,
-		    $file_xpath_dupviol  => \&ParseViolations_DupViol,
-		    $file_xpath_flowviol => \&ParseViolations_FlowViol
-	    }
+    $projectFile = $parser->{options}{input_dir} . "/$projectFile";
+
+    # Jtest does not a .proj file, so skip
+    return unless -f $projectFile;
+
+    my $linkedResourcesXpath	= '/projectDescription/linkedResources';
+    my $linkXpath		= "$linkedResourcesXpath/link";
+    my $nameXpath		= "$linkXpath/name";
+    my $locationXpath		= "$linkXpath/location";
+
+    my $numLinkedResources = 0;
+    my $numLinkRsources = 0;
+    my $name;
+    my $location;
+
+    my %h;
+
+    my $twig = XML::Twig->new(
+	    twig_handlers =>  {
+		$linkedResourcesXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    ++$numLinkedResources;
+		    return 1;
+		},
+		$linkXpath		=> sub {
+		    my ($twig, $e) = @_;
+		    ++$numLinkedResources;
+
+		    die "$nameXpath not found in $projectFile"
+			    unless defined $name;
+		    die "$locationXpath not found in $projectFile"
+			    unless defined $location;
+
+		    $h{"/$proj/$name"} = $location;
+
+		    undef $name;
+		    undef $location;
+
+		    return 1;
+		},
+		$nameXpath		=> sub {
+		    my ($twig, $e) = @_;
+		    $name = $e->text();
+		    return 1;
+		},
+		$locationXpath		=> sub {
+		    my ($twig, $e) = @_;
+		    $location = $e->text();
+		    return 1;
+		},
+	    },
     );
+
+    $twig->parsefile($projectFile);
+
+    if (%h)  {
+	my $fromText = join '|', keys %h;
+	my $fromRe = qr/$fromText/;
+	$parser->{fromRe} = $fromRe;
+	$parser->{prefixMap} = \%h;
+    }
 }
 
-foreach my $inputFile (@inputFiles)  {
-    $tempInputFile = $inputFile;
-    $buildId        = $buildIds[$count];
-    $count++;
-    $twig->parsefile("$inputDir/$inputFile");
+
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
+
+    # TODO: should get the parameter from the report.xml
+    ParseProjectFile($parser, 'proj/.project', 'proj');
+
+    my $isVersion10 = IsVersion10($parser->{ps}{toolVersion});
+    die "PS C/C++test version 10 results not supported" if $isVersion10;
+
+    my $stdViolNum  = 0;
+    my $dupViolNum  = 0;
+    my $flowViolNum = 0;
+
+    my $stdViolsXpath	= "$resultsSessionXpath/CodingStandards/StdViols";
+    my $stdViolXpath	= "$stdViolsXpath/StdViol";
+    my $dupViolXpath	= "$stdViolsXpath/DupViol";
+    my $flowViolXpath	= "$stdViolsXpath/FlowViol";
+    my $elDescXpath	= "ElDesc";
+    my $propXpath	= "$elDescXpath/Props/Prop";
+
+    my %curViol;
+
+    my $twig = XML::Twig->new(
+	    start_tag_handlers =>  {
+		$elDescXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    my $elDesc = GetElDesc($twig, $e);
+		    push @{$curViol{elDescs}}, $elDesc;
+		    push @{$curViol{openElDescs}}, $elDesc;
+		    return 1;
+		},
+		$propXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    my $props = $curViol{openElDescs}->[-1]{props};
+		    ProcessProps($twig, $e, $props);
+		    return 1;
+		},
+		$flowViolXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    ++$stdViolNum;
+		    my $xpath = "$flowViolXpath\[$flowViolNum]";
+		    BeginFlowViol($parser, $twig, $e, $xpath, \%curViol);
+		    return 1;
+		},
+	    },
+	    twig_handlers => {
+		$stdViolXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    ++$stdViolNum;
+		    my $xpath = "$stdViolXpath\[$stdViolNum]";
+		    ParseViolations_StdViol($parser, $twig, $e, $xpath);
+		    return 1;
+		},
+		$dupViolXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    ++$dupViolNum;
+		    my $xpath = "$dupViolXpath\[$dupViolNum]";
+		    ParseViolations_DupViol($parser, $twig, $e, $xpath);
+		    return 1;
+		},
+		$flowViolXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    EndFlowViol($parser, $twig, $e, \%curViol);
+		    return 1;
+		},
+		$elDescXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    pop @{$curViol{openElDescs}};
+		    return 1;
+		},
+
+	    },
+	);
+
+    $twig->parsefile($fn);
 }
 
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
 
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
+sub GetElDesc
+{
+    my ($twig, $e) = @_;
+
+    my $file = $e->att('srcRngFile');
+    my $type = $e->att('ElType');
+    my $startLine = $e->att('srcRngStartln');
+    $startLine = $e->att('ln') unless defined $startLine;
+    my $startCol = $e->att('srcRngStartPos');
+    my $endLine = $e->att('srcRngEndLn');
+    $endLine = $e->att('eLn') unless defined $endLine;
+    --$endLine if defined $endLine && $endLine > 0;
+    my $endCol = $e->att('srcRngEndPos');
+    # XXX subtract from 1 from endCol???
+    --$endCol if defined $endCol && $endCol > 0;
+    $endLine = $startLine unless defined $endLine;
+
+    my %elDesc = (
+	file		=> $file,
+	type		=> $type,
+	startLine	=> $startLine,
+	endLine		=> $endLine,
+	isCause		=> scalar($type =~ /C/),
+	isViolPoint	=> scalar($type =~ /P/),
+	isImportant	=> scalar($type =~ /\!/),
+	isThrow		=> scalar($type =~ /E/),
+	props		=> {},
+	);
+
+    $elDesc{startCol} = defined $startCol ? $startCol : 0;
+    $elDesc{endCol} = defined $endCol ? $endCol : 0;
+
+    return \%elDesc;
+}
+
+
+sub ProcessProps
+{
+    my ($twig, $e, $props) = @_;
+
+    my $k = $e->att('key');
+    my $v = $e->att('val');
+
+    die "Duplicate key for props seen '$k: $v'" if exists $props->{$k};
+    $props->{$k} = $v;
+}
+
+
+sub CreateBug
+{
+    my ($parser, $e, $xpath) = @_;
+
+    my $bugCode         = $e->att('rule');
+    my $bugMsg          = $e->att('msg');
+    my $bugSeverity     = $e->att('sev');
+    # use cat attr if defined (bugGroup not included for flow viols),
+    # otherwise, prefix of code, otherwise UNKNOWN
+    my $bugGroup        = $e->att('cat');
+    $bugGroup = $1 if !defined $bugGroup && $bugCode =~ /^(.*)-/;
+    $bugGroup = $1 if !defined $bugGroup && $bugCode =~ /^(.*)\./;
+    $bugGroup = 'UNKNOWN' unless defined $bugGroup;
+
+    my $bug = $parser->NewBugInstance();
+    $bug->setBugMessage($bugMsg);
+    $bug->setBugSeverity($bugSeverity);
+    $bug->setBugGroup($bugGroup);
+    $bug->setBugCode($bugCode);
+    $bug->setBugPath($xpath) if defined $xpath;
+
+    return $bug;
 }
 
 
 sub ParseViolations_StdViol
 {
-    my ($tree, $elem) = @_;
+    my ($parser, $twig, $e, $xpath) = @_;
 
-    $stdviol_num++;
-    my $beginLine = $elem->att('ln');
-    my $endLine   = $beginLine;
+    my $beginLine = $e->att('ln');
+    my $endLine   = $e->att('eln');
+    # eln for StdViol seems to be inclusive of the range so no -1
+    $endLine   = $beginLine unless defined $endLine;
     my $file;
-    if (!$newerVersion)  {
-	$file = $elem->att('locFile');
-	$file =~ s/\/(.*?)\/(.*?\/)/\//;
-	$file = $cwd . $file;
-    }  else  {
-	$file = replacePathsFromHash($elem->att('locRef'));
-    }
-    my $filePath  = Util::AdjustPath($packageName, $cwd, $file);
-    my $bugCode   = $elem->att('rule');
-    my $bugMsg    = $elem->att('msg');
-    my $severity  = $elem->att('sev');
-    my $category  = $elem->att('cat');
-    my $bugXpath = $elem->path();
-    my $bug = new bugInstance($xmlWriterObj->getBugId());
+    $file = $e->att('locFile');
+    my $filePath  = $file;
+    my $bug = CreateBug($parser, $e, $xpath);
     $bug->setBugLocation(
 	    1, "", $filePath, $beginLine, $endLine, "0",
 	    "0", "", 'true', 'true'
     );
-    $bug->setBugMessage($bugMsg);
-    $bug->setBugSeverity($severity);
-    $bug->setBugGroup($category);
-    $bug->setBugCode($bugCode);
-    $bug->setBugPath($bugXpath . "[$stdviol_num]");
-    $bug->setBugBuildId($buildId);
-    $bug->setBugReportPath($tempInputFile);
-    $tree->purge();
-    $xmlWriterObj->writeBugObject($bug);
+    $parser->WriteBugObject($bug);
+    $twig->purge();
 }
 
 
 sub ParseViolations_DupViol
 {
-    my ($tree, $elem) = @_;
+    my ($parser, $twig, $e, $xpath) = @_;
 
-    # FIXME: what is locationId
+
     $locationId = 1;
-    my $bugCode    = $elem->att('rule');
-    my $bugMsg     = $elem->att('msg');
-    my $severity   = $elem->att('sev');
-    my $category   = $elem->att('cat');
-    my $bugXpath  = $elem->path();
-    foreach my $child_elem ($elem->first_child('ElDescList')->children)  {
-	$dupviol_num++;
-	my $bug = new bugInstance($xmlWriterObj->getBugId());
+    foreach my $child_elem ($e->first_child('ElDescList')->children)  {
+	my $bug = CreateBug($parser, $e, $xpath);
 	my $file;
-	if (!$newerVersion)  {
-	    $file = $child_elem->att('srcRngFile');
-	    $file =~ s/\/(.*?)\/(.*?\/)/\//;
-	    $file = $cwd . $file;
-	}  else  {
-	    $file = replacePathsFromHash($elem->att('locRef'));
-	}
-	my $filePath  = Util::AdjustPath($packageName, $cwd, $file);
+	$file = $child_elem->att('srcRngFile');
+	my $filePath  = $file;
 	my $beginLine = $child_elem->att('srcRngStartln');
 	my $endLine   = $child_elem->att('srcRngEndLn');
 	my $beginCol  = $child_elem->att('srcRngStartPos');
 	my $endCol    = $child_elem->att('srcRngEndPos');
-	$bug->setBugMessage($bugMsg);
-	$bug->setBugSeverity($severity);
-	$bug->setBugGroup($category);
-	$bug->setBugCode($bugCode);
-	$bug->setBugPath($bugXpath . "[$dupviol_num]");
-	$bug->setBugBuildId($buildId);
-	$bug->setBugReportPath($tempInputFile);
 	my $locMsg = $child_elem->att('desc');
 	$bug->setBugLocation(
 		$locationId, "", $filePath, $beginLine,
 		$endLine, $beginCol, $endCol, "",
 		$locMsg, 'false', 'true'
 	);
-	$xmlWriterObj->writeBugObject($bug);
+	$parser->WriteBugObject($bug);
     }
-    $tree->purge();
+    $twig->purge();
 }
 
 
-sub ParseViolations_FlowViol
+sub BeginFlowViol
 {
-    my ($tree, $elem) = @_;
+    my ($parser, $twig, $e, $xpath, $viol) = @_;
 
-    # FIXME: what is locationId
-    $locationId = 1;
-    $flowviol_num++;
-    my $beginLine = $elem->att('ln');
-    my $endLine   = $beginLine;
-    my $file;
-    if (!$newerVersion)  {
-	$file = $elem->att('locFile');
-	$file =~ s/\/(.*?)\/(.*?\/)/\//;
-	$file = $cwd . $file;
-    }  else  {
-	$file = replacePathsFromHash($elem->att('locRef'));
-    }
-    my $filePath  = Util::AdjustPath($packageName, $cwd, $file);
-    my $bugCode   = $elem->att('rule');
-    my $bugMsg    = $elem->att('msg');
-    my $severity  = $elem->att('sev');
-    my $bugXpath = $elem->path();
-    my $category;	#FIXME what is the value???
-    my $bug = new bugInstance($xmlWriterObj->getBugId());
-    $bug->setBugLocation(
-	    1, "", $filePath, $beginLine, $endLine, "0",
-	    "0", "", 'true', 'true'
-    );
-    $bug->setBugMessage($bugMsg);
-    $bug->setBugSeverity($severity);
-    $bug->setBugGroup($category);
-    $bug->setBugCode($bugCode);
-    $bug->setBugPath($bugXpath . "[$flowviol_num]");
-    $bug->setBugBuildId($buildId);
-    $bug->setBugReportPath($tempInputFile);
+    my $bug = CreateBug($parser, $e, $xpath);
 
-    foreach my $child_elem ($elem->children)  {
-	if ($child_elem->gi eq "ElDescList")  {
-	    $bug = ParseElDescList($child_elem, $bug);
-	}
-    }
-    $xmlWriterObj->writeBugObject($bug);
+    $viol->{bug} = $bug;
 }
 
 
-sub ParseElDescList
+sub EndFlowViol
 {
-    my ($elem, $bug) = @_;
+    my ($parser, $twig, $e, $viol) = @_;
 
-    foreach my $child_elem ($elem->children)  {
-	if ($child_elem->gi eq "ElDesc")  {
-	    $bug = ParseElDesc($child_elem, $bug);
-	}
+    #use Data::Dumper;				#jk
+    #print Dumper($viol), "\n\n\n";		#jk
+
+    my $bug = $viol->{bug};
+
+    my $locId = 0;
+    foreach my $loc (@{$viol->{elDescs}})  {
+	#print Dumper($loc), "\n\n", ref($loc), "\n\n";	#jk
+	my ($props, $isImportant, $isCause, $isViolPoint)
+		= @$loc{qw/props isImportant isCause isViolPoint/};
+	#print Dumper($props, $isImportant, $isCause, $isViolPoint), "\n\n"; #jk
+	next unless %$props || $isImportant || $isCause || $isViolPoint;
+	my @msg;
+	push @msg, "Important" if $isImportant;
+	push @msg, "Violation Cause" if $isCause;
+	push @msg, "Violation Point" if $isViolPoint;
+	push @msg, "Throws Exception" if $loc->{isThrow};
+	push @msg, map {"$_: $props->{$_}"} sort keys %$props;
+	my $msg = join "; ", @msg;
+
+	my $class = '';
+	my $isPrimary = $isViolPoint ? 'true' : 'false';
+	$bug->setBugLocation(++$locId, $class, $loc->{file},
+		    $loc->{startLine}, $loc->{endLine},
+		    $loc->{startCol}, $loc->{endCol},
+		    $msg, $isPrimary, 'true');
+
     }
-    return $bug;
+
+    $parser->WriteBugObject($bug);
+    %$viol = ();
+
+    $twig->purge();
 }
 
 
-sub ParseElDesc
-{
-    my ($elem, $bug) = @_;
-
-    $locationId++;
-    my $beginLine = $elem->att('ln');
-    my $endLine;
-    if (defined $elem->att('eln'))  {
-	$endLine = $elem->att('eln');
-    }  else  {
-	$endLine = $beginLine;
-    }
-    my $file = $elem->att('srcRngFile');
-    $file =~ s/\/(.*?)\/(.*?\/)/\//;
-    $file     = $cwd . $file;
-    my $filePath = Util::AdjustPath($packageName, $cwd, $file);
-    my $locMsg  = $elem->att('desc');
-
-    if ($elem->att('ElType') ne ".P")  {
-	$bug->setBugLocation($locationId, "", $filePath, $beginLine,
-		$endLine, "0", "0", $locMsg, 'false', 'true');
-    }
-    foreach my $child_elem ($elem->children)  {
-	if ($child_elem->gi eq "ElDescList")  {
-	    $bug = ParseElDescList($child_elem, $bug);
-	}
-    }
-    return $bug;
-}
-
-
-sub CompareVersion
+sub IsVersion10
 {
     my ($version) = @_;
 
@@ -269,25 +341,4 @@ sub CompareVersion
 }
 
 
-sub ParseLocationHash
-{
-    my ($tree, $elem) = @_;
-
-    my $locRef = $elem->att('locRef');
-    my $uri    = $elem->att('uri');
-    my $path   = "";
-    if ($uri =~ /^file:\/\/[^\/]*(.*)/)  {
-	$path = $1;
-    }  else  {
-	die "Bad file URI $uri.";
-    }
-    $location_hash{$locRef} = $path;
-}
-
-
-sub replacePathsFromHash
-{
-    my ($locKey) = @_;
-
-    return $location_hash{$locKey};
-}
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

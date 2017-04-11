@@ -1,102 +1,59 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
 use XML::Twig;
 use JSON;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-
-my $fileId      = 0;
-my $current_file = "";
-my $count        = 0;
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-
-if ($inputFiles[0] =~ /\.json$/)  {
-    foreach my $inputFile (@inputFiles)  {
-	$current_file = $inputFile;
-	$fileId++;
-	$buildId = $buildIds[$count];
-	$count++;
-	my $bug = ParseJsonOutput("$inputDir/$inputFile");
+    if ($fn =~ /\.json$/)  {
+	ParseJsonOutput($parser, $fn);
+    }  elsif ($fn =~ /\.xml$/)  {
+	ParseXmlOutput($parser, $fn);
+    }  else  {
+	die "Unknown file type: $fn";
     }
-}  elsif ($inputFiles[0] =~ /\.xml$/)  {
+}
+
+
+#
+# FIX ME, this is not correct, need $parser, ...
+sub ParseXmlOutput
+{
+    my ($parser, $fn) = @_;
     my $twig = XML::Twig->new(
 	    twig_handlers => {'checkstyle/file' => \&ParseViolations});
-    foreach my $inputFile (@inputFiles)  {
-	$current_file = $inputFile;
-	$buildId = $buildIds[$count];
-	$count++;
-	$fileId++;
-	$twig->parsefile("$inputDir/$inputFile");
-    }
+    $twig->parsefile($fn);
 }
-
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
-}
-
-# writer object hash was not closed and buffered data lost, so force it to close
-undef $xmlWriterObj;
 
 
 sub ParseJsonOutput
 {
-    my ($inputFile) = @_;
+    my ($parser, $fn) = @_;
 
     my $beginLine;
     my $endLine;
-    my $jsonData = "";
     my $filename;
-    my $json_obj = "";
-    {
-	open FILE, $inputFile or die "open $inputFile: $!";
-	local $/;
-	$jsonData = <FILE>;
-	close FILE or die "close $inputFile: $!";
-    }
-    $json_obj = JSON->new->utf8->decode($jsonData);
+    my $jsonData = Util::ReadFile($fn);
+    my $json_obj = JSON->new->utf8->decode($jsonData);
+    my $weaknessPos = -1;
     foreach my $warning (@{$json_obj})  {
-	my $bugObj = new bugInstance($xmlWriterObj->getBugId());
+	++$weaknessPos;
+	my $bugObj = $parser->NewBugInstance();
 
+	$bugObj->setBugGroup('warning');
 	$bugObj->setBugCode($warning->{"smell_type"});
 	$bugObj->setBugMessage($warning->{"message"});
-	$bugObj->setBugBuildId($buildId);
-	$bugObj->setBugReportPath($current_file);
-	$bugObj->setBugPath("[" 
-		  . $fileId . "]"
-		  . "/error["
-		  . $xmlWriterObj->getBugId()
-		  . "]");
+	# this is jsonpath, not xpath
+	$bugObj->setBugPath("\$[$weaknessPos]");
 	$bugObj->setBugGroup($warning->{"smell_category"});
 	my $lines      = $warning->{"lines"};
 	my $startLine = @{$lines}[0];
@@ -107,7 +64,7 @@ sub ParseJsonOutput
 	foreach (@{$lines})  {
 	    $endLine = $_;
 	}
-	$filename = Util::AdjustPath($packageName, $cwd, $warning->{"source"});
+	$filename = $warning->{"source"};
 	$bugObj->setBugLocation(
 		1, "", $filename, $startLine,
 		$endLine, "0", "0", "",
@@ -151,17 +108,19 @@ sub ParseJsonOutput
 		}
 	    }
 	}
-	$xmlWriterObj->writeBugObject($bugObj);
+	$parser->WriteBugObject($bugObj);
     }
 }
 
 
 sub ParseViolations
 {
+    # FIXME include $parser in parameters
+    my $parser;
     my ($tree, $elem) = @_;
 
     #Extract File Path#
-    my $filePath = Util::AdjustPath($packageName, $cwd, $elem->att('name'));
+    my $filePath = $elem->att('name');
     my $bugXpath = $elem->path();
     my $violation;
     foreach $violation ($elem->children)  {
@@ -179,7 +138,7 @@ sub ParseViolations
 	my $severity = $violation->att('severity');
 	my $rule     = $violation->att('source');
 
-	my $bug = new bugInstance($xmlWriterObj->getBugId());
+	my $bug = $parser->NewBugInstance();
 	$bug->setBugLocation(
 		1, "", $filePath, $beginLine,
 		$endLine, $beginColumn, $endColumn, "",
@@ -188,13 +147,10 @@ sub ParseViolations
 	$bug->setBugMessage($message);
 	$bug->setBugSeverity($severity);
 	$bug->setBugCode($rule);
-	$bug->setBugBuildId($buildId);
-	$bug->setBugReportPath($current_file);
-	$bug->setBugPath($bugXpath . "[" 
-		. $fileId . "]"
-		. "/error["
-		. $xmlWriterObj->getBugId()
-		. "]");
-	$xmlWriterObj->writeBugObject($bug);
+	$bug->setBugPath($bugXpath);
+	$parser->WriteBugObject($bug);
     }
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

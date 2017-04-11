@@ -76,7 +76,7 @@ function CreateReleaseTar
 
     for f in "$@"; do
 	local file="$INNERTAR_DIR/$f"
-	if [ -f $file ]; then
+	if [ -f $file ] || [ -L $file ]; then
 	    rm $file
 	    if [ $? -ne 0 ]; then
 		echo FAILED: rm $file

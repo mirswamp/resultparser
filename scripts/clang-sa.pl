@@ -1,54 +1,24 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
-use bugInstance;
-use xmlWriterObject;
-use Util;
+use FindBin;
+use lib $FindBin::Bin;
 use Parser;
-
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
-
-GetOptions(
-    "input_dir=s"   => \$inputDir,
-    "output_file=s"  => \$outputFile,
-    "tool_name=s"    => \$toolName,
-    "summary_file=s" => \$summaryFile,
-    "weakness_count_file=s" => \$weaknessCountFile,
-    "help" => \$help,
-    "version" => \$version
-) or die("Error");
-
-Util::Usage() if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion,
-	@inputFiles) = Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
+use bugInstance;
+use Util;
 
 
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-my $tempInputFile;
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-my $count = 0;
-my $bugId = 0;
-
-foreach my $inputFile (@inputFiles)  {
-    $tempInputFile = $inputFile;
-    $buildId = $buildIds[$count];
-    $count++;
     my $indexCheckFlag = 1;
-    if (!-e "$inputDir/$inputFile/index.html")  {
+    if (!-f "$fn/index.html")  {
 	$indexCheckFlag = 0;
     }
-    opendir(DIR, "$inputDir/$inputFile");
+    opendir(DIR, $fn) or die "opendir $fn: $!";
     my @filelist = grep
-		    {-f "$inputDir/$inputFile/$_" && $_ ne "index.html" && $_ =~ m/\.html$/}
+		    {-f "$fn/$_" && $_ ne "index.html" && $_ =~ m/\.html$/}
 		    readdir(DIR);
 
     close(DIR);
@@ -56,17 +26,17 @@ foreach my $inputFile (@inputFiles)  {
     die "ERROR!! Clang assessment run did not complete. index.html file is missing. \n"
 	    if ($file_count > 0 and $indexCheckFlag eq 0);
     foreach my $file (@filelist)  {
-	my $in_file1 = new IO::File("<$inputDir/$inputFile/$file");
+	my $in_file1 = new IO::File("<$fn/$file") or die "open $fn/$file: $!";
 	my @lines = grep /<!--.*BUG.*-->/, <$in_file1>;
 	close($in_file1);
-	my $in_file2 = new IO::File("<$inputDir/$inputFile/$file");
+	my $in_file2 = new IO::File("<$fn/$file") or die "open $fn/$file: $!";
 	my @column = grep /class=\"rowname\".*Location.*line/, <$in_file2>;
 	close($in_file2);
 
 	my ($BUGFILE, $BUGDESC, $BUGTYPE, $BUGCATEGORY, $BUGLINE, $BUGCOLUMN, $BUGPATHLENGTH);
 	foreach my $line (@lines)  {
 	    if ($line =~ m/.*BUGFILE/)  {
-		$BUGFILE = Util::AdjustPath($packageName, $cwd, bugLine($line));
+		$BUGFILE = bugLine($line);
 	    }  elsif ($line =~ m/.*BUGDESC/)  {
 		$BUGDESC = bugLine($line);
 	    }  elsif ($line =~ m/.*BUGTYPE/)  {
@@ -84,8 +54,7 @@ foreach my $inputFile (@inputFiles)  {
 		$BUGCOLUMN = &bugColumn($line);
 	    }
 	}
-	$bugId++;
-	my $bug = new bugInstance($bugId);
+	my $bug = $parser->NewBugInstance();
 	$bug->setBugMessage($BUGDESC);
 	$bug->setBugCode($BUGTYPE);
 	$bug->setBugGroup($BUGCATEGORY);
@@ -94,16 +63,8 @@ foreach my $inputFile (@inputFiles)  {
 	    "0", "", "true", "true"
 	);
 	$bug->setBugPathLength($BUGPATHLENGTH);
-	$bug->setBugBuildId($buildId);
-	$bug->setBugReportPath($tempInputFile);
-	$xmlWriterObj->writeBugObject($bug);
+	$parser->WriteBugObject($bug);
     }
-}
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
 }
 
 
@@ -130,3 +91,6 @@ sub bugColumn {
     $line =~ s/ *$//;
     return ($line);
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

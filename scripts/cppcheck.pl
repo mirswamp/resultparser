@@ -1,82 +1,38 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
 use bugInstance;
 use XML::Twig;
-use xmlWriterObject;
 use Util;
+use Parser;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $count = 0;
-my $tempInputFile;
-
-my $twig = XML::Twig->new(
-	twig_roots    => {'errors' => 1},
-	twig_handlers => {'error'  => \&parseViolations}
-);
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-
-foreach my $inputFile (@inputFiles)  {
-    $tempInputFile = $inputFile;
-    $buildId        = $buildIds[$count];
-    $count++;
-    $twig->parsefile("$inputDir/$inputFile");
-}
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
-}
 
 
 sub parseViolations {
-    my ($tree, $elem) = @_;
+    my ($parser, $tree, $elem, $numError) = @_;
 
-    my $bugXpath = $elem->path();
-    my $file      = "";
-    my $lineno    = "";
-    getCppCheckBugObject($elem, $xmlWriterObj->getBugId(), $bugXpath);
+    my $bugXpath = "results/errors/error[$numError]";
+    getCppCheckBugObject($parser, $elem, $bugXpath);
+
     $elem->purge() if defined $elem;
     $tree->purge() if defined $tree;
 }
 
 
 sub getCppCheckBugObject  {
-    my ($violation, $bugId, $bugXpath) = @_;
+    my ($parser, $violation, $bugXpath) = @_;
 
-    my $bugCode            = $violation->att('id');
-    my $bugSeverity        = $violation->att('severity');
-    my $bugMsg         = $violation->att('msg');
-    my $bug_message_verbose = $violation->att('verbose');
+    my $bugCode             = $violation->att('id');
+    my $bugSeverity         = $violation->att('severity');
+    my $bugMsg              = Util::UnescapeCString($violation->att('msg'));
+    my $bug_message_verbose = Util::UnescapeCString($violation->att('verbose'));
     my $bug_inconclusive    = $violation->att('inconclusive');
     my $bug_cwe             = $violation->att('cwe');
 
-    my $bug  = new bugInstance($bugId);
+    my $bug  = $parser->NewBugInstance();
     my $locationId = 0;
 
     foreach my $error_element ($violation->children)  {
@@ -84,11 +40,11 @@ sub getCppCheckBugObject  {
 	my $file   = "";
 	my $lineno = "";
 	if ($tag eq 'location')  {
-	    $file = Util::AdjustPath($packageName, $cwd, $error_element->att('file'));
+	    $file = $error_element->att('file');
 	    $lineno = $error_element->att('line');
 	    $locationId++;
 	    $bug->setBugLocation($locationId, "",
-		    Util::AdjustPath($packageName, $cwd, $file),
+		    $file,
 		    $lineno, $lineno, "0", "0", $bugMsg, 'true', 'true');
 	}
     }
@@ -96,11 +52,34 @@ sub getCppCheckBugObject  {
     $bug->setBugMessage($bug_message_verbose);
     $bug->setBugGroup($bugSeverity);
     $bug->setBugCode($bugCode);
-    $bug->setBugPath($bugXpath . "[" . $bugId . "]");
-    $bug->setBugBuildId($buildId);
+    $bug->setBugPath($bugXpath);
     $bug->setBugInconclusive($bug_inconclusive) if defined $bug_inconclusive;
     $bug->setCweId($bug_cwe) if defined $bug_cwe;
-    $bug->setBugReportPath($tempInputFile);
-    $xmlWriterObj->writeBugObject($bug);
+    $parser->WriteBugObject($bug);
     undef $bug;
 }
+
+
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
+
+    my $numError = 0;
+
+    my $twig = XML::Twig->new(
+            twig_roots    => {'errors' => 1},
+	    twig_handlers => {
+		'error'  => sub {
+		    my ($twig, $e) = @_;
+		    parseViolations($parser, $twig, $e, $numError);
+		    ++$numError;
+		    return 1;
+		}
+	    }
+	);
+
+    $twig->parsefile($fn);
+}
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

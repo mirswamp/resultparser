@@ -1,10 +1,10 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
-use XML::Twig;
-use xmlWriterObject;
 use Util;
 # use warnings FATAL => 'all';
 
@@ -16,53 +16,30 @@ my $closeSingleQuote = qr/['\x{2019}\x{201b}]/;
 my $openDoubleQuote = qr/["\x{201c}\x{201f}]/;
 my $closeDoubleQuote = qr/["\x{201d}]/;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
-
-GetOptions(
-	    "input_dir=s"           => \$inputDir,
-	    "output_file=s"         => \$outputFile,
-	    "tool_name=s"           => \$toolName,
-	    "summary_file=s"        => \$summaryFile,
-	    "weakness_count_file=s" => \$weaknessCountFile,
-	    "help"                  => \$help,
-	    "version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
 
 my $violationId = 0;
 my $bugId       = 0;
 my $locationId  = 0;
 my $fileId     = 0;
-my $count       = 0;
 
 my $prev_line        = "";
 my $traceStartLine = 1;
 my $methodId;
 my $currentLineNum;
-my $fnFile;
-my $function;
+my $fnFile = '';
+my $function = '';
 my $line;
 my $message;
 my $prevMsg;
 my $prevBugGroup;
 my $prev_fn;
 
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-my $tempInputFile;
 my $bug;
 
-foreach my $inputFile (@inputFiles)  {
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
+
     $prevMsg         = "";
     $prevBugGroup   = "";
     $prev_fn          = "";
@@ -70,13 +47,8 @@ foreach my $inputFile (@inputFiles)  {
     $traceStartLine = 1;
     $locationId       = 0;
     $methodId         = 0;
-    $tempInputFile  = $inputFile;
-    $buildId         = $buildIds[$count];
-    $count++;
 
-    #my $input = new IO::File("<$inputDir/$inputFile");
-    open(my $input, "< :encoding(UTF-8)", "$inputDir/$inputFile") or die "open $inputDir/$inputFile; $!";
-    #print "\n<$inputDir/$inputFile";
+    open(my $input, "< :encoding(UTF-8)", "$fn") or die "open $fn; $!";
     my $fn_flag = -1;
 LINE:
     while (my $line = <$input>)  {
@@ -101,39 +73,34 @@ LINE:
 		# $function = "";
 		# $fnFile  = "";
 	    # }
-	    ParseLine($currentLineNum, $line, $function, $fnFile);
+	    ParseLine($parser, $currentLineNum, $line, $function, $fnFile);
 	}  else  {
-	    print "WARNING: unhandled-line: $inputFile:  $line\n" if $line !~ /^\s/;	#jk
+	    print "WARNING: unhandled-line: $fn:$currentLineNum:  $line\n" if $line !~ /^\s/;	#jk
 	}
     }
     if (defined $bug)  {
-	$xmlWriterObj->writeBugObject($bug);
+	$parser->WriteBugObject($bug);
 	undef $bug;
     }
 }
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId()-1);
-}
 
 
-sub ParseLine {
-    my ($bugReportLine, $line, $function, $fnFile) = @_;
+sub ParseLine
+{
+    my ($parser, $bugReportLine, $line, $function, $fnFile) = @_;
 
     my @tokens        = Util::SplitString($line);
     my $num_of_tokens = @tokens;
     my ($file, $lineNum, $colNum, $bugGroup, $message);
     my $flag = 1;
     if ($num_of_tokens eq 5)  {
-	$file      = Util::AdjustPath($packageName, $cwd, $tokens[0]);
+	$file      = $tokens[0];
 	$lineNum   = $tokens[1];
 	$colNum    = $tokens[2];
 	$bugGroup = $tokens[3];
 	$message   = $tokens[4];
     }  elsif ($num_of_tokens eq 4)  {
-	$file      = Util::AdjustPath($packageName, $cwd, $tokens[0]);
+	$file      = $tokens[0];
 	$lineNum   = $tokens[1];
 	$colNum    = 0;
 	$bugGroup = $tokens[2];
@@ -141,19 +108,21 @@ sub ParseLine {
     }  else  {
 
 	#bad line. hence skipping.
+	print STDERR "WARNING: ParseLine bad line: $line\n";
 	$flag = 0;
     }
 
     if ($flag ne 0)  {
 	$bugGroup = Util::Trim($bugGroup);
 	$message   = Util::Trim($message);
-	RegisterBug($bugReportLine, $function, $fnFile, $file, $lineNum,
+	RegisterBug($parser, $bugReportLine, $function, $fnFile, $file, $lineNum,
 		$colNum, $bugGroup, $message);
     }
 }
 
 
-sub RegisterBugpath {
+sub RegisterBugpath
+{
     my ($bugReportLine) = @_;
 
     my ($bugLineStart, $bugLineEnd);
@@ -171,8 +140,9 @@ sub RegisterBugpath {
 }
 
 
-sub RegisterBug {
-    my ($bugReportLine, $function, $fnFile, $file, $lineNum, $colNum,
+sub RegisterBug
+{
+    my ($parser, $bugReportLine, $function, $fnFile, $file, $lineNum, $colNum,
 	    $bugGroup, $message) = @_;
 
     if ($bugGroup eq "note" and $bugId > 0)  {
@@ -186,24 +156,23 @@ sub RegisterBug {
 	$prevMsg       = $message;
 	$prevBugGroup = $bugGroup;
 	$prev_fn        = $function;
-	$xmlWriterObj->writeBugObject($bug);
+	$parser->WriteBugObject($bug);
 	undef $bug;
 	return;
     }
     if ($fnFile ne $file || $prevMsg ne $message || $prevBugGroup ne $bugGroup
-	    || $prev_fn ne $function || $locationId > 99)  {
+	    || $prev_fn ne $function || $bugGroup =~ /^(warning|error)$/)  {
+	    # why 99?  || $prev_fn ne $function || $locationId > 99)  {
 	if (defined $bug)  {
-	    $xmlWriterObj->writeBugObject($bug);
+	    $parser->WriteBugObject($bug);
 	    undef $bug;
 	}
 	$bugId++;
-	$bug = new bugInstance($bugId);
+	$bug = $parser->NewBugInstance();
 	RegisterBugpath($bugReportLine);
 	undef $bugReportLine;
 	$methodId   = 0;
 	$locationId = 0;
-	$bug->setBugBuildId($buildId);
-	$bug->setBugReportPath($tempInputFile);
 
 	if ($function ne '')  {
 	    $bug->setBugMethod(++$methodId, "", $function, "true");
@@ -223,7 +192,8 @@ sub RegisterBug {
 }
 
 
-sub ParseMessage {
+sub ParseMessage
+{
     my ($message) = @_;
 
     my $code;
@@ -254,25 +224,31 @@ sub ParseMessage {
 }
 
 
-sub ValidateLine {
+sub ValidateLine
+{
     my ($line) = @_;
 
+    my $r;
+
     if ($line =~ /.*: +warning *:.*/i)  {
-	return "warning";
+	$r = "warning";
     }  elsif ($line =~ /.*: +error *:.*/i)  {
-	return "error";
+	$r = "error";
     }  elsif ($line =~ /.*: +note *:.*/i)  {
-	return "note";
+	$r = "note";
     }  elsif ($line =~ /^(?:.*: )?At (?:top level|global scope):/i)  {
-	return "function";
+	$r = "function";
     }  elsif ($line =~ /^.*: *In .*(function|constructor|destructor|instantiation).*$/)  {
-	return "function";
+	$r = "function";
     }  elsif ($line =~ /^.*: +In /i)  {
 	# check for missing types of "In * ..." lines
 	die "uknown 'In line': $line";
     }  else  {
-	return "invalid";
+	$r = "invalid";
     }
+
+    #printf "%-8s %s\n", $r, $line;
+    return $r;
 
     # <FILE>: In instantiation of 'C<T>':
     #   instantiated from '...'
@@ -321,3 +297,6 @@ sub ParseFunctionLine
 
     return @r;
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

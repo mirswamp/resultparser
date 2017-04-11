@@ -1,69 +1,32 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
-use xmlWriterObject;
 use Util;
 use JSON;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
-GetOptions(
-	    "input_dir=s"           => \$inputDir,
-	    "output_file=s"         => \$outputFile,
-	    "tool_name=s"           => \$toolName,
-	    "summary_file=s"        => \$summaryFile,
-	    "weakness_count_file=s" => \$weaknessCountFile,
-	    "help"                  => \$help,
-	    "version"               => \$version
-) or die("Error");
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-
-my $xmlWriter = new xmlWriterObject($outputFile);
-$xmlWriter->addStartTag($toolName, $toolVersion, $uuid);
-my $count = 0;
-
-foreach my $inputFile (@inputFiles)  {
-    $buildId = $buildIds[$count];
-    $count++;
-    my $jsonData;
-    {
-	open FILE, "$inputDir/$inputFile" or die "open $inputFile: $!";
-	local $/;
-	$jsonData = <FILE>;
-	close FILE or die "close $inputFile: $!";
-    }
+    my $jsonData = Util::ReadFile($fn);
 
     my $jsonObject = JSON->new->utf8->decode($jsonData);
 
     foreach my $error (@{$jsonObject->{"errors"}})  {
-	WriteFlowWeakness($error, $xmlWriter->getBugId(), $xmlWriter);
+	WriteFlowWeakness($parser, $error);
     }
-}
-
-$xmlWriter->writeSummary();
-$xmlWriter->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriter->getBugId() - 1);
 }
 
 
 sub WriteFlowWeakness  {
-    my ($e, $bugId, $xmlWriter) = @_;
+    my ($parser, $e) = @_;
 
-    my $bug = new bugInstance($bugId);
+    my $bug = $parser->NewBugInstance();
 
     $bug->setBugGroup($e->{kind}) if exists $e->{kind};
     $bug->setBugSeverity($e->{level}) if exists $e->{level};
@@ -89,7 +52,7 @@ sub WriteFlowWeakness  {
 	    my $startCol = $loc->{start}{column};
 	    my $endLine = $loc->{end}{line};
 	    my $endCol = $loc->{end}{column};
-	    my $file = Util::AdjustPath($packageName, $cwd, $loc->{source});
+	    my $file = $loc->{source};
 
 	    $bug->setBugLocation($locCount, '', $file, $startLine, $endLine,
 				    $startCol, $endCol, $locMsg, $isPrimary, 'true');
@@ -104,5 +67,8 @@ sub WriteFlowWeakness  {
     $bug->setBugCode($bugCode);
     $bug->setBugMessage($bugMsg);
 
-    $xmlWriter->writeBugObject($bug);
+    $parser->WriteBugObject($bug);
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

@@ -1,80 +1,54 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
-
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-
 my %severity_hash = (
-	R => 'refactor',
-	C => 'convention',
-	W => 'warning',
-	E => 'error',
-	F => 'fatal'
+	R => 'Refactor',
+	C => 'Convention',
+	W => 'Warning',
+	E => 'Error',
+	F => 'Fatal',
+	I => 'Information'
 );
 
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
 
-my $count = 0;
-my $tempInputFile;
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-foreach my $inputFile (@inputFiles)  {
-    $buildId = $buildIds[$count];
-    $tempInputFile = $inputFile;
-    $count++;
-    open(my $fh, "<", "$inputDir/$inputFile")
-	    or die "Could not open the input file $!";
+    open(my $fh, "<", $fn) or die "opern $fn: $!";
     while (<$fh>)  {
 	my $curr_line = $_;
 	chomp($curr_line);
 	my ($file, $line, $column, $severity, $bugCode, $bugMsg) =
 		$curr_line =~
-			/(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*:\s*(.*)/;
+			/(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*(?::\s*(.*?))?\s*:\s*(.*)/;
 
-	$file = Util::AdjustPath($packageName, $cwd, $file);
-	$severity = $severity_hash{$severity};
+	$file = $file;
+	if (exists $severity_hash{$severity})  {
+	    $severity = $severity_hash{$severity};
+	}  else  {
+	    $severity = "Unknown";
+	}
+	$bugCode = $severity unless defined $bugCode;
 
-	my $bugObj = new bugInstance($xmlWriterObj->getBugId());
-	$bugObj->setBugLocation(
+	my $bug = $parser->NewBugInstance();
+	$bug->setBugLocation(
 		1, "", $file, $line, $line, $column,
 		$column, "", 'true', 'true'
 	);
-	$bugObj->setBugMessage($bugMsg);
-	$bugObj->setBugSeverity($severity);
-	$bugObj->setBugCode($bugCode);
-	$bugObj->setBugBuildId($buildId);
-	$bugObj->setBugReportPath($tempInputFile);
-	$xmlWriterObj->writeBugObject($bugObj);
+	$bug->setBugMessage($bugMsg);
+	$bug->setBugSeverity($severity);
+	$bug->setBugGroup($severity);
+	$bug->setBugCode($bugCode);
+	$parser->WriteBugObject($bug);
     }
 }
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
 
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
-}
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

@@ -1,60 +1,13 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
 use XML::Twig;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
-
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
-
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $count = 0;
-my $tempInputFile;
-
-my $depNum;
-
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-
-foreach my $inputFile (@inputFiles)  {
-    $depNum = -1;
-    my $twig = XML::Twig->new(
-	    twig_roots    => {'analysis/dependencies' => 1},
-	    twig_handlers => {'dependency'  => \&ParseDependency}
-    );
-    $tempInputFile = $inputFile;
-    $buildId        = $buildIds[$count];
-    $count++;
-    $twig->parsefile("$inputDir/$inputFile");
-}
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
-}
 
 sub GetOptionalElemText
 {
@@ -70,7 +23,7 @@ sub GetOptionalElemText
 }
 
 sub ParseDependency {
-    my ($tree, $elem) = @_;
+    my ($parser, $tree, $elem, $depNum) = @_;
 
     ++$depNum;
     my $vulnerabilities = $elem->first_child('vulnerabilities');
@@ -128,7 +81,7 @@ sub ParseDependency {
 		}
 	    }
 	    my $xpath = "/analysis/dependencies/dependency[$depNum]/vulnerabilities/vulnerability[$vulnNum]";
-	    my $adjustedPath = Util::AdjustPath($packageName, $cwd, $filePath);
+	    my $adjustedPath = $filePath;
 
 	    my $msg = "$vDesc\n";
 
@@ -155,20 +108,41 @@ sub ParseDependency {
 		$msg .= "   confidence: $i->{confidence}\n";
 	    }
 
-	    my $bug = new bugInstance($xmlWriterObj->getBugId());
+	    my $bug = $parser->NewBugInstance();
 	    $bug->setBugGroup('Known-Vuln');
 	    $bug->setBugCode($name);
 	    $bug->setBugPath($xpath);
-	    $bug->setBugBuildId($buildId);
 	    $bug->setBugSeverity($severity);
-	    $bug->setBugReportPath($tempInputFile);
 	    $bug->setBugMessage($msg);
 	    $bug->setBugLocation(0, '', $adjustedPath,
 			undef, undef, '0', '0', '', 'true', 'true');
-	    $xmlWriterObj->writeBugObject($bug);
-	    undef $bug;
+	    $parser->WriteBugObject($bug);
 	}
     }
     $tree->purge();
     return;
 }
+
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
+
+    my $numDependencies = 0;
+
+    my $twig = XML::Twig->new(
+	    twig_roots    => {'analysis/dependencies' => 1},
+	    twig_handlers => {
+		'dependency'  => sub {
+		    my ($twig, $e) = @_;
+		    ParseDependency($parser, $twig, $e, $numDependencies);
+		    ++$numDependencies;
+		    return 1;
+		}
+	    }
+	);
+
+    $twig->parsefile($fn);
+}
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

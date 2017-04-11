@@ -55,6 +55,48 @@ sub AdjustPath {
 }
 
 
+sub UnescapeCEscape
+{
+    my $s = shift;
+    my %m = (a => "\a", b => "\b", t => "\t", n => "\n", v => chr(11), f => "\f", r => "\r",
+            '"' => '"', "'" => "'", "?" => "?", "\\" => "\\");
+
+    if (exists $m{$s})  {
+        return $m{$s};
+    }  elsif ($s =~ /^[0-7]{1,3}$/)  {
+	my $v = oct($s) & 0xFF;
+	return chr($v);
+    }  elsif ($s =~ /^x([0-9a-fA-F]+)$/)  {
+	my $v = hex($s) & 0xFF;
+	return chr($v);
+    }  else  {
+	die "unknown C escape sequence $s";
+    }
+}
+
+
+sub UnescapeCString
+{
+    my $s = shift;
+
+    $s =~ s/\\([abtnrvf?\\"']|[0-7]{1,3}|x[0-9a-fA-F]+)/UnescapeCEscape($1)/ge;
+    return $s;
+}
+
+
+sub ReadFile
+{
+    my $filename = shift;
+
+    open F, $filename or die "open $filename: $!";
+    local $/;
+    my $s = <F>;
+    close F or die "close $filename: $!";
+
+    return $s;
+}
+
+
 # FIXME: remove all uses of this function.  It is very broken.
 #
 sub SplitString {
@@ -191,6 +233,7 @@ sub GetToolName {
                                             'assessment-summary/tool-type' => sub {
                                                     my ($tree, $elem) = @_;
                                                     $toolName = $elem->text;
+						    $tree->finish_now();
                                               }
                                     }
                                 );
@@ -304,7 +347,7 @@ Arguments
     --summary_file=[SUMMARY_FILE]       Path to the Assessment Summary File
     --input_dir=[INPUT_DIR]             Path to the raw assessment result directory
     --output_dir=[OUTPUT_DIR]           Path to the output directory
-    --output_file=[OUTPUT_FILE]         Output File name in merged case 
+    --output_file=[OUTPUT_FILE]         Output File name in merged case
                                             (relative to the output_dir)
     --merge                             Merges the parsed result in a single file (Default option)
     --nomerge                           Do not merge the parsed results

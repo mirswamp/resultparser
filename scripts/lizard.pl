@@ -1,46 +1,18 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
-use bugInstance;
-use XML::Twig;
-use xmlWriterObject;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
+    my %h;
 
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $tempInputFile;
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-my %h;
-my $count = 0;
-
-foreach my $inputFile (@inputFiles)  {
-    $tempInputFile = $inputFile;
-    open my $file, "$inputDir/$inputFile" or die("Unable to open file!");
-    $buildId = $buildIds[$count];
-    $count++;
+    open my $file, '<', $fn or die "open $fn: $!";
     my @f;
     my $counter    = 0;
     my $state      = '0';
@@ -120,12 +92,9 @@ foreach my $inputFile (@inputFiles)  {
 	$h{$sourcefile}{'func-stat'}{$fn_name}{'location'}{'startline'} = $fm[0];
 	$h{$sourcefile}{'func-stat'}{$fn_name}{'location'}{'endline'} = $fm[1];
     }
-}
-$xmlWriterObj->writeMetricObjectUtil(\%h);
-undef %h;
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
 
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
+    $parser->WriteMetrics(\%h);
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

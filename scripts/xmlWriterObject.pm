@@ -62,7 +62,9 @@ sub getWriter
 
 sub addStartTag
 {
-    my ($self, $toolName, $toolVersion, $uuid) = @_;
+    my ($self, $toolName, $toolVersion, $uuid,
+	    $packageName, $packageVersion,
+	    $platformName, $buildRootDir, $packageRootDir) = @_;
 
     my $writer = $self->getWriter();
 
@@ -72,10 +74,16 @@ sub addStartTag
     $writer->xmlDecl('UTF-8');
 
     my %attrs = (
-	    'tool_name'		=> "$toolName",
-	    'tool_version'	=> "$toolVersion",
-	    'uuid'		=> "$uuid"
+	    tool_name		=> $toolName,
+	    tool_version	=> $toolVersion,
+	    uuid		=> $uuid,
+	    build_root_dir	=> $buildRootDir,
+	    package_root_dir	=> $packageRootDir,
 	    );
+    $attrs{'platform_name'} = $platformName if defined $platformName;
+    $attrs{'package_name'} = $packageName if defined $packageName;
+    $attrs{'package_version'} = $packageVersion if defined $packageVersion;
+
     $writer->startTag('AnalyzerReport', %attrs);
 }
 
@@ -106,6 +114,8 @@ sub writeBugObject
 
     my $code = $bug->getBugCode();
     my $group = $bug->getBugGroup();
+
+    $group = 'UNKOWN' unless defined $group;
 
     ++$self->{summary}{$group}{$code}{count};
     $self->{summary}{$group}{$code}{bytes} += $byte_count;;

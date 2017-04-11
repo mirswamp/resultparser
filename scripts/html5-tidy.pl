@@ -1,49 +1,20 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
-
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
-
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-
-
-#Initialize the counter values
-my $bugId   = 0;
-my $fileId = 0;
-my $count   = 0;
-
-my $xmlWriter = new xmlWriterObject($outputFile);
-$xmlWriter->addStartTag($toolName, $toolVersion, $uuid);
-
-foreach my $inputFile (@inputFiles)  {
     my $startBug = 0;
-    $buildId = $buildIds[$count];
-    $count++;
-    open my $fh, "<", "$inputDir/$inputFile"
-	    or die "unable to open the input file $inputFile";
+    open my $fh, "<", $fn
+	    or die "unable to open the input file $fn";
     my $lineNum = 0;
     while (<$fh>)  {
 	my $line = $_;
@@ -53,7 +24,7 @@ foreach my $inputFile (@inputFiles)  {
 
 	if ($line =~ /^\s*(.+?)\s*:\s*(\d+)\s*:\s*(\d+)\s*:\s*(.+?)\s*:\s*(.*?)\s*$/)  {
 	    my ($file, $line, $col, $bugGroup, $bugMsg) = ($1, $2, $3, $4, $5);
-	    my $path = Util::AdjustPath($packageName, $cwd, $file);
+	    my $path = $file;
 	    my $bugLocId = 1;
 	    my $bugCode = $bugMsg;
 	    $bugCode =~ s/\s*(<.*?>|(['"`]).*?\2)\s*/ /g;
@@ -61,25 +32,21 @@ foreach my $inputFile (@inputFiles)  {
 	    $bugCode =~ s/^\s+//;
 	    $bugCode =~ s/\s+$//;
 
-	    my $bug = new bugInstance($count);
+	    my $bug = $parser->NewBugInstance();
 
 	    $bug->setBugGroup($bugGroup);
 	    $bug->setBugCode($bugCode);
 	    $bug->setBugMessage($bugMsg);
-	    $bug->setBugReportPath("$inputFile:$lineNum");
+	    # set $lineNum
 	    $bug->setBugLocation($bugLocId, '', $path, $line, $line, $col, $col, $bugMsg, 'true', 'true');
 
-	    $xmlWriter->writeBugObject($bug);
+	    $parser->WriteBugObject($bug);
 	}  else  {
-	    print STDERR "$0: bad line at $inputFile; $lineNum\n";
+	    print STDERR "$0: bad line at $fn:$lineNum\n";
 	}
     }
     close($fh);
 }
 
-$xmlWriter->writeSummary();
-$xmlWriter->addEndTag();
 
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriter->getBugId() - 1);
-}
+my $parser = Parser->new(ParseFileProc => \&ParseFile);

@@ -1,169 +1,138 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
+use Parser;
 use bugInstance;
 use XML::Twig;
-use xmlWriterObject;
 use Util;
 
-my ($inputDir, $outputFile, $toolName, $summaryFile, $weaknessCountFile, $help, $version);
 
-GetOptions(
-	"input_dir=s"           => \$inputDir,
-	"output_file=s"         => \$outputFile,
-	"tool_name=s"           => \$toolName,
-	"summary_file=s"        => \$summaryFile,
-	"weakness_count_file=s" => \$weaknessCountFile,
-	"help"                  => \$help,
-	"version"               => \$version
-) or die("Error");
 
-Util::Usage()   if defined $help;
-Util::Version() if defined $version;
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
 
-$toolName = Util::GetToolName($summaryFile) unless defined $toolName;
+    my $numBugInstance = 0;
+    my $numSourcePath = 0;
 
-my @parsedSummary = Util::ParseSummaryFile($summaryFile);
-my ($uuid, $packageName, $buildId, $input, $cwd, $replaceDir, $toolVersion, @inputFiles)
-	= Util::InitializeParser(@parsedSummary);
-my @buildIds = Util::GetBuildIds(@parsedSummary);
-undef @parsedSummary;
-my $tempInputFile;
+    my %cweHash;
+    my %suggestionHash;
+    my %categoryHash;
+    my %sourcePathHash;
 
-my $locationId;
-my $methodId;
-my $sourcePathId = 0;
-my $count        = 0;
+    my $cwe_xpath      = 'BugCollection/BugPattern';
+    my $category_xpath = 'BugCollection/BugCategory';
+    my $source_xpath   = 'BugCollection/Project/SrcDir';
+    my $xpath1         = 'BugCollection/BugInstance';
 
-my %cweHash;
-my %suggestionHash;
-my %categoryHash;
-my %sourcePathHash;
+    my $twig = XML::Twig->new(
+	twig_roots    => {
+	    $cwe_xpath		=> 1,
+	    $category_xpath	=> 1,
+	    $source_xpath	=> 1,
+	},
+	twig_handlers => {
+	    $cwe_xpath		=> sub {
+		my ($twig, $e) = @_;
+		parseBugPattern($twig, $e, \%cweHash, \%suggestionHash);
+		return 1;
+	    },
+	    $category_xpath	=> sub {
+		my ($twig, $e) = @_;
+		parseBugCategory($twig, $e, \%categoryHash);
+		return 1;
+	    },
+	    $source_xpath	=> sub {
+		my ($twig, $e) = @_;
+		parseSourcePath($twig, $e, \%sourcePathHash, $numSourcePath);
+		++$numSourcePath;
+		return 1;
+	    },
+	}
+    );
 
-my $cwe_xpath      = 'BugCollection/BugPattern';
-my $category_xpath = 'BugCollection/BugCategory';
-my $source_xpath   = 'BugCollection/Project/SrcDir';
-my $xpath1         = 'BugCollection/BugInstance';
+    $twig->parsefile($fn);
+    $twig->purge();
 
-my $twig1 = XML::Twig->new(
-    twig_roots    => {$cwe_xpath => 1},
-    twig_handlers => {$cwe_xpath => \&parseBugPattern}
-);
+    $twig = XML::Twig->new(
+	twig_roots    => {$xpath1 => 1},
+	twig_handlers => {
+	    $xpath1 => sub {
+		my ($twig, $e) = @_;
+		parseViolations($parser, $twig, $e, $numBugInstance,
+			\%cweHash, \%suggestionHash, \%categoryHash, \%sourcePathHash);
+		++$numBugInstance;
+		return 1;
+	    },
+	}
+    );
 
-foreach my $inputFile (@inputFiles)  {
-    $twig1->parsefile("$inputDir/$inputFile");
-}
-
-$twig1->purge();
-
-my $twig2 = XML::Twig->new(
-    twig_roots    => {$category_xpath => 1},
-    twig_handlers => {$category_xpath => \&parseBugCategory}
-);
-
-foreach my $inputFile (@inputFiles)  {
-    $twig2->parsefile("$inputDir/$inputFile");
-}
-
-$twig2->purge();
-
-my $twig3 = XML::Twig->new(
-    twig_roots    => {$source_xpath => 1},
-    twig_handlers => {$source_xpath => \&parseSourcePath}
-);
-
-foreach my $inputFile (@inputFiles)  {
-    $twig3->parsefile("$inputDir/$inputFile");
-}
-
-$twig3->purge();
-
-my $twig4 = XML::Twig->new(
-    twig_roots    => {$xpath1 => 1},
-    twig_handlers => {$xpath1 => \&parseViolations}
-);
-
-my $xmlWriterObj = new xmlWriterObject($outputFile);
-$xmlWriterObj->addStartTag($toolName, $toolVersion, $uuid);
-
-foreach my $inputFile (@inputFiles)  {
-    $locationId = 0;
-    $methodId   = 0;
-    $buildId   = $buildIds[$count];
-    $count++;
-    $tempInputFile = $inputFile;
-    $twig4->parsefile("$inputDir/$inputFile");
-}
-$xmlWriterObj->writeSummary();
-$xmlWriterObj->addEndTag();
-$twig4->purge();
-
-if (defined $weaknessCountFile)  {
-    Util::PrintWeaknessCountFile($weaknessCountFile, $xmlWriterObj->getBugId() - 1);
+    $twig->parsefile($fn);
 }
 
 
-sub parseViolations {
-    my ($tree, $elem) = @_;
+sub parseViolations
+{
+    my ($parser, $tree, $elem, $numBugInstance,
+	    $cweHash, $suggestionHash, $categoryHash, $sourcePathHash) = @_;
 
-    my $bugXpath = $elem->path();
+    my $bugXpath = "/BugCollection/BugInstance[$numBugInstance]";
 
-    my $bug = GetFindBugsBugObject($elem, $xmlWriterObj->getBugId(), $bugXpath);
+    my $bug = GetFindBugsBugObject($parser, $elem, $bugXpath,
+	    $cweHash, $suggestionHash, $categoryHash, $sourcePathHash);
     $elem->purge() if defined $elem;
 
-    $xmlWriterObj->writeBugObject($bug);
+    $parser->WriteBugObject($bug);
     $tree->purge();
 }
 
 
-sub GetFindBugsBugObject  {
-    my ($elem, $bugId, $bugXpath) = @_;
+sub GetFindBugsBugObject
+{
+    my ($parser, $elem, $bugXpath,
+	    $cweHash, $suggestionHash, $categoryHash, $sourcePathHash) = @_;
 
-    my $bug = new bugInstance($bugId);
-    $bug->setBugReportPath($tempInputFile);
-    $bug->setBugBuildId($buildId);
+    my $bug = $parser->NewBugInstance();
     $bug->setBugSeverity($elem->att('priority'));
     $bug->setBugRank($elem->att('rank')) if defined $elem->att('rank');
-    $bug->setBugPath($elem->path() . "[" . $bugId . "]") if defined $elem->path();
+    $bug->setBugPath($bugXpath);
     $bug->setBugGroup($elem->att('category'));
 
-    my $SourceLineNum = 0;
-    my $classNum      = 0;
-    my @children      = $elem->children;
-    foreach my $itr (@children)  {
-	if ($itr->gi eq 'SourceLine')  {$SourceLineNum++;}
-    }
+    my $numClass	= 0;
+    my $numSourceLine	= 0;
+    my $numMethod	= 0;
 
-    foreach my $itr1 (@children)  {
-	    if ($itr1->gi eq 'Class')  {$classNum++;}
-    }
     foreach my $element ($elem->children)  {
 	my $tag = $element->gi;
 	if ($tag eq "LongMessage")  {
 	    $bug->setBugMessage($element->text);
 	}  elsif ($tag eq 'SourceLine')  {
-	    $bug = sourceLine($element, $SourceLineNum, $bug);
+	    $bug = sourceLine($element, $bug, $numSourceLine, $sourcePathHash);
+	    ++$numSourceLine;
 	}  elsif ($tag eq 'Method')  {
-	    $bug = bugMethod($element, $bug);
+	    $bug = bugMethod($element, $bug, $numMethod);
+	    ++$numMethod;
 	}  elsif ($tag eq 'Class')  {
-	    $bug = parseClass($element, $classNum, $bug);
+	    $bug = parseClass($element, $numClass, $bug, $sourcePathHash);
+	    ++$numClass
 	}
     }
-    $bug = bugCweId($elem->att('type'), $bug);
-    $bug = bugSuggestion($elem->att('type'), $bug);
+    $bug = bugCweId($elem->att('type'), $bug, $cweHash);
+    $bug = bugSuggestion($elem->att('type'), $bug, $suggestionHash);
     return $bug;
 }
 
 
-sub sourceLine {
-    my ($elem, $SourceLineNum, $bug) = @_;
+sub sourceLine
+{
+    my ($elem, $bug, $numSourceLine, $sourcePathHash) = @_;
 
     my $classname       = $elem->att('classname');
-    $locationId++;
     my $flag;
     my $sourceFile = $elem->att('sourcepath');
-    ($sourceFile, $flag) = &resolveSourcePath($sourceFile);
+    ($sourceFile, $flag) = resolveSourcePath($sourceFile, $sourcePathHash);
     my $startLineNo = $elem->att('start');
     my $endLineNo   = $elem->att('end');
     my $startCol    = "0";
@@ -171,36 +140,31 @@ sub sourceLine {
     my $message     = $elem->first_child->text if defined $elem->first_child;
     my $primary     = $elem->att('primary');
 
-    if (!defined $primary)  {
-	if ($SourceLineNum > 1)  {
-	    $primary = "false";
-	}  else  {
-	    $primary = "true";
-	}
-    }
+    $primary = "false" unless defined $primary;
     $bug->setBugLocation(
-	    $locationId, $classname, $sourceFile, $startLineNo, $endLineNo,
+	    $numSourceLine, $classname, $sourceFile, $startLineNo, $endLineNo,
 	    $startCol, $endCol, $message, $primary, $flag
     );
     return $bug;
 }
 
 
-sub bugMethod {
-    my ($elem, $bug) = @_;
+sub bugMethod
+{
+    my ($elem, $bug, $methodNum) = @_;
 
-    $methodId++;
     my $classname  = $elem->att('classname');
     my $methodName = $elem->att('name');
     my $primary    = $elem->att('primary');
     $primary = "false" unless defined $primary;
-    $bug->setBugMethod($methodId, $classname, $methodName, $primary);
+    $bug->setBugMethod($methodNum, $classname, $methodName, $primary);
     return $bug;
 }
 
 
-sub parseClass {
-    my ($elem, $classNum, $bug) = @_;
+sub parseClass
+{
+    my ($elem, $classNum, $bug, $sourcePathHash) = @_;
 
     my $classname = $elem->att('classname');
     my $primary   = $elem->att('primary');
@@ -216,7 +180,7 @@ sub parseClass {
 		$start      = $children->att('start');
 		$end        = $children->att('end');
 		$sourcefile = $children->att('sourcepath');
-		($sourcefile, $resolvedFlag) = resolveSourcePath($sourcefile);
+		($sourcefile, $resolvedFlag) = resolveSourcePath($sourcefile, $sourcePathHash);
 		$classMessage = $children->first_child->text
 			if defined $children->first_child;
 	    }
@@ -226,28 +190,27 @@ sub parseClass {
     return $bug;
 }
 
-sub resolveSourcePath {
-    my ($path) = @_;
+sub resolveSourcePath
+{
+    my ($path, $sourcePathHash) = @_;
 
     my $pathId;
     my $flag = "false";
-    foreach $pathId (sort {$a <=> $b} keys(%sourcePathHash))  {
-	if (-e "$sourcePathHash{$pathId}/$path")  {
-	    $path = "$sourcePathHash{$pathId}/$path";
+    foreach $pathId (sort {$a <=> $b} keys(%$sourcePathHash))  {
+	if (-e "$sourcePathHash->{$pathId}/$path")  {
+	    $path = "$sourcePathHash->{$pathId}/$path";
 	    $flag = "true";
 	    last;
 	}
     }
-    if ($flag eq "true")  {
-	$path = Util::AdjustPath($packageName, $cwd, $path);
-    }
 
-    #        print $path, "\n";
     return ($path, $flag);
 }
 
-sub parseBugPattern {
-    my ($tree, $elem) = @_;
+
+sub parseBugPattern
+{
+    my ($tree, $elem, $cweHash, $suggestionHash) = @_;
 
     my $type  = $elem->att('type');
     my $cweid = $elem->att('cweid');
@@ -259,14 +222,15 @@ sub parseBugPattern {
 	    $suggestion = $element->text;
 	}
     }
-    $cweHash{$type}        = $cweid;
-    $suggestionHash{$type} = $suggestion;
+    $cweHash->{$type}        = $cweid;
+    $suggestionHash->{$type} = $suggestion;
     $tree->purge();
 }
 
 
-sub parseBugCategory {
-    my ($tree, $elem) = @_;
+sub parseBugCategory
+{
+    my ($tree, $elem, $categoryHash) = @_;
 
     my $category = $elem->att('category');
     my $description;
@@ -277,25 +241,27 @@ sub parseBugCategory {
 	    $description = $element->text;
 	}
     }
-    $categoryHash{$category} = $description;
+    $categoryHash->{$category} = $description;
     $tree->purge();
 }
 
 
-sub parseSourcePath {
-    my ($tree, $elem) = @_;
+sub parseSourcePath
+{
+    my ($tree, $elem, $sourcePathHash, $numSourcePath) = @_;
 
     my $sourcepath = $elem->text;
-    $sourcePathHash{++$sourcePathId} = $sourcepath if defined $sourcepath;
+    $sourcePathHash->{$numSourcePath} = $sourcepath if defined $sourcepath;
     $tree->purge();
 }
 
 
-sub bugCweId {
-    my ($type, $bug) = @_;
+sub bugCweId
+{
+    my ($type, $bug, $cweHash) = @_;
 
     if (defined $type)  {
-	my $cweId = $cweHash{$type};
+	my $cweId = $cweHash->{$type};
 	$bug->setCweId($cweId);
 	$bug->setBugCode($type);
     }
@@ -303,14 +269,18 @@ sub bugCweId {
 }
 
 
-sub bugSuggestion {
-    my ($type, $bug) = @_;
+sub bugSuggestion
+{
+    my ($type, $bug, $suggestionHash) = @_;
 
     if (defined $type)  {
-	my $suggestion = $suggestionHash{$type};
+	my $suggestion = $suggestionHash->{$type};
 	$suggestion =~ s/(^ *)|( *$)//g;
 	$suggestion =~ s/\n|\r/ /g;
 	$bug->setBugSuggestion($suggestion);
     }
     return $bug;
 }
+
+
+my $parser = Parser->new(ParseFileProc => \&ParseFile);
