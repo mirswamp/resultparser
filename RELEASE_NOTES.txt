@@ -1,4 +1,20 @@
 -----------------------------------------------------
+resultparser version 3.1.0 (Apr 11, 2017)
+-----------------------------------------------------
+- major refactoring to use common code
+- many bugs fixed in individual parsers
+- options are now consistent
+- same options used by resultparser work with tool specific parsers
+- no need to set PERL5LIB anymore
+- source file locations are relative to build_root_dir
+- package_root_dir is now relative to build_root_dir
+- raw result files is now relative to results directory
+- if a tool has a bug path, it is now copied to the bugMessage for
+  display by viewers that do not show path or explanation for
+  locations (can be removed by removeing "Bug Path:\n" to end of file:
+  perl regular expression s/\nBug Path:.*\Z//s;
+
+-----------------------------------------------------
 resultparser version 3.0.6 (Feb 16, 2017)
 -----------------------------------------------------
 - add support for sonatype-ahc
