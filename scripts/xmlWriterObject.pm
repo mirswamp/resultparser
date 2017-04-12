@@ -63,8 +63,10 @@ sub getWriter
 sub addStartTag
 {
     my ($self, $toolName, $toolVersion, $uuid,
-	    $packageName, $packageVersion,
-	    $platformName, $buildRootDir, $packageRootDir) = @_;
+	    $startTs, $packageName, $packageVersion,
+	    $platformName, $buildRootDir, $packageRootDir,
+	    $buildFw, $buildFwVersion, $assessFw, $assessFwVersion,
+	    $parserFw, $parserFwVersion) = @_;
 
     my $writer = $self->getWriter();
 
@@ -79,10 +81,17 @@ sub addStartTag
 	    uuid		=> $uuid,
 	    build_root_dir	=> $buildRootDir,
 	    package_root_dir	=> $packageRootDir,
+	    assessment_start_ts	=> $startTs,
 	    );
     $attrs{'platform_name'} = $platformName if defined $platformName;
     $attrs{'package_name'} = $packageName if defined $packageName;
     $attrs{'package_version'} = $packageVersion if defined $packageVersion;
+    $attrs{'build_fw'} = $buildFw if defined $buildFw;
+    $attrs{'build_fw_version'} = $buildFwVersion if defined $buildFwVersion;
+    $attrs{'assess_fw'} = $assessFw if defined $assessFw;
+    $attrs{'assess_fw_version'} = $assessFwVersion if defined $assessFwVersion;
+    $attrs{'parser_fw'} = $parserFw if defined $parserFw;
+    $attrs{'parser_fw_version'} = $parserFwVersion if defined $parserFwVersion;
 
     $writer->startTag('AnalyzerReport', %attrs);
 }

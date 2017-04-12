@@ -90,6 +90,36 @@ sub ParseSummaryFile {
 			$s{toolVersion} = GetElemText($e);
 			return 1;
 		    },
+		    "$as/start-ts"			=> sub {
+			my ($twig, $e) = @_;
+			$s{startTs} = GetElemText($e);
+			return 1;
+		    },
+		    "$as/stop-ts"			=> sub {
+			my ($twig, $e) = @_;
+			$s{stopTs} = GetElemText($e);
+			return 1;
+		    },
+		    "$as/build-fw"			=> sub {
+			my ($twig, $e) = @_;
+			$s{buildFw} = GetElemText($e);
+			return 1;
+		    },
+		    "$as/build-fw-version"		=> sub {
+			my ($twig, $e) = @_;
+			$s{buildFwVersion} = GetElemText($e);
+			return 1;
+		    },
+		    "$as/assess-fw"			=> sub {
+			my ($twig, $e) = @_;
+			$s{assessFw} = GetElemText($e);
+			return 1;
+		    },
+		    "$as/assess-fw-version"		=> sub {
+			my ($twig, $e) = @_;
+			$s{assessFwVersion} = GetElemText($e);
+			return 1;
+		    },
 		    "$assess"				=> sub {
 			my ($twig, $e) = @_;
 			push @{$s{assessments}}, $curAssess;
@@ -202,16 +232,21 @@ sub PrintWeaknessCountFile {
 
 sub PrintVersion
 {
-    my $version = Util::ReadFile("$FindBin::Bin/version.txt");
-    chomp $version;
+    my ($options) = @_;
+
+    my $version = $options->{parserFwVersion};
     print "$version\n";
 }
 
 
 sub PrintUsage
 {
-print <<EOF;
-Usage: resultParser.pl
+    my ($options) = @_;
+
+    my $prog = $options->{parserBin};
+
+    print <<EOF;
+Usage: $prog [options]...
 
 Options:
     --input_dir=<PATH>              directory containing results
@@ -257,19 +292,21 @@ sub ProcessOptions
     Getopt::Long::Configure(qw/require_order no_ignore_case no_auto_abbrev/);
     my $ok = GetOptions(\%options, @options);
 
+    my @errs;
+
     for my $opt (qw/summary_file output_file/)  {
 	if (!defined $options{$opt})  {
 	    $ok = 0;
-	    print "Error: --$opt must be specified";
+	    push @errs, "Error: --$opt must be specified";
 	}
     }
 
     if ($deprecatedOptions)  {
 	if (defined $options{log_file})  {
-	    print STDERR "WARNING: --log_file is deprecated, do NOT use.\n";
+	    push @errs, "WARNING: --log_file is deprecated, do NOT use.";
 	}
 	if (defined $options{output_dir})  {
-	    print STDERR "WARNING: --output_dir is deprecated, do NOT use.\n";
+	    push @errs, "WARNING: --output_dir is deprecated, do NOT use.";
 	    my $outDir = $options{output_dir};
 	    my $outputFile = $options{output_file};
 	    if ($outputFile !~ /^\//)  {
@@ -282,19 +319,34 @@ sub ProcessOptions
 	}
     }
 
+    my $v = 'unknown';
+    my $versionFile = "$FindBin::Bin/version.txt";
+    $v = Util::ReadFile($versionFile) if -f $versionFile;
+    $v =~ s/\s*$//;
+    $options{parserFwVersion} = $v;
+    $options{parserFw} = 'resultparser';
+    $options{parserBin} = $0;
+    $options{parserBin} =~ s/^.*\///;
+
     if (@ARGV)  {
-	print STDERR "ERROR: non-option arguments not allowed @ARGV\n";
+	push @errs, "ERROR: non-option arguments not allowed @ARGV";
 	$ok = 0;
     }
 
-    if (!$ok || $options{help})  {
-	PrintUsage();
-	exit !$ok;
+    if ($options{help})  {
+	PrintUsage(\%options);
+	exit 0;
     }
 
-    if (!$ok || $options{version})  {
-	PrintVersion();
+    if ($options{version})  {
+	PrintVersion(\%options);
 	exit 0;
+    }
+
+    print STDERR map {"$_\n"} @errs if @errs;
+    if (!$ok)  {
+	PrintUsage(\%options);
+	exit 1;
     }
 
     return \%options;
@@ -345,9 +397,14 @@ sub ParseBegin
 	$ps->{packageRootDir} = Util::AdjustPath($ps->{buildRootDir},
 						'.', $ps->{packageRootDir});
 
-	$xmlOut->addStartTag(@{$ps}{qw/toolType toolVersion assessUuid
-		packageName packageVersion
-		platformName buildRootDir packageRootDir/});
+	$xmlOut->addStartTag(
+		@{$ps}{qw/toolType toolVersion assessUuid
+		    startTs packageName packageVersion
+		    platformName buildRootDir packageRootDir
+		    buildFw buildFwVersion assessFw assessFwVersion
+		    /},
+		@{$self->{options}}{qw/parserFw parserFwVersion/}
+		);
     }
 
     return $self;
