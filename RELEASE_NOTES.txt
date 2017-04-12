@@ -1,4 +1,10 @@
 -----------------------------------------------------
+resultparser version 3.1.1 (Apr 12, 2017)
+-----------------------------------------------------
+- add the assessment timestamp to SCARF
+- add build, assess and parser type and version to SCARF (if available)
+
+-----------------------------------------------------
 resultparser version 3.1.0 (Apr 11, 2017)
 -----------------------------------------------------
 - major refactoring to use common code
