@@ -89,7 +89,7 @@ function CreateReleaseTar
     done
 
     rm -f $VERSION_TXT
-    echo "Result Parser $VER" > $VERSION_TXT
+    echo "$VER" > $VERSION_TXT
 
     tar czf $INNERTAR -C $INFILES_DIR $INSTALL_DIRNAME
     if [ $? -ne 0 ]; then
