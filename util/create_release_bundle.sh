@@ -27,7 +27,7 @@ PARSER_DIRNAME="resultparser-$VERSION"
 INSTALL_DIR="$OUTPUT_DIR/$PARSER_DIRNAME"
 PARSER_NONCOMM_DIRNAME="resultparser-noncomm-$VERSION"
 INSTALL_NONCOMM_DIR="$OUTPUT_DIR/$PARSER_NONCOMM_DIRNAME"
-COMM_PARSERS="ps-ctest.pl ps-jtest.pl gt-csonar.pl rl-goanna.pl"
+COMM_PARSERS="ps-ctest.pl ps-jtest.pl gt-csonar.pl rl-goanna.pl coverity.pl"
 SRC_DIR="$CURRENT_DIR/.."
 
 
@@ -138,6 +138,6 @@ function CreateReleaseTar
 
 
 CreateReleaseTar resultparser $VERSION $SRC_DIR $OUTPUT_DIR
-CreateReleaseTar resultparser noncomm-$VERSION $SRC_DIR $OUTPUT_DIR $COMM_PARSERS
+# CreateReleaseTar resultparser noncomm-$VERSION $SRC_DIR $OUTPUT_DIR $COMM_PARSERS
 
 exit 0
