@@ -30,7 +30,7 @@ sub ParseFile
     my $suppressions = $jsonObject->{suppressedIssueCount};
     print "Coverity analyzer suppressed $suppressions issue"
 	    . ($suppressions == 1 ? '' : 's') . "\n"
-		    if defined $suppressions && $suppression > 0;
+		    if defined $suppressions && $suppressions > 0;
 
     foreach my $issue (@{$jsonObject->{"issues"}})  {
 	WriteIssue($parser, $issue);
@@ -57,7 +57,7 @@ sub WriteIssue
 	    $locMsg .= ':  ' unless $locMsg eq '';
 	    $locMsg .= $e->{eventDescription};
 	}
-	my $isPrimary = $e->{main};
+	my $isPrimary = $e->{main} ? 'true' : 'false';
 	my $file = $e->{filePathname};
 	my $startLine = $e->{lineNumber};
 	my $endLine; 

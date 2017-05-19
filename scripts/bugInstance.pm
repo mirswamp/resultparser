@@ -46,7 +46,7 @@ sub AppendBugFlowToBugMsg
 	$m .= "*** $file";
 	$m .= ":$line" if defined $line;
 	$m .= " ***";
-	$m .= "  Primary Bug Location" if $primary eq 'true';
+	$m .= "*** Primary Bug Location" if $primary eq 'true';
 	if (defined $msg)  {
 	    $msg =~ s/^/  /mg;
 	    $m .= "\n$msg\n";
@@ -56,6 +56,7 @@ sub AppendBugFlowToBugMsg
     return if $locCount == 0;
     my $firstLocMsg = $firstLoc->{_bugMessage};
     $firstLocMsg = '' unless defined $firstLocMsg;
+    $self->{_bugMessage} = '' unless defined $self->{_bugMessage};
     return if $locCount == 1
 	    && ($firstLocMsg eq $self->{_bugMessage} || $firstLocMsg eq '');
 
