@@ -10,14 +10,6 @@ use Util;
 
 my @warningData;
 
-my $twig = XML::Twig->new(
-	twig_handlers => {
-		'warning'	     => \&GetFileDetails,
-		'warning/categories' => \&GetCWEDetails,
-		'warning/listing'    => \&GetListingDetails
-	}
-    );
-
 #Initialize the counter values
 my $filePath = "";
 my $eventNum;
@@ -73,6 +65,14 @@ sub ParseFile
 	my $filterCmd = "iconv -f ISO-8859-15 -t US-ASCII -c $file | tr -c '\\11\\12\\15\\40-\\176' ' '";
 	print "Filtering CodeSonar XML files to fix invalid XML:\n    $filterCmd\n";
 	open my $filteredInput, '-|', $filterCmd or die "open -| $filterCmd: $!";
+
+	my $twig = XML::Twig->new(
+		twig_handlers => {
+			'warning'	     => \&GetFileDetails,
+			'warning/categories' => \&GetCWEDetails,
+			'warning/listing'    => \&GetListingDetails
+		}
+	    );
 	$twig->parse($filteredInput);
 	my @cwes;
 	foreach my $c (@weaknessCategories)  {
@@ -147,6 +147,7 @@ sub GetFileDetails
     $bugCode   = $elem->att('warningclass');
     $filename = $elem->att('filename');
     $method = $elem->att('procedure');
+    $tree->purge();
 }
 
 
@@ -157,6 +158,7 @@ sub GetCWEDetails
     foreach my $cwe ($elem->children('category'))  {
 	push(@weaknessCategories, $cwe->text);
     }
+    $tree->purge();
 }
 
 
@@ -167,7 +169,7 @@ sub GetListingDetails
     foreach my $procedure ($elem->children)  {
 	ProcedureDetails($procedure, "");
     }
-
+    $tree->purge();
 }
 
 
