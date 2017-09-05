@@ -35,6 +35,9 @@ sub printXML
 {
     my ($self, $writer, $classStartLine, $classEndLine) = @_;
     my ($start, $end);
+
+    $self->{_endLine} = $self->{_startLine} if !defined $self->{_endLine};
+
     if (defined $self->{_startLine} && defined $self->{_endLine}
 	    && $self->{_startLine} ne "" && $self->{_endLine} ne "")  {
 	$start = $self->{_startLine};
