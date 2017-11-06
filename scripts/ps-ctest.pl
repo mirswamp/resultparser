@@ -9,7 +9,7 @@ use XML::Twig;
 use Util;
 
 my $resultsSessionXpath = '/ResultsSession';
-my $location_hash_xpath = "$resultsSessionXpath/Scope/Locations/Loc";
+my $locXpath = "$resultsSessionXpath/Scope/Locations/Loc";
 
 #Initialize the counter values
 my $locationId   = 0;
@@ -87,15 +87,78 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    # TODO: should get the parameter from the report.xml
-    ParseProjectFile($parser, 'proj/.project', 'proj');
+    my $majorVersion = MajorVersion($parser->{ps}{toolVersion});
 
-    my $isVersion10 = IsVersion10($parser->{ps}{toolVersion});
-    die "PS C/C++test version 10 results not supported" if $isVersion10;
+    my $getViolPath;
+    my $getElDescPath;
+    my %hashToPath;
 
-    my $stdViolNum  = 0;
-    my $dupViolNum  = 0;
-    my $flowViolNum = 0;
+    if ($majorVersion < 10)  {
+	# TODO: should get the parameter from the report.xml
+	ParseProjectFile($parser, 'proj/.project', 'proj');
+	$getViolPath = sub {
+	    my ($e) = @_;
+	    return $e->att('locFile');
+	};
+	$getElDescPath = sub {
+	    my ($e) = @_;
+	    return $e->att('srcRngFile');
+	};
+    }  else  {
+	$getViolPath = sub {
+	    my ($e) = @_;
+	    my $hash = $e->att('hash');
+	    my $msg;
+	    if (defined $hash)  {
+		if (exists $hashToPath{$hash})  {
+		    my $path = $hashToPath{$hash};
+		    return $path;
+		}  else  {
+		    $msg = "hash '$hash' not found in $locXpath";
+		}
+	    }  else  {
+		my $gi = $e->gi();
+		$msg = "missing 'hash' attribute for element '$gi'";
+	    }
+
+	    my $line = $e->twig()->current_line();
+	    my $xmlString = $e->twig()->original_string();
+	    my $sep = '';
+	    $sep = ':  ' unless $xmlString eq '';
+	    print STDERR "Warning: $msg at $fn:$line$sep$xmlString\n";
+
+	    return;
+	};
+	$getElDescPath = sub {
+	    my ($e) = @_;
+	    my $hash = $e->att('srcRnghash');
+	    my $path;
+	    my $msg;
+	    if (defined $hash)  {
+		if (exists $hashToPath{$hash})  {
+		    my $path = $hashToPath{$hash};
+		    return $path;
+		}  else  {
+		    $msg = "hash '$hash' not found in $locXpath";
+		}
+	    }  else  {
+		my $gi = $e->gi();
+		$msg = "missing 'hash' attribute for element '$gi'";
+	    }
+
+	    my $line = $e->twig()->current_line();
+	    my $xmlString = $e->twig()->original_string();
+	    my $sep = '';
+	    $sep = ':  ' unless $xmlString eq '';
+	    print STDERR "Warning: $msg at $fn:$line$sep$xmlString\n";
+
+	    return;
+	};
+    }
+
+    my $stdViolNum	= 0;
+    my $dupViolNum	= 0;
+    my $flowViolNum	= 0;
 
     my $stdViolsXpath	= "$resultsSessionXpath/CodingStandards/StdViols";
     my $stdViolXpath	= "$stdViolsXpath/StdViol";
@@ -105,12 +168,14 @@ sub ParseFile
     my $propXpath	= "$elDescXpath/Props/Prop";
 
     my %curViol;
+    my %locHash;
+
 
     my $twig = XML::Twig->new(
 	    start_tag_handlers =>  {
 		$elDescXpath	=> sub {
 		    my ($twig, $e) = @_;
-		    my $elDesc = GetElDesc($twig, $e);
+		    my $elDesc = GetElDesc($twig, $e, $getElDescPath);
 		    push @{$curViol{elDescs}}, $elDesc;
 		    push @{$curViol{openElDescs}}, $elDesc;
 		    return 1;
@@ -125,7 +190,7 @@ sub ParseFile
 		    my ($twig, $e) = @_;
 		    ++$stdViolNum;
 		    my $xpath = "$flowViolXpath\[$flowViolNum]";
-		    BeginFlowViol($parser, $twig, $e, $xpath, \%curViol);
+		    BeginFlowViol($parser, $twig, $e, $xpath, \%curViol, $getViolPath);
 		    return 1;
 		},
 	    },
@@ -134,14 +199,14 @@ sub ParseFile
 		    my ($twig, $e) = @_;
 		    ++$stdViolNum;
 		    my $xpath = "$stdViolXpath\[$stdViolNum]";
-		    ParseViolations_StdViol($parser, $twig, $e, $xpath);
+		    ParseViolations_StdViol($parser, $twig, $e, $xpath, $getViolPath);
 		    return 1;
 		},
 		$dupViolXpath	=> sub {
 		    my ($twig, $e) = @_;
 		    ++$dupViolNum;
 		    my $xpath = "$dupViolXpath\[$dupViolNum]";
-		    ParseViolations_DupViol($parser, $twig, $e, $xpath);
+		    ParseViolations_DupViol($parser, $twig, $e, $xpath, $getElDescPath);
 		    return 1;
 		},
 		$flowViolXpath	=> sub {
@@ -154,6 +219,11 @@ sub ParseFile
 		    pop @{$curViol{openElDescs}};
 		    return 1;
 		},
+		$locXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    AddLocPath($parser, $e, \%hashToPath);
+		    return 1;
+		},
 
 	    },
 	);
@@ -164,9 +234,9 @@ sub ParseFile
 
 sub GetElDesc
 {
-    my ($twig, $e) = @_;
+    my ($twig, $e, $getPath) = @_;
 
-    my $file = $e->att('srcRngFile');
+    my $file = $getPath->($e);
     my $type = $e->att('ElType');
     my $startLine = $e->att('srcRngStartln');
     $startLine = $e->att('ln') unless defined $startLine;
@@ -235,17 +305,36 @@ sub CreateBug
 }
 
 
+sub AddLocPath
+{
+    my ($parser, $e, $hashToPath) = @_;
+
+    my $hash = $e->att('hash');
+    my $uri = $e->att('uri');
+    my $path;
+
+    die "missing attr 'hash' of Loc" unless defined $hash;
+    die "missing attr 'uri' of Loc" unless defined $uri;
+
+    if ($uri =~ /^file:\/\/[^\/]*(\/.*)$/)  {
+	$path = $1;
+    }  else  {
+	die "'uri' attr of Loc is not file://";
+    }
+
+    $hashToPath->{$hash} = $path;
+}
+
+
 sub ParseViolations_StdViol
 {
-    my ($parser, $twig, $e, $xpath) = @_;
+    my ($parser, $twig, $e, $xpath, $getPath) = @_;
 
     my $beginLine = $e->att('ln');
     my $endLine   = $e->att('eln');
     # eln for StdViol seems to be inclusive of the range so no -1
     $endLine   = $beginLine unless defined $endLine;
-    my $file;
-    $file = $e->att('locFile');
-    my $filePath  = $file;
+    my $filePath = $getPath->($e);
     my $bug = CreateBug($parser, $e, $xpath);
     $bug->setBugLocation(
 	    1, "", $filePath, $beginLine, $endLine, "0",
@@ -258,15 +347,13 @@ sub ParseViolations_StdViol
 
 sub ParseViolations_DupViol
 {
-    my ($parser, $twig, $e, $xpath) = @_;
+    my ($parser, $twig, $e, $xpath, $getPath) = @_;
 
 
     $locationId = 1;
     foreach my $child_elem ($e->first_child('ElDescList')->children)  {
 	my $bug = CreateBug($parser, $e, $xpath);
-	my $file;
-	$file = $child_elem->att('srcRngFile');
-	my $filePath  = $file;
+	my $filePath = $getPath->($child_elem);
 	my $beginLine = $child_elem->att('srcRngStartln');
 	my $endLine   = $child_elem->att('srcRngEndLn');
 	my $beginCol  = $child_elem->att('srcRngStartPos');
@@ -285,7 +372,7 @@ sub ParseViolations_DupViol
 
 sub BeginFlowViol
 {
-    my ($parser, $twig, $e, $xpath, $viol) = @_;
+    my ($parser, $twig, $e, $xpath, $viol, $getPath) = @_;
 
     my $bug = CreateBug($parser, $e, $xpath);
 
@@ -297,17 +384,15 @@ sub EndFlowViol
 {
     my ($parser, $twig, $e, $viol) = @_;
 
-    #use Data::Dumper;				#jk
-    #print Dumper($viol), "\n\n\n";		#jk
-
     my $bug = $viol->{bug};
 
     my $locId = 0;
     foreach my $loc (@{$viol->{elDescs}})  {
-	#print Dumper($loc), "\n\n", ref($loc), "\n\n";	#jk
+	# do not output this, if there is no path, warning already printed
+	next unless defined $loc->{file};
+
 	my ($props, $isImportant, $isCause, $isViolPoint)
 		= @$loc{qw/props isImportant isCause isViolPoint/};
-	#print Dumper($props, $isImportant, $isCause, $isViolPoint), "\n\n"; #jk
 	next unless %$props || $isImportant || $isCause || $isViolPoint;
 	my @msg;
 	push @msg, "Important" if $isImportant;
@@ -333,12 +418,15 @@ sub EndFlowViol
 }
 
 
-sub IsVersion10
+sub MajorVersion
 {
     my ($version) = @_;
 
-    return (index($version, "10.") != -1);
+    my @version = split /\./, $version;
+
+    return $version[0];
 }
+
 
 
 my $parser = Parser->new(ParseFileProc => \&ParseFile);
