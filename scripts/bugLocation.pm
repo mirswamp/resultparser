@@ -50,7 +50,7 @@ sub printXML
     $writer->startTag('Location', 'id' => $self->{_bugLocationId}, 'primary' => $self->{_primary});
 
     $writer->startTag('SourceFile');
-    $writer->characters($self->{_sourceFile});
+    $writer->characters($self->{_sourceFile}) if defined $self->{_sourceFile};
     $writer->endTag();
 
     if (defined $start and $start > 0)  {
