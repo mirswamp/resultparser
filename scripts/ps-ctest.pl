@@ -317,6 +317,12 @@ sub AddLocPath
     die "missing attr 'uri' of Loc" unless defined $uri;
 
     if ($uri =~ /^file:\/\/[^\/]*(\/.*)$/)  {
+	# correct file URI's are file://<HOST>/<PATH>
+	# <HOST> can be (and usually is) empty, and <PATH> if relative to /
+	$path = $1;
+    }  elsif ($uri =~ /^file:(\/[^\/].*)$/)  {
+	# broken file URI's are file:/<PATH>
+	# there is no host and <PATH> is relative to /
 	$path = $1;
     }  else  {
 	die "'uri' attr of Loc is not file://";
