@@ -21,7 +21,7 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    open(my $fh, "<", $fn) or die "opern $fn: $!";
+    open(my $fh, "<", $fn) or die "open $fn: $!";
     while (<$fh>)  {
 	my $curr_line = $_;
 	chomp($curr_line);
