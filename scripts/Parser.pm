@@ -213,6 +213,9 @@ sub GetToolName {
 sub PrintWeaknessCountFile {
     my ($fn, $weaknessCount, $status, $longMsg) = @_;
 
+    die "PrintWeaknessCountFile: neither weaknessCount nor status defined"
+	    unless defined $weaknessCount || defined $status;
+
     if (defined $fn)  {
         open WFILE, ">", $fn or die "open $fn: $!";
         print WFILE "weaknesses: $weaknessCount\n";
@@ -420,7 +423,7 @@ sub ParseBegin
 }
 
 
-sub ParserEnd
+sub ParseEnd
 {
     my ($self, $count, $state, $msg) = @_;
 
@@ -578,10 +581,9 @@ sub new
 
     $self->ParseBegin();
 
-    if ($self->{ParseFileProc})  {
-	$self->ParseFiles();
-	$self->ParserEnd();
-    }
+    $self->ParseFiles() if ($self->{ParseFileProc});
+
+    $self->ParseEnd();
 
     return $self;
 }
