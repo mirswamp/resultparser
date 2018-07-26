@@ -1,4 +1,10 @@
 -----------------------------------------------------
+resultparser version 3.1.5 (Jul 26, 2018)
+-----------------------------------------------------
+- add suport for PRQA SCARF output
+- make sure at least one bug location is marked primary
+
+-----------------------------------------------------
 resultparser version 3.1.4 (Nov 13, 2017)
 -----------------------------------------------------
 - add support for Parasoft C/C++test and Jtest 10.x
