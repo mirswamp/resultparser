@@ -437,10 +437,15 @@ sub printXML
     $writer->endTag();
 
     $writer->startTag('BugLocations');
+    my $foundPrimary = 0;
+    my $elementsRemaining = @{$self->{_bugLocations}};
     foreach my $loc (@{$self->{_bugLocations}})
     {
 	next unless defined $loc;
-	$loc->printXML($writer, $self->{_classStartLine}, $self->{_classEndLine});
+	$foundPrimary = 1 if $loc->{_primary} eq 'true';
+	--$elementsRemaining;
+	my $forcePrimary = !($elementsRemaining || $foundPrimary);
+	$loc->printXML($writer, $self->{_classStartLine}, $self->{_classEndLine}, $forcePrimary);
     }
     $writer->endTag();
     if (defined $self->{_cweId})

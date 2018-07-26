@@ -33,7 +33,7 @@ sub setBugColumn
 
 sub printXML
 {
-    my ($self, $writer, $classStartLine, $classEndLine) = @_;
+    my ($self, $writer, $classStartLine, $classEndLine, $forcePrimary) = @_;
     my ($start, $end);
 
     $self->{_endLine} = $self->{_startLine} if !defined $self->{_endLine};
@@ -47,7 +47,9 @@ sub printXML
 	$end = $classEndLine;
     }
 
-    $writer->startTag('Location', 'id' => $self->{_bugLocationId}, 'primary' => $self->{_primary});
+    my $primary = $self->{_primary};
+    $primary = 'true' if $forcePrimary;
+    $writer->startTag('Location', 'id' => $self->{_bugLocationId}, 'primary' => $primary);
 
     $writer->startTag('SourceFile');
     $writer->characters($self->{_sourceFile}) if defined $self->{_sourceFile};
