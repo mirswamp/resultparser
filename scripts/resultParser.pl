@@ -5,6 +5,7 @@ use FindBin;
 use lib "$FindBin::Bin";
 use Parser;
 use Util;
+use File::Spec;
 #use Memory::Usage;
 
 #my $mu = Memory::Usage->new();
@@ -18,11 +19,12 @@ sub ExecParser
 {
     my ($toolName, @args) = @_;
 
-    my $toolScript = "$FindBin::Bin/$toolName.pl";
+    my $toolScript = File::Spec->catfile($FindBin::Bin, "$toolName.pl");
+    my $perlPath = $^X;
 
-    my @execString = ("perl", $toolScript, @args);
+    my @execString = ($perlPath, $toolScript, @args);
     print STDERR "\n", join(' ', @execString), "\n\n";
-    exec @execString;
+    exec {$perlPath} @execString or die "failed to exec @execString: $!";
 }
 
 
