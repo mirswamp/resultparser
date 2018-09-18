@@ -97,29 +97,6 @@ sub ReadFile
 }
 
 
-# FIXME: remove all uses of this function.  It is very broken.
-#
-sub SplitString {
-    my ($str) = @_;
-    $str =~ s/::+/~#~/g;
-    $str =~ /(‘[^:]+:+[^:]+’)/;
-    my $temp = $1;
-    $str =~ s/‘[^:]+:+[^:]+’/~~&&~~/;
-    if (defined $temp)  {
-        $temp =~ s/:/~%%~/;
-    }
-    $str =~ s/~~&&~~/$temp/;
-    my @tokens = split(':', $str);
-    my @ret;
-    foreach $a (@tokens)  {
-        $a =~ s/~#~/::/g;
-        $a =~ s/~%%~/:/g;
-        push(@ret, $a);
-    }
-    return (@ret);
-}
-
-
 sub Trim {
     my ($string) = @_;
     $string =~ s/^ *//;

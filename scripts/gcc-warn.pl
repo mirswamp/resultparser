@@ -59,7 +59,7 @@ LINE:
 	}  else  {
 	    $prev_line = $line;
 	}
-	my $valid = ValidateLine($line);
+	my $valid = ValidateLine($line, $fn, $currentLineNum);
 	if ($valid eq "function")  {
 	    my ($fn, $class, $func, $type, $instantionTypes) = ParseFunctionLine($line);
 	    $fnFile = $fn;
@@ -73,7 +73,7 @@ LINE:
 		# $function = "";
 		# $fnFile  = "";
 	    # }
-	    ParseLine($parser, $currentLineNum, $line, $function, $fnFile);
+	    ParseLine($parser, $currentLineNum, $line, $function, $fnFile, $fn);
 	}  else  {
 	    print "WARNING: unhandled-line: $fn:$currentLineNum:  $line\n" if $line !~ /^\s/;	#jk
 	}
@@ -87,36 +87,15 @@ LINE:
 
 sub ParseLine
 {
-    my ($parser, $bugReportLine, $line, $function, $fnFile) = @_;
+    my ($parser, $bugReportLine, $line, $function, $fnFile, $fn) = @_;
 
-    my @tokens        = Util::SplitString($line);
-    my $num_of_tokens = @tokens;
-    my ($file, $lineNum, $colNum, $bugGroup, $message);
-    my $flag = 1;
-    if ($num_of_tokens eq 5)  {
-	$file      = $tokens[0];
-	$lineNum   = $tokens[1];
-	$colNum    = $tokens[2];
-	$bugGroup = $tokens[3];
-	$message   = $tokens[4];
-    }  elsif ($num_of_tokens eq 4)  {
-	$file      = $tokens[0];
-	$lineNum   = $tokens[1];
-	$colNum    = 0;
-	$bugGroup = $tokens[2];
-	$message   = $tokens[3];
-    }  else  {
-
-	#bad line. hence skipping.
-	print STDERR "WARNING: ParseLine bad line: $line\n";
-	$flag = 0;
-    }
-
-    if ($flag ne 0)  {
-	$bugGroup = Util::Trim($bugGroup);
-	$message   = Util::Trim($message);
+    if ($line =~ /^(\S.*?):(\d+)(?:\:(\d+)):\s+(.*):\s+(.*?)\s*$/)  {
+	my ($file, $lineNum, $colNum, $bugGroup, $message) = ($1, $2, $3, $4, $5);
+	$colNum = 0 unless defined $colNum;
 	RegisterBug($parser, $bugReportLine, $function, $fnFile, $file, $lineNum,
-		$colNum, $bugGroup, $message);
+	                $colNum, $bugGroup, $message);
+    }  else  {
+	print STDERR "WARNING $fn:$bugReportLine: ParseLine bad line: $line\n";
     }
 }
 
@@ -226,23 +205,23 @@ sub ParseMessage
 
 sub ValidateLine
 {
-    my ($line) = @_;
+    my ($line, $fn, $lineNum) = @_;
 
     my $r;
 
-    if ($line =~ /.*: +warning *:.*/i)  {
+    if ($line =~ /\S.*: +warning *:.*/i)  {
 	$r = "warning";
-    }  elsif ($line =~ /.*: +error *:.*/i)  {
+    }  elsif ($line =~ /\S.*: +error *:.*/i)  {
 	$r = "error";
-    }  elsif ($line =~ /.*: +note *:.*/i)  {
+    }  elsif ($line =~ /\S.*: +note *:.*/i)  {
 	$r = "note";
-    }  elsif ($line =~ /^(?:.*: )?At (?:top level|global scope):/i)  {
+    }  elsif ($line =~ /^(?:\S.*: )?At (?:top level|global scope):/i)  {
 	$r = "function";
-    }  elsif ($line =~ /^.*: *In .*(function|constructor|destructor|instantiation).*$/)  {
+    }  elsif ($line =~ /^\S.*: *In .*(function|constructor|destructor|instantiation).*$/)  {
 	$r = "function";
-    }  elsif ($line =~ /^.*: +In /i)  {
+    }  elsif ($line =~ /^\S.*: +In /i)  {
 	# check for missing types of "In * ..." lines
-	die "uknown 'In line': $line";
+	die "ERROR: $fn:$lineNum unknown 'In line': $line";
     }  else  {
 	$r = "invalid";
     }

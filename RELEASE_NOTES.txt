@@ -1,4 +1,17 @@
 -----------------------------------------------------
+resultparser version 3.1.8 (Sep 18, 2018)
+-----------------------------------------------------
+- fix gcc-warn parsing failure and improved:
+  - compiler diagnostics must have a non-whitespace in column 1
+    enforcing this removed failures due to matching patterns in
+    source output.  Fixes aborting if source code text looked
+    slightly like compiler diagnostics
+  - replaced use of Util::SplitString with a regex from gcc-warn
+    and deleted the function as it was the last use and the function
+    was very poorly written.  Weaknesses with a ':' in the message
+    are now parsed instead of being ignored
+
+-----------------------------------------------------
 resultparser version 3.1.7 (Aug 20, 2018)
 -----------------------------------------------------
 - add support for devskim tool
