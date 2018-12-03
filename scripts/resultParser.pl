@@ -6,6 +6,7 @@ use lib "$FindBin::Bin";
 use Parser;
 use Util;
 use File::Spec;
+use Config;
 #use Memory::Usage;
 
 #my $mu = Memory::Usage->new();
@@ -24,7 +25,31 @@ sub ExecParser
 
     my @execString = ($perlPath, $toolScript, @args);
     print STDERR "\n", join(' ', @execString), "\n\n";
-    exec {$perlPath} @execString or die "failed to exec @execString: $!";
+    if ($^O !~ /mswin/i)  {
+	exec {$perlPath} @execString or die "failed to exec @execString: $!";
+    }  else  {
+	# On Windows, use system so this driver does not return
+	# before the child is done
+
+	my $r = system {$perlPath} @execString;
+	if ($r == 0)  {
+	    exit 0;
+	}  else  {
+	    my $msg = "ERROR: system {$perlPath} @execString: failed ";
+	    my $exitSignal = $r & 127;
+	    if ($r == -1)  {
+		$msg .= $!;
+	    }  elsif ($exitSignal)  {
+		my $exitSignalName = (split ' ', $Config{sig_name})[$exitSignal];
+		$msg .= "killed by signal $exitSignal";
+		$msg .= " (SIG$exitSignalName)" if defined $exitSignalName;
+	    }  else  {
+		my $exitCode = $r >> 8;
+		$msg .= " exit code $exitCode";
+	    }
+	    die $msg;
+	}
+    }
 }
 
 
