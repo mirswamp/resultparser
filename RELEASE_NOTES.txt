@@ -1,4 +1,13 @@
 -----------------------------------------------------
+resultparser version 3.1.9 (Dec  3, 2018)
+-----------------------------------------------------
+- improvement to run windows (use system instead of exec
+  to start to the correct result parser as this waits for
+  the tool parser to finish before the caller gets notified)
+- correctly handle DOS/Windows path names with drive letters
+  and translate all backslashes to forward slashes
+
+-----------------------------------------------------
 resultparser version 3.1.8 (Sep 18, 2018)
 -----------------------------------------------------
 - fix gcc-warn parsing failure and improved:
