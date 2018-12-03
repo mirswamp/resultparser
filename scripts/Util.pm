@@ -13,17 +13,36 @@ my $script_dir = dirname(Cwd::abs_path($0)) ;
 # NormalizePath - take a path and remove empty and '.' directory components
 #                 empty directories become '.'
 #
-sub NormalizePath {
-    my $p = shift;
+sub NormalizePath
+{
+    my ($p, $isWin) = @_;
 
-    $p =~ s/\/\/+/\//g;        # collapse consecutive /'s to one /
-    $p =~ s/\/(\.\/)+/\//g;    # change /./'s to one /
-    $p =~ s/^\.\///;           # remove initial ./
-    $p = '.' if $p eq '';      # change empty dirs to .
-    $p =~ s/\/\.$/\//;                 # remove trailing . directory names
-    $p =~ s/\/$// unless $p eq '/';    # remove trailing /
+    $p =~ s/\\/\//g if $isWin; 		# if windows: \ -> /
+    my $isUnc = $isWin && $p =~ /^\/\//;
+    $p =~ s/\/\/+/\//g;       		# collapse consecutive /'s to one /
+    $p =~ s/\/(\.\/)+/\//g;   		# change /./'s to one /
+    $p =~ s/^\.\///;          		# remove initial ./
+    $p = '.' if $p eq '';     		# change empty dirs to .
+    $p =~ s/\/\.$/\//;        		# remove trailing . directory names
+    $p =~ s/\/$// unless $p eq '/';	# remove trailing /
+
+    $p = "/$p" if $isUnc;		# restore UNC if necessary
 
     return $p;
+}
+
+
+# IsAbsolutePath - on POSIX it starts with a /
+#                  on Windows starts with / or [A-Z]:/
+sub IsAbsolutePath
+{
+    my ($p, $isWin) = @_;
+
+    if (!$isWin)  {
+	return $p =~ /^\//;
+    }  else  {
+	return $p =~ /^(?:[a-z]:)?[\/\\]/i;
+    }
 }
 
 
@@ -34,17 +53,18 @@ sub NormalizePath {
 #       curDir     - the directory paths are currently relative to
 #       path       - the path to change
 #
-sub AdjustPath {
-    my ($baseDir, $curDir, $path) = @_;
+sub AdjustPath
+{
+    my ($baseDir, $curDir, $path, $isWin) = @_;
 
-    $baseDir = NormalizePath($baseDir);
-    $curDir  = NormalizePath($curDir);
-    $path    = NormalizePath($path);
+    $baseDir = NormalizePath($baseDir, $isWin);
+    $curDir  = NormalizePath($curDir, $isWin);
+    $path    = NormalizePath($path, $isWin);
 
     # if path is relative, prefix with current dir
     if ($path eq '.')  {
         $path = $curDir;
-    }  elsif ($curDir ne '.' && $path !~ /^\//)  {
+    }  elsif ($curDir ne '.' && !IsAbsolutePath($path, $isWin))  {
         $path = "$curDir/$path";
     }
 
@@ -177,27 +197,6 @@ sub GetFileList {
         push @inputFiles, "$input";
     }
     return @inputFiles;
-}
-
-
-sub IsAbsolutePath {
-    my ($path) = @_;
-    if ($path =~ m/^\/.*/g)  {
-        return 1;
-    }
-    return 0;
-}
-
-
-sub TestPath {
-    my ($path, $mode) = @_;
-    my $fh;
-    if ($mode eq "W")  {
-        open $fh, ">>", $path or die "Cannot open file $path !!";
-    }  elsif ($mode eq "R")  {
-        open $fh, "<", $path or die "Cannot open file $path !!";
-    }
-    close($fh);
 }
 
 

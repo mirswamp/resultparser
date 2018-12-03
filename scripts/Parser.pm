@@ -400,6 +400,9 @@ sub ParseBegin
 
     my $ps = ParseSummaryFile($options->{summary_file});
     $self->{ps} = $ps;
+    
+    my $isWin = $ps->{platformName} =~ /^windows/i;
+    $self->{isWin} = $isWin;
 
     if (!$self->GetBoolParam('NoScarfFile'))  {
 	my $xmlOut = new xmlWriterObject($options->{output_file});
@@ -407,7 +410,8 @@ sub ParseBegin
 
 	# make packageRootDir relative to buildRootDir
 	$ps->{packageRootDir} = Util::AdjustPath($ps->{buildRootDir},
-						'.', $ps->{packageRootDir});
+						'.', $ps->{packageRootDir},
+						$isWin);
 
 	$xmlOut->addStartTag(
 		@{$ps}{qw/toolType toolVersion assessUuid
@@ -486,7 +490,8 @@ sub AdjustPath
 	    $path =~ s/^($fromRe)/$prefixMap->{$1}/ if $fromRe
 	}
 	$path =~ s/$from/$to/ if defined $from;
-	$path = Util::AdjustPath($baseDir, $cwd, $path);
+	my $isWin = $self->{isWin};
+	$path = Util::AdjustPath($baseDir, $cwd, $path, $isWin);
     }
 
     return $path;
