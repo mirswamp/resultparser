@@ -15,12 +15,16 @@ sub ParseFile
     my ($parser, $fn) = @_;
 
     my $numBugInstance = 0;
-    my $numSourcePath = 0;
 
     my %cweHash;
     my %suggestionHash;
     my %categoryHash;
-    my %sourcePathHash;
+#    my $numSourcePath = 0;
+#    my %sourcePathHash;
+
+    my $commonSourceDirPrefix;
+    my @sourceDirList;
+
 
     my $cwe_xpath      = 'BugCollection/BugPattern';
     my $category_xpath = 'BugCollection/BugCategory';
@@ -46,8 +50,7 @@ sub ParseFile
 	    },
 	    $source_xpath	=> sub {
 		my ($twig, $e) = @_;
-		parseSourcePath($twig, $e, \%sourcePathHash, $numSourcePath);
-		++$numSourcePath;
+		parseSourceDir($twig, $e, \@sourceDirList, \$commonSourceDirPrefix);
 		return 1;
 	    },
 	}
@@ -62,7 +65,7 @@ sub ParseFile
 	    $xpath1 => sub {
 		my ($twig, $e) = @_;
 		parseViolations($parser, $twig, $e, $numBugInstance,
-			\%cweHash, \%suggestionHash, \%categoryHash, \%sourcePathHash);
+			\%cweHash, \%suggestionHash, \%categoryHash, $commonSourceDirPrefix);
 		++$numBugInstance;
 		return 1;
 	    },
@@ -76,12 +79,12 @@ sub ParseFile
 sub parseViolations
 {
     my ($parser, $tree, $elem, $numBugInstance,
-	    $cweHash, $suggestionHash, $categoryHash, $sourcePathHash) = @_;
+	    $cweHash, $suggestionHash, $categoryHash, $commonSourceDirPrefix) = @_;
 
     my $bugXpath = "/BugCollection/BugInstance[$numBugInstance]";
 
     my $bug = GetFindBugsBugObject($parser, $elem, $bugXpath,
-	    $cweHash, $suggestionHash, $categoryHash, $sourcePathHash);
+	    $cweHash, $suggestionHash, $categoryHash, $commonSourceDirPrefix);
     $elem->purge() if defined $elem;
 
     $parser->WriteBugObject($bug);
@@ -92,7 +95,7 @@ sub parseViolations
 sub GetFindBugsBugObject
 {
     my ($parser, $elem, $bugXpath,
-	    $cweHash, $suggestionHash, $categoryHash, $sourcePathHash) = @_;
+	    $cweHash, $suggestionHash, $categoryHash, $commonSourceDirPrefix) = @_;
 
     my $bug = $parser->NewBugInstance();
     $bug->setBugSeverity($elem->att('priority'));
@@ -109,13 +112,13 @@ sub GetFindBugsBugObject
 	if ($tag eq "LongMessage")  {
 	    $bug->setBugMessage($element->text);
 	}  elsif ($tag eq 'SourceLine')  {
-	    $bug = sourceLine($element, $bug, $numSourceLine, $sourcePathHash);
+	    $bug = sourceLine($element, $bug, $numSourceLine, $commonSourceDirPrefix);
 	    ++$numSourceLine;
 	}  elsif ($tag eq 'Method')  {
 	    $bug = bugMethod($element, $bug, $numMethod);
 	    ++$numMethod;
 	}  elsif ($tag eq 'Class')  {
-	    $bug = parseClass($element, $numClass, $bug, $sourcePathHash);
+	    $bug = parseClass($element, $numClass, $bug, $commonSourceDirPrefix);
 	    ++$numClass
 	}
     }
@@ -127,12 +130,11 @@ sub GetFindBugsBugObject
 
 sub sourceLine
 {
-    my ($elem, $bug, $numSourceLine, $sourcePathHash) = @_;
+    my ($elem, $bug, $numSourceLine, $commonSourceDirPrefix) = @_;
 
     my $classname       = $elem->att('classname');
-    my $flag;
     my $sourceFile = $elem->att('sourcepath');
-    ($sourceFile, $flag) = resolveSourcePath($sourceFile, $sourcePathHash);
+    $sourceFile = resolveSourcePath($sourceFile, $commonSourceDirPrefix);
     my $startLineNo = $elem->att('start');
     my $endLineNo   = $elem->att('end');
     my $startCol    = "0";
@@ -143,7 +145,7 @@ sub sourceLine
     $primary = "false" unless defined $primary;
     $bug->setBugLocation(
 	    $numSourceLine, $classname, $sourceFile, $startLineNo, $endLineNo,
-	    $startCol, $endCol, $message, $primary, $flag
+	    $startCol, $endCol, $message, $primary, (defined $sourceFile ? 'true' : 'false')
     );
     return $bug;
 }
@@ -164,7 +166,7 @@ sub bugMethod
 
 sub parseClass
 {
-    my ($elem, $classNum, $bug, $sourcePathHash) = @_;
+    my ($elem, $classNum, $bug, $commonSourceDirPrefix) = @_;
 
     my $classname = $elem->att('classname');
     my $primary   = $elem->att('primary');
@@ -172,7 +174,7 @@ sub parseClass
 	    return;
     }
     my $children;
-    my ($sourcefile, $start, $end, $classMessage, $resolvedFlag);
+    my ($sourcefile, $start, $end, $classMessage);
     if (defined $primary && $primary eq 'true')  {
 	foreach $children ($elem->children)  {
 	    my $tag = $children->gi;
@@ -180,7 +182,7 @@ sub parseClass
 		$start      = $children->att('start');
 		$end        = $children->att('end');
 		$sourcefile = $children->att('sourcepath');
-		($sourcefile, $resolvedFlag) = resolveSourcePath($sourcefile, $sourcePathHash);
+		$sourcefile = resolveSourcePath($sourcefile, $commonSourceDirPrefix);
 		$classMessage = $children->first_child->text
 			if defined $children->first_child;
 	    }
@@ -192,19 +194,12 @@ sub parseClass
 
 sub resolveSourcePath
 {
-    my ($path, $sourcePathHash) = @_;
+    my ($path, $commonSourceDirPrefix) = @_;
 
-    my $pathId;
-    my $flag = "false";
-    foreach $pathId (sort {$a <=> $b} keys(%$sourcePathHash))  {
-	if (-e "$sourcePathHash->{$pathId}/$path")  {
-	    $path = "$sourcePathHash->{$pathId}/$path";
-	    $flag = "true";
-	    last;
-	}
-    }
+    $path = Util::AdjustPath(undef, $commonSourceDirPrefix, $path)
+	    if defined $commonSourceDirPrefix && defined $path;
 
-    return ($path, $flag);
+    return $path;
 }
 
 
@@ -246,12 +241,42 @@ sub parseBugCategory
 }
 
 
-sub parseSourcePath
+sub CommonDirPrefix
 {
-    my ($tree, $elem, $sourcePathHash, $numSourcePath) = @_;
+    my ($a, $b) = @_;
 
-    my $sourcepath = $elem->text;
-    $sourcePathHash->{$numSourcePath} = $sourcepath if defined $sourcepath;
+    return $b unless defined $a;
+    return $a unless defined $b;
+
+    my @aComponents = split /(\/)/, $a;
+    my @bComponents = split /(\/)/, $b;
+
+    my $prefix = '';
+
+    while (@aComponents && @bComponents)  {
+	my $aPart = shift @aComponents;
+	my $bPart = shift @bComponents;
+
+	last if $aPart ne $bPart;
+
+	$prefix .= $aPart
+    }
+
+    $prefix =~ s/\/+$//;
+
+    return $prefix;
+}
+
+
+sub parseSourceDir
+{
+    my ($tree, $elem, $sourceDirList, $commonSourceDirPrefix) = @_;
+
+    my $sourceDir = $elem->text;
+    if (defined $sourceDir)  {
+	push @$sourceDirList, $sourceDir;
+	$$commonSourceDirPrefix = CommonDirPrefix($$commonSourceDirPrefix, $sourceDir);
+    }
     $tree->purge();
 }
 

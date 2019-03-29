@@ -57,7 +57,6 @@ sub AdjustPath
 {
     my ($baseDir, $curDir, $path, $isWin) = @_;
 
-    $baseDir = NormalizePath($baseDir, $isWin);
     $curDir  = NormalizePath($curDir, $isWin);
     $path    = NormalizePath($path, $isWin);
 
@@ -68,8 +67,11 @@ sub AdjustPath
         $path = "$curDir/$path";
     }
 
-    # remove initial baseDir from path if baseDir is not empty
-    $path =~ s/^\Q$baseDir\E\///;
+    # remove initial baseDir from path if baseDir is defined
+    if (defined $baseDir)  {
+	$baseDir = NormalizePath($baseDir, $isWin);
+	$path =~ s/^\Q$baseDir\E\/// if $baseDir ne '.';
+    }
 
     return $path;
 }
