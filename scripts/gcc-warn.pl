@@ -89,7 +89,7 @@ sub ParseLine
 {
     my ($parser, $bugReportLine, $line, $function, $fnFile, $fn) = @_;
 
-    if ($line =~ /^(\S.*?):(\d+)(?:\:(\d+)):\s+(.*):\s+(.*?)\s*$/)  {
+    if ($line =~ /^(\S.*?):(\d+)(?:\:(\d+))?:\s+(.*):\s+(.*?)\s*$/)  {
 	my ($file, $lineNum, $colNum, $bugGroup, $message) = ($1, $2, $3, $4, $5);
 	$colNum = 0 unless defined $colNum;
 	RegisterBug($parser, $bugReportLine, $function, $fnFile, $file, $lineNum,
