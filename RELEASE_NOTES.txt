@@ -1,4 +1,11 @@
 -----------------------------------------------------
+resultparser version 3.1.11 (Apr  1, 2019)
+-----------------------------------------------------
+- bug fix for findbugs and spotbug parsers to use the attribute relSourcepath
+  instead of sourcepath, so the new algorithm to produce the correct relative
+  path works correctly
+
+-----------------------------------------------------
 resultparser version 3.1.10 (Mar 29, 2019)
 -----------------------------------------------------
 - fix gcc-warn parsing for compilers that do not support column data
@@ -23,7 +30,7 @@ resultparser version 3.1.8 (Sep 18, 2018)
     enforcing this removed failures due to matching patterns in
     source output.  Fixes aborting if source code text looked
     slightly like compiler diagnostics
-  - replaced use of Util::SplitString with a regex from gcc-warn
+  - replaced use of Util::SplitString with a regex for gcc-warn
     and deleted the function as it was the last use and the function
     was very poorly written.  Weaknesses with a ':' in the message
     are now parsed instead of being ignored
