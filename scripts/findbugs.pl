@@ -133,7 +133,7 @@ sub sourceLine
     my ($elem, $bug, $numSourceLine, $commonSourceDirPrefix) = @_;
 
     my $classname       = $elem->att('classname');
-    my $sourceFile = $elem->att('sourcepath');
+    my $sourceFile = $elem->att('relSourcepath');
     $sourceFile = resolveSourcePath($sourceFile, $commonSourceDirPrefix);
     my $startLineNo = $elem->att('start');
     my $endLineNo   = $elem->att('end');
@@ -181,7 +181,7 @@ sub parseClass
 	    if ($tag eq "SourceLine")  {
 		$start      = $children->att('start');
 		$end        = $children->att('end');
-		$sourcefile = $children->att('sourcepath');
+		$sourcefile = $children->att('relSourcepath');
 		$sourcefile = resolveSourcePath($sourcefile, $commonSourceDirPrefix);
 		$classMessage = $children->first_child->text
 			if defined $children->first_child;
