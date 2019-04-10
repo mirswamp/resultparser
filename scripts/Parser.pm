@@ -5,11 +5,13 @@ package Parser;
 use strict;
 use Getopt::Long;
 # use Util;
-use xmlWriterObject;
 use XML::Twig;
 use FindBin;
+use ScarfXmlWriter;
+use SarifJsonWriter;
+use BugInstance;
 
-
+my $bashNonMetaChars = qr/[a-zA-Z0-9.,_=+\/\@:-]/;
 
 sub GetElemText
 {
@@ -28,11 +30,11 @@ sub ParseSummaryFile {
     my ($summaryFile) = @_;
 
     my %s = (		# parsed summary data
-	assessUuid	=> undef,
-	buildRootDir	=> undef,
-	packageRootDir	=> undef,
-	toolType	=> undef,
-	toolVersion	=> undef,
+	# assessUuid	=> undef,
+	# buildRootDir	=> undef,
+	# packageRootDir=> undef,
+	# toolType	=> undef,
+	# toolVersion	=> undef,
 	assessments	=> [],
 	);
     my $curAssess = {};	# in-progress parsing of assessment
@@ -44,146 +46,185 @@ sub ParseSummaryFile {
     my $assess = "$as/assessment-artifacts/assessment";
 
     my $twig = XML::Twig->new(
-		twig_handlers => {
-		    "$as/assessment-summary-uuid"	=> sub {
-			my ($twig, $e) = @_;
-			$s{assessUuid} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/build-root-dir"		=> sub {
-			my ($twig, $e) = @_;
-			$s{buildRootDir} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/package-root-dir"		=> sub {
-			my ($twig, $e) = @_;
-			$s{packageRootDir} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/package-name"			=> sub {
-			my ($twig, $e) = @_;
-			$s{packageName} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/package-version"		=> sub {
-			my ($twig, $e) = @_;
-			$s{packageVersion} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/platform-name"			=> sub {
-			my ($twig, $e) = @_;
-			$s{platformName} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/platform-uuid"			=> sub {
-			my ($twig, $e) = @_;
-			$s{platformUuid} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/tool-type"			=> sub {
-			my ($twig, $e) = @_;
-			$s{toolType} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/tool-version"			=> sub {
-			my ($twig, $e) = @_;
-			$s{toolVersion} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/start-ts"			=> sub {
-			my ($twig, $e) = @_;
-			$s{startTs} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/stop-ts"			=> sub {
-			my ($twig, $e) = @_;
-			$s{stopTs} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/build-fw"			=> sub {
-			my ($twig, $e) = @_;
-			$s{buildFw} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/build-fw-version"		=> sub {
-			my ($twig, $e) = @_;
-			$s{buildFwVersion} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/assess-fw"			=> sub {
-			my ($twig, $e) = @_;
-			$s{assessFw} = GetElemText($e);
-			return 1;
-		    },
-		    "$as/assess-fw-version"		=> sub {
-			my ($twig, $e) = @_;
-			$s{assessFwVersion} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess"				=> sub {
-			my ($twig, $e) = @_;
-			push @{$s{assessments}}, $curAssess;
-			$twig->purge();
-			$curAssess = {};
-			return 1;
-		    },
-		    "$assess/build-artifact-id"		=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{buildId} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess/report"			=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{report} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess/command/cwd"		=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{cwd} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess/replace-path"		=> sub {
-			my ($twig, $e) = @_;
-			# check for both target and srcdir
-			return 1;
-		    },
-		    "$assess/replace-path/target"	=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{replacePathTarget} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess/replace-path/srcdir"	=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{replacePathSrcDir} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess/path-prefix-adjust"	=> sub {
-			my ($twig, $e) = @_;
-			# check for both from and to
-			return 1;
-		    },
-		    "$assess/path-prefix-adjust/from"	=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{pathPrefixAdjustFrom} = GetElemText($e);
-			return 1;
-		    },
-		    "$assess/path-prefix-adjust/to"	=> sub {
-			my ($twig, $e) = @_;
-			$curAssess->{pathPrefixAdjustTo} = GetElemText($e);
-			return 1;
-		    },
-		},
-	    );
+        twig_handlers => {
+            "$as/assessment-summary-uuid"	=> sub {
+                my ($twig, $e) = @_;
+                $s{uuid} = GetElemText($e);
+                return 1;
+            },
+            "$as/build-root-dir"		=> sub {
+                my ($twig, $e) = @_;
+                $s{build_root_dir} = GetElemText($e);
+                return 1;
+            },
+            "$as/package-root-dir"		=> sub {
+                my ($twig, $e) = @_;
+                $s{package_root_dir} = GetElemText($e);
+                return 1;
+            },
+            "$as/package-name"			=> sub {
+                my ($twig, $e) = @_;
+                $s{package_name} = GetElemText($e);
+                return 1;
+            },
+            "$as/package-version"		=> sub {
+                my ($twig, $e) = @_;
+                $s{package_version} = GetElemText($e);
+                return 1;
+            },
+            "$as/platform-name"			=> sub {
+                my ($twig, $e) = @_;
+                $s{platform_name} = GetElemText($e);
+                return 1;
+            },
+            "$as/platform-uuid"			=> sub {
+                my ($twig, $e) = @_;
+                $s{platformUuid} = GetElemText($e);
+                return 1;
+            },
+            "$as/tool-type"			=> sub {
+                my ($twig, $e) = @_;
+                $s{tool_name} = GetElemText($e);
+                return 1;
+            },
+            "$as/tool-version"			=> sub {
+                my ($twig, $e) = @_;
+                $s{tool_version} = GetElemText($e);
+                return 1;
+            },
+            "$as/start-ts"			=> sub {
+                my ($twig, $e) = @_;
+                $s{assessment_start_ts} = GetElemText($e);
+                return 1;
+            },
+            "$as/stop-ts"			=> sub {
+                my ($twig, $e) = @_;
+                $s{assessment_stop_ts} = GetElemText($e);
+                return 1;
+            },
+            "$as/build-fw"			=> sub {
+                my ($twig, $e) = @_;
+                $s{build_fw} = GetElemText($e);
+                return 1;
+            },
+            "$as/build-fw-version"		=> sub {
+                my ($twig, $e) = @_;
+                $s{build_fw_version} = GetElemText($e);
+                return 1;
+            },
+            "$as/assess-fw"			=> sub {
+                my ($twig, $e) = @_;
+                $s{assess_fw} = GetElemText($e);
+                return 1;
+            },
+            "$as/assess-fw-version"		=> sub {
+                my ($twig, $e) = @_;
+                $s{assess_fw_version} = GetElemText($e);
+                return 1;
+            },
+            "$assess"				=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{commandLine} = BashQuoteArgList($curAssess->{args});
+                push @{$s{assessments}}, $curAssess;
+                $twig->purge();
+                $curAssess = {};
+                return 1;
+            },
+            "$assess/build-artifact-id"		=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{"build-artifact-id"} = GetElemText($e);
+                return 1;
+            },
+            "$assess/report"			=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{report} = GetElemText($e);
+                return 1;
+            },
+            "$assess/command/args/arg"          => sub {
+                my ($twig, $e) = @_;
+                push @{$curAssess->{args}}, GetElemText($e);
+            },
+            "$assess/command/cwd"		=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{workingDirectory} = GetElemText($e);
+                return 1;
+            },
+            "$assess/command/environment/env"   => sub {
+                my ($twig, $e) = @_;
+                my $string = GetElemText($e);
+                if ($string =~ /(.+?)=(.*)/) {
+                    if (exists $curAssess->{env}{$1}) {
+                        print STDERR "env $1 already exists changing value from ($curAssess->{env}{$1}) to ($2)\n";
+                    }
+                    $curAssess->{env}{$1} = $2;
+                }
+                else {
+                    print STDERR "Error parsing env:  $string\n";
+                }
+            },
+            "$assess/exit-code"                 => sub {
+                my ($twig, $e) = @_;
+                $curAssess->{exitCode} = GetElemText($e);
+                return 1;
+            },
+            "$assess/start-ts"                  => sub {
+                my ($twig, $e) = @_;
+                $curAssess->{startTime} = GetElemText($e);
+                return 1;
+            },
+            "$assess/stop-ts"                   => sub {
+                my ($twig, $e) = @_;
+                $curAssess->{endTime} = GetElemText($e);
+                return 1;
+            },
+            # FIXME: There is no need for the following block since it should be stop-ts
+            "$assess/end-ts"                    => sub {
+                my ($twig, $e) = @_;
+                $curAssess->{endTime} = GetElemText($e);
+                return 1;
+            },
+            "$assess/replace-path"		=> sub {
+                my ($twig, $e) = @_;
+                # check for both target and srcdir
+                return 1;
+            },
+            "$assess/replace-path/target"	=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{replacePathTarget} = GetElemText($e);
+                return 1;
+            },
+            "$assess/replace-path/srcdir"	=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{replacePathSrcDir} = GetElemText($e);
+                return 1;
+            },
+            "$assess/path-prefix-adjust"	=> sub {
+                my ($twig, $e) = @_;
+                # check for both from and to
+                return 1;
+            },
+            "$assess/path-prefix-adjust/from"	=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{pathPrefixAdjustFrom} = GetElemText($e);
+                return 1;
+            },
+            "$assess/path-prefix-adjust/to"	=> sub {
+                my ($twig, $e) = @_;
+                $curAssess->{pathPrefixAdjustTo} = GetElemText($e);
+                return 1;
+            },
+        },
+    );
 
     $twig->parsefile($summaryFile);
 
-    my @required = qw/assessUuid buildRootDir packageRootDir toolType toolVersion/;
+    my @required = qw/uuid build_root_dir package_root_dir tool_name tool_version/;
     my @missing;
     foreach my $k (@required)  {
-	push @missing, $k unless defined $s{$k};
+        push @missing, $k unless defined $s{$k};
     }
     die "assessment-summary xml file missing required elements: @missing"
-	    if @missing;
+        if @missing;
 
     return \%s;
 }
@@ -192,16 +233,16 @@ sub ParseSummaryFile {
 sub GetToolName {
     my $assessment_summary_file = shift;
     my $toolName;
-    my $twig                    = XML::Twig->new(
-                                    twig_roots    => {'assessment-summary' => 1},
-                                    twig_handlers => {
-                                            'assessment-summary/tool-type' => sub {
-                                                    my ($tree, $elem) = @_;
-                                                    $toolName = $elem->text;
-						    $tree->finish_now();
-                                              }
-                                    }
-                                );
+    my $twig = XML::Twig->new(
+        twig_roots    => {'assessment-summary' => 1},
+        twig_handlers => {
+            'assessment-summary/tool-type' => sub {
+                my ($tree, $elem) = @_;
+                $toolName = $elem->text;
+                $tree->finish_now();
+            }
+        }
+    );
     $twig->parsefile($assessment_summary_file);
     if (!defined $toolName)  {
         die("Error: Could not extract tool name from the summary file ");
@@ -214,20 +255,20 @@ sub PrintWeaknessCountFile {
     my ($fn, $weaknessCount, $status, $longMsg) = @_;
 
     die "PrintWeaknessCountFile: neither weaknessCount nor status defined"
-	    unless defined $weaknessCount || defined $status;
+    unless defined $weaknessCount || defined $status;
 
     if (defined $fn)  {
         open WFILE, ">", $fn or die "open $fn: $!";
         print WFILE "weaknesses: $weaknessCount\n";
-	if (defined $status)  {
-	    die "unknown status type '$status'"
-		    unless $status =~ /^(PASS|FAIL|SKIP|NOTE)$/;
-	    print WFILE "$status\n";
-	}
-	if (defined $longMsg && $longMsg !~ /^\s*$/)  {
-	    $longMsg =~ s/\n*$//;
-	    print WFILE "-----\n$longMsg\n";
-	}
+        if (defined $status)  {
+            die "unknown status type '$status'"
+            unless $status =~ /^(PASS|FAIL|SKIP|NOTE)$/;
+            print WFILE "$status\n";
+        }
+        if (defined $longMsg && $longMsg !~ /^\s*$/)  {
+            $longMsg =~ s/\n*$//;
+            print WFILE "-----\n$longMsg\n";
+        }
         close WFILE or die "close $fn: $!";
     }
 }
@@ -362,21 +403,21 @@ sub ParseFiles
 
     my $assessCnt = 0;
     foreach my $a (@{$self->{ps}{assessments}})  {
-	++$assessCnt;
-	$self->{curAssess} = $a;
-	my $fn = $a->{report};
-	if (!defined $fn || $fn eq '')  {
-	    my $summaryFn = $self->{options}{summary_file};
-	    my $xpath = "assessment-summary/assessment-artifacts/assessment[$assessCnt]/report";
-	    my $msg = "Missing element 'report' at '$xpath' in file '$summaryFn'";
-	    my $weaknessCountFile = $self->{options}{weakness_count_file};
-	    PrintWeaknessCountFile($weaknessCountFile, 0, 'FAIL', $msg);
-	    die $msg;
-	}  elsif (!Util::IsAbsolutePath($fn))  {
-	    $fn = $self->{options}{input_dir} . "/$fn";
-	}
+        ++$assessCnt;
+        $self->{curAssess} = $a;
+        my $fn = $a->{report};
+        if (!defined $fn || $fn eq '')  {
+            my $summaryFn = $self->{options}{summary_file};
+            my $xpath = "assessment-summary/assessment-artifacts/assessment[$assessCnt]/report";
+            my $msg = "Missing element 'report' at '$xpath' in file '$summaryFn'";
+            my $weaknessCountFile = $self->{options}{weakness_count_file};
+            PrintWeaknessCountFile($weaknessCountFile, 0, 'FAIL', $msg);
+            die $msg;
+        }  elsif (!Util::IsAbsolutePath($fn))  {
+            $fn = $self->{options}{input_dir} . "/$fn";
+        }
 
-	$self->{ParseFileProc}($self, $fn);
+        $self->{ParseFileProc}($self, $fn);
     }
     delete $self->{curAssess};
 }
@@ -390,7 +431,6 @@ sub GetBoolParam
 }
 
 
-
 sub ParseBegin
 {
     my ($self) = @_;
@@ -399,28 +439,45 @@ sub ParseBegin
     $self->{options} = $options;
 
     my $ps = ParseSummaryFile($options->{summary_file});
+    $ps->{parser_fw} = $self->{options}{parserFw};
+    $ps->{parser_fw_version} = $self->{options}{parserFwVersion};
     $self->{ps} = $ps;
     
-    my $isWin = $ps->{platformName} =~ /^windows/i;
+    my $isWin = $ps->{platform_name} =~ /^windows/i;
     $self->{isWin} = $isWin;
 
     if (!$self->GetBoolParam('NoScarfFile'))  {
-	my $xmlOut = new xmlWriterObject($options->{output_file});
-	$self->{xmlOut} = $xmlOut;
+        $self->{sxw} = new ScarfXmlWriter($options->{output_file}, "utf-8");
 
-	# make packageRootDir relative to buildRootDir
-	$ps->{packageRootDir} = Util::AdjustPath($ps->{buildRootDir},
-						'.', $ps->{packageRootDir},
-						$isWin);
+        my %writerOptions = (
+            pretty => 1
+        );
 
-	$xmlOut->addStartTag(
-		@{$ps}{qw/toolType toolVersion assessUuid
-		    startTs packageName packageVersion
-		    platformName buildRootDir packageRootDir
-		    buildFw buildFwVersion assessFw assessFwVersion
-		    /},
-		@{$self->{options}}{qw/parserFw parserFwVersion/}
-		);
+        $self->{sxw}->SetOptions(\%writerOptions);
+
+        # make packageRootDir relative to buildRootDir
+        $ps->{package_root_dir} = Util::AdjustPath($ps->{build_root_dir},
+            '.', $ps->{package_root_dir},
+            $isWin);
+
+        $self->{sxw}->BeginFile();
+        $self->{sxw}->BeginRun($ps);
+
+        # create uriBaseId for assessment_report files
+        my $dir = $ps->{build_root_dir};
+        if ($dir =~ /(.+)\/.+/) {
+            $dir = $1."/results";
+        } else {
+            die "build_root_dir is not as expected";
+        }
+        my $results_root_dir = $dir; 
+        my %baseIds = (
+            PACKAGEROOT => Util::UrlEncodePath("file://" . Util::AdjustPath(".", $ps->{build_root_dir}, $ps->{package_root_dir}, $isWin)),
+            RESULTSROOT => Util::UrlEncodePath("file://" . $results_root_dir),
+        );
+        $self->{sxw}->AddOriginalUriBaseIds(\%baseIds);
+        $self->{sxw}->AddInvocations($ps->{assessments});
+        $self->{sxw}->BeginResults();
     }
 
     return $self;
@@ -431,16 +488,17 @@ sub ParseEnd
 {
     my ($self, $count, $state, $msg) = @_;
 
-    my $xmlOut = $self->{xmlOut};
-
     $count = $self->{weaknessCount} unless defined $count;
     $state = $self->{resultParserState} unless defined $state;
     $msg   = $self->{resultParserMsg} unless defined $msg;
 
     if (!$self->GetBoolParam('NoScarfFile'))  {
-	$count = $xmlOut->getBugId() - 1 unless defined $count;
-	$xmlOut->writeSummary();
-	$xmlOut->addEndTag();
+        $count = $self->{sxw}->GetNumBugs() unless defined $count;
+
+        $self->{sxw}->EndResults();
+        $self->{sxw}->AddSummary();
+        $self->{sxw}->EndRun();
+        $self->{sxw}->EndFile();
     }
 
     my $weaknessCountFile = $self->{options}{weakness_count_file};
@@ -448,12 +506,11 @@ sub ParseEnd
     PrintWeaknessCountFile($weaknessCountFile, $count, $state, $msg);
 }
 
-
 sub NewBugInstance
 {
     my ($self) = @_;
 
-    my $bug = new bugInstance($self->{xmlOut}->getBugId() - 1);
+    my $bug = new BugInstance();
 
     return $bug;
 }
@@ -464,20 +521,20 @@ sub AdjustPath
     my ($self, $path) = @_;
 
     my $curAssess = $self->{curAssess};
-    my $cwd = $curAssess->{cwd};
-    my $baseDir = $self->{ps}{buildRootDir};
+    my $cwd = $curAssess->{workingDirectory};
+    my $baseDir = $self->{ps}{build_root_dir};
     my ($from, $to);
 
     if (exists $curAssess->{pathPrefixAdjustFrom})  {
         $from = qr/^$curAssess->{pathPrefixAdjustFrom}/;
 	die "path-prefix-adjust/to not found, when path-prefix-adjust/from was"
-		unless exists $curAssess->{pathPrefixAdjustTo};
+	    unless exists $curAssess->{pathPrefixAdjustTo};
 	$to = $curAssess->{pathPrefixAdjustTo};
     }  elsif (exists $curAssess->{replacePathTarget})  {
 	# from is missing leading /
 	$from = qr/^\/$curAssess->{replacePathTarget}/;
 	die "replace-path/target not found, when replace-path/srcdir was"
-		unless exists $curAssess->{replacePathSrcDir};
+	    unless exists $curAssess->{replacePathSrcDir};
 	$to = $curAssess->{replacePathSrcDir};
 	# to has extra path component
 	$to =~ s/\/([^\/]*?)$//;
@@ -502,20 +559,19 @@ sub AdjustBugPath
 {
     my ($self, $bug) = @_;
     my $curAssess = $self->{curAssess};
-    my $cwd = $curAssess->{cwd};
-    my $baseDir = $self->{ps}{buildRootDir};
+    my $cwd = $curAssess->{workingDirectory};
+    my $baseDir = $self->{ps}{build_root_dir};
     my ($from, $to);
 
-    foreach my $bugLoc (@{$bug->{_bugLocations}})  {
-	next unless defined $bugLoc;
-	my $path = $bugLoc->{_sourceFile};
-	if (defined $path)  {
-	    $path = $self->AdjustPath($path);
-	    $bugLoc->{_sourceFile} = $path
-	}
+    foreach my $bugLoc (@{$bug->{BugLocations}})  {
+        next unless defined $bugLoc;
+        my $path = $bugLoc->{SourceFile};
+        if (defined $path)  {
+            $path = $self->AdjustPath($path);
+            $bugLoc->{SourceFile} = $path;
+        }
     }
 }
-
 
 sub AppendBugFlowToBugMsg
 {
@@ -529,15 +585,39 @@ sub WriteBugObject
 {
     my ($self, $bug) = @_;
 
-    $bug->setBugBuildId($self->{curAssess}{buildId});
+    $bug->setBugBuildId($self->{curAssess}{"build-artifact-id"});
     $bug->setBugReportPath($self->{curAssess}{report})
-	    unless defined $bug->getBugReportPath();
+    unless defined $bug->getBugReportPath();
 
     $self->AdjustBugPath($bug);
 
     $self->AppendBugFlowToBugMsg($bug);
 
-    $self->{xmlOut}->writeBugObject($bug);
+    # 1. Force last location to be primary if no locations are primary
+    # 2. findbugs and pmd sometimes uses setClassAttribs() instead of setBugLocation,
+    #    so get the start/end line from there if so.
+
+    my $foundPrimary = 0;
+    my $elementsRemaining = @{$bug->{BugLocations}};
+    foreach my $location (@{$bug->{BugLocations}}) {
+        next unless defined $location;
+
+        $foundPrimary = 1 if $location->{primary} eq 'true';
+        --$elementsRemaining;
+        my $forcePrimary = !($elementsRemaining || $foundPrimary);
+        if ($forcePrimary) {
+            $location->{primary} = 'true';
+        }
+
+        if (!$location->{StartLine} && $bug->{ClassStartLine} ) {
+            $location->{StartLine} = $bug->{ClassStartLine};
+        }
+        if (!$location->{EndLine} && $bug->{ClassEndLine}) {
+            $location->{EndLine} = $bug->{ClassEndLine};
+        }
+    }
+
+    $self->{sxw}->AddResult($bug);
 }
 
 
@@ -570,11 +650,47 @@ sub WriteMetrics
 
     $self->AdjustMetricsPaths($metrics);
 
-    $self->{xmlOut}->writeMetricObjectUtil($metrics);
+    foreach my $file (keys %{$metrics})  {
+        foreach my $type (keys %{$metrics->{$file}})  {
+            if ($type eq "func-stat")  {
+                foreach my $function (keys %{$metrics->{$file}{$type}})  {
+                    $self->writeMetric($metrics->{$file}{$type}{$function});
+                }
+            } elsif ($type eq "file-stat") {
+                $self->writeMetric($metrics->{$file}{$type});
+            } else {
+                die "Unknown type '$type' for metric for file '$file'";
+            }
+        }
+    }
 }
 
+sub writeMetric {
+    my ($self, $metric) = @_;
 
+    my %hash;
+    $hash{SourceFile} = $metric->{"file"};
 
+    if (defined $metric->{function} && $metric->{function} ne "") {
+        $hash{Method} = $metric->{function};
+    }
+    if (defined $metric->{class} && $metric->{class} ne "") {
+        $hash{Class} = $metric->{class};
+    }
+
+    if (!defined $metric->{metrics}) {
+        return;
+    }
+
+    foreach my $type (keys %{$metric->{metrics}}) {
+        if ($type !~ /^((blank|total|comment|code)-lines|language|ccn|params|token)$/) {
+            die "unknown metric type '$type'";
+        }
+        $hash{Type} = $type;
+        $hash{Value} = $metric->{metrics}{$type};
+        $self->{sxw}->AddMetric(\%hash);
+    }
+}
 
 sub new
 {
@@ -593,5 +709,32 @@ sub new
     return $self;
 }
 
+sub HasBashMetaChars {
+    my $s = shift;
+    return ($s !~ /^$bashNonMetaChars*$/);
+}
+
+sub BashQuote {
+    my $s = shift;
+
+    my @a = split /(')/, $s;
+    foreach (@a) {
+        if (HasBashMetaChars($_)) {
+            if ($_ eq "'") {
+                $_ = "\\'";
+            } else {
+                $_ = "'$_'";
+            }
+        }
+    }
+    return join('', @a);
+}
+
+sub BashQuoteArgList {
+    my ($c) = @_;
+    my @cmd = @{$c};
+    my $s = join ' ', map {BashQuote $_} @cmd;
+    return $s;
+}
 
 1;

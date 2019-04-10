@@ -10,6 +10,22 @@ my $current_dir = Cwd::cwd();
 my $script_dir = dirname(Cwd::abs_path($0)) ;
 
 
+sub UrlEncodePath
+{
+    my ($s) = @_;
+
+    $s =~ s/([%?#])/sprintf("%%%02x", ord($1))/eg;
+    if ($s =~ /^([^\/]*:[^\/]*)(\/.*)?$/)  {
+        my ($seg1, $rest) = ($1, $2);
+        $seg1 =~ s/(:)/sprintf("%%%02x", ord($1))/eg;
+        $s = "$seg1";
+        $s .= $rest if defined $rest;
+    }
+
+    return $s;
+}
+
+
 # NormalizePath - take a path and remove empty and '.' directory components
 #                 empty directories become '.'
 #

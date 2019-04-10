@@ -1,0 +1,6 @@
+[submodule "swamp-scarf-io"]
+	path = swamp-scarf-io
+	url = https://github.com/mirswamp/swamp-scarf-io
+[submodule "swamp-sarif-io"]
+	path = swamp-sarif-io
+	url = https://github.com/mirswamp/swamp-sarif-io
