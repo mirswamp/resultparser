@@ -29,7 +29,10 @@ PARSER_NONCOMM_DIRNAME="resultparser-noncomm-$VERSION"
 INSTALL_NONCOMM_DIR="$OUTPUT_DIR/$PARSER_NONCOMM_DIRNAME"
 COMM_PARSERS="ps-ctest.pl ps-jtest.pl gt-csonar.pl rl-goanna.pl coverity.pl"
 SRC_DIR="$CURRENT_DIR/.."
-
+SCARF_XML_LIB_DIR="$SRC_DIR/swamp-scarf-io"
+SARIF_JSON_LIB_DIR="$SRC_DIR/swamp-sarif-io"
+SCARF_XML_LIB_FILES="$SCARF_XML_LIB_DIR/perl/ScarfXmlWriter.pm"
+SARIF_JSON_LIB_FILES="$SARIF_JSON_LIB_DIR/SarifJsonWriter.pm"
 
 function CreateReleaseTar
 {
@@ -72,6 +75,12 @@ function CreateReleaseTar
     if [ $? -ne 0 ]; then
 	echo FAILED: cp -rf $SRC_DIR/scripts/* $INNERTAR_DIR
 	exit 1
+    fi
+
+    cp $SCARF_XML_LIB_FILES $SARIF_JSON_LIB_FILES $INNERTAR_DIR
+    if [ $? -ne 0 ]; then
+        echo FAILED: cp -rf $SCARF_XML_LIB_FILES $SARIF_JSON_LIB_FILES $INNERTAR_DIR
+        exit 1
     fi
 
     for f in "$@"; do
