@@ -42,8 +42,10 @@ sub AppendBugFlowToBugMsg
 	$m .= "*** Primary Bug Location" if $primary eq 'true';
 	if (defined $msg)  {
 	    $msg =~ s/^/  /mg;
-	    $m .= "\n$msg\n";
+            $msg =~ s/\n/\n  /g;
+	    $m .= "\n$msg";
 	}
+        $m .= "\n";
     }
 
     return if $locCount == 0;
