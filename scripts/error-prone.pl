@@ -79,7 +79,7 @@ sub ParseLine {
 	$severity = Util::Trim($tokens[2]);
 	$message  = $tokens[3];
 	$code     = $message;
-	$code =~ /^\s*\[(.*)\].*$/;
+	$code =~ /^\s*\[([^]]*)\].*$/;
 	$code = $1;
     }  elsif ($line =~ m/^\s*Did you mean.*$/i)  {
 	$resolution_msg = Util::Trim($line);
