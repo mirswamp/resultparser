@@ -124,7 +124,7 @@ sub writeBugObject
     my $code = $bug->getBugCode();
     my $group = $bug->getBugGroup();
 
-    $group = 'UNKOWN' unless defined $group;
+    $group = 'UNKNOWN' unless defined $group;
 
     ++$self->{summary}{$group}{$code}{count};
     $self->{summary}{$group}{$code}{bytes} += $byte_count;;
