@@ -319,7 +319,7 @@ sub _make_end_block {
 }
 
 sub _make_indent {
-    $_[0]->_print("    " x $_[0]->{indent_level});
+    $_[0]->_print("  " x $_[0]->{indent_level});
 }
 
 sub _indent {
@@ -344,7 +344,7 @@ sub _json_string {
     my ($class, $value) = @_;
 
     $value =~ s/([\x22\x5c\n\r\t\f\b])/$esc{$1}/eg;
-    $value =~ s/\//\\\//g;
+    #$value =~ s/\//\\\//g;
     $value =~ s/([\x00-\x08\x0b\x0e-\x1f])/'\\u00' . unpack('H2', $1)/eg;
 
     return '"'.$value.'"';

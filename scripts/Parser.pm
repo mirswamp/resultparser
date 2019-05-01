@@ -450,6 +450,9 @@ sub ParseBegin
         $self->{sxw} = new ScarfXmlWriter($options->{output_file}, "utf-8");
 
         my %writerOptions = (
+            error_level => 0,
+            addArtifactsNoLocation => 1,
+            addProvenance => 1,
             pretty => 1
         );
 
@@ -462,6 +465,14 @@ sub ParseBegin
 
         $self->{sxw}->BeginFile();
         $self->{sxw}->BeginRun($ps);
+
+        my %toolData = (
+            driver => {
+                name => $ps->{tool_name},
+                version => $ps->{tool_version}
+            }
+        );
+        $self->{sxw}->AddToolData(\%toolData);
 
         # create uriBaseId for assessment_report files
         my $dir = $ps->{build_root_dir};
