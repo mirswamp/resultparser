@@ -29,6 +29,8 @@ PARSER_NONCOMM_DIRNAME="resultparser-noncomm-$VERSION"
 INSTALL_NONCOMM_DIR="$OUTPUT_DIR/$PARSER_NONCOMM_DIRNAME"
 COMM_PARSERS="ps-ctest.pl ps-jtest.pl gt-csonar.pl rl-goanna.pl coverity.pl"
 SRC_DIR="$CURRENT_DIR/.."
+SCRIPTS_DIR="$SRC_DIR/scripts"
+UTIL_DIR="$CURRENT_DIR"
 SCARF_XML_LIB_DIR="$SRC_DIR/swamp-scarf-io"
 SARIF_JSON_LIB_DIR="$SRC_DIR/swamp-sarif-io"
 SCARF_XML_LIB_FILES="$SCARF_XML_LIB_DIR/perl/ScarfXmlWriter.pm"
@@ -57,11 +59,23 @@ function CreateReleaseTar
     local NOARCH_DIR="$INSTALL_DIR/noarch"
     local INFILES_DIR="$NOARCH_DIR/in-files"
     local INNERTAR_DIR="$INFILES_DIR/$INSTALL_DIRNAME"
-    local GENCONF="$SRC_DIR/scripts/genConf.sh"
+    local GENCONF="$UTIL_DIR/genConf.sh"
     local CONF_FILE="$INFILES_DIR/resultparser.conf"
     local VERSION_TXT="$INNERTAR_DIR/version.txt"
     local INNERTAR="$INNERTAR_DIR.tar.gz"
     local MD5SUM="$INSTALL_DIR/md5sum"
+
+    git submodule init
+    if [ $? -ne 0 ]; then
+	echo "ERROR: git submodule init failed \$?=$?"
+	exit 1
+    fi
+
+    git submodule update --init --recursive
+    if [ $? -ne 0 ]; then
+	echo "ERROR: git submodule update --init --recursive failed \$?=$?"
+	exit 1
+    fi
 
     for d in $INSTALL_DIR $NOARCH_DIR $INFILES_DIR $INNERTAR_DIR; do
 	mkdir $d
@@ -71,9 +85,9 @@ function CreateReleaseTar
 	fi
     done
 
-    cp -rf $SRC_DIR/scripts/* $INNERTAR_DIR
+    cp -rf $SCRIPTS_DIR/* $INNERTAR_DIR
     if [ $? -ne 0 ]; then
-	echo FAILED: cp -rf $SRC_DIR/scripts/* $INNERTAR_DIR
+	echo FAILED: cp -rf $SCRIPTS_DIR/* $INNERTAR_DIR
 	exit 1
     fi
 
@@ -94,6 +108,14 @@ function CreateReleaseTar
 	else
 	    echo "Commercial tool $file not found"
 	    exit 1
+	fi
+    done
+
+    for f in $INNERTAR_DIR/*.pl; do
+	perl -c -I $INNERTAR_DIR $f >& /dev/null;
+	if [ $? -ne 0 ]; then
+	    echo FAILED: perl -c -I $INNERTAR_DIR $f
+	#    exit 1
 	fi
     done
 
