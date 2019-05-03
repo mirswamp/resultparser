@@ -9,6 +9,7 @@ use XML::Twig;
 use FindBin;
 use ScarfXmlWriter;
 use SarifJsonWriter;
+use MultiobjectDispatcher;
 use BugInstance;
 
 my $bashNonMetaChars = qr/[a-zA-Z0-9.,_=+\/\@:-]/;
@@ -307,6 +308,11 @@ sub ProcessOptions
 {
     my %opts = @_;
 
+    my $resultParserDefaultsConf = "$FindBin::Bin/resultParserDefaults.conf";
+    $resultParserDefaultsConf = undef unless -f $resultParserDefaultsConf;
+    my $parserProgName = $0;
+    $parserProgName =~ s/^.*\///;
+
     my %options = (
 	    input_dir			=> '.',
 	    summary_file		=> undef,
@@ -315,7 +321,19 @@ sub ProcessOptions
 	    weakness_count_file		=> undef,
 	    help			=> undef,
 	    version			=> undef,
+
+	    result_parser_defaults_conf	=> $resultParserDefaultsConf,
+	    result_parser_conf		=> undef,
+
+	    parserBin			=> $parserProgName,
+	    parserFw			=> 'resultparser',
+	    parserFwVersion		=> 'unknown',
+
+	    outputFormat		=> 'scarf',
+	    scarfOutputFile		=> undef,
+	    sarifOutputFile		=> undef,
 	    );
+
     my @options = (
 	    "input_dir=s",
 	    "output_file=s",
@@ -325,13 +343,6 @@ sub ProcessOptions
 	    "help|h!",
 	    "version|v!",
 	    );
-
-    my $deprecatedOptions = 1;
-    if ($deprecatedOptions)  {
-	$options{log_file} = undef;
-	$options{output_dir} = undef;
-	push @options, "log_file=s", "output_dir=s";
-    }
 
     Getopt::Long::Configure(qw/require_order no_ignore_case no_auto_abbrev/);
     my $ok = GetOptions(\%options, @options);
@@ -345,32 +356,23 @@ sub ProcessOptions
 	}
     }
 
-    if ($deprecatedOptions)  {
-	if (defined $options{log_file})  {
-	    push @errs, "WARNING: --log_file is deprecated, do NOT use.";
-	}
-	if (defined $options{output_dir})  {
-	    push @errs, "WARNING: --output_dir is deprecated, do NOT use.";
-	    my $outDir = $options{output_dir};
-	    my $outputFile = $options{output_file};
-	    if ($outputFile !~ /^\//)  {
-		$options{output_file} = "$outDir/$outputFile";
-	    }
-	    my $weaknessCountFile = $options{weakness_count_file};
-	    if ($weaknessCountFile !~ /^\//)  {
-		$options{weakness_count_file} = "$outDir/$weaknessCountFile";
-	    }
+    my $outputFile = $options{output_file};
+    $options{scarfOutputFile} = $outputFile unless defined $options{scarfOutputFile};
+    my $scarfOutputFile = $options{scarfOutputFile};
+    my $sarifOutputFile;
+    if (!defined $options{sarifOutputFile})  {
+	if ($scarfOutputFile =~ /(.*)\/(.*)\.xml/)  {
+	    my ($d, $f) = ($1, $2);
+	    $sarifOutputFile = "$d/$f.sarif.json";
+	    $options{sarifOutputFile} = $sarifOutputFile;
+	}  else  {
+	    push @errs, "ERROR: neither sarifOutputFile nor output_file is set"; 
 	}
     }
 
-    my $v = 'unknown';
-    my $versionFile = "$FindBin::Bin/version.txt";
-    $v = Util::ReadFile($versionFile) if -f $versionFile;
-    $v =~ s/\s*$//;
-    $options{parserFwVersion} = $v;
-    $options{parserFw} = 'resultparser';
-    $options{parserBin} = $0;
-    $options{parserBin} =~ s/^.*\///;
+    my $outputFormat = $options{outputFormat};
+    $options{sarifOutputfile} = undef unless $outputFormat =~ /\bsarif\b/i;
+    $options{scarfOutputfile} = undef unless $outputFormat =~ /\bscarf\b/i;
 
     if (@ARGV)  {
 	push @errs, "ERROR: non-option arguments not allowed @ARGV";
@@ -447,7 +449,20 @@ sub ParseBegin
     $self->{isWin} = $isWin;
 
     if (!$self->GetBoolParam('NoScarfFile'))  {
-        $self->{sxw} = new ScarfXmlWriter($options->{output_file}, "utf-8");
+	my $writers = new MultiobjectDispatcher;
+	$self->{sxw} = $writers;
+
+	my $scarfOutputFile = $options->{scarfOutputFile};
+	if (defined $scarfOutputFile)  {
+	    my $scarfWriter = new ScarfXmlWriter($scarfOutputFile, "utf-8");
+	    $writers->AddNewObject($scarfWriter);
+	}
+
+	my $sarifOutputFile = $options->{sarifOutputFile};
+	if (defined $sarifOutputFile)  {
+	    my $sarifWriter = new SarifJsonWriter($sarifOutputFile, "utf-8");
+	    $writers->AddNewObject($sarifWriter);
+	}
 
         my %writerOptions = (
             error_level => 0,
