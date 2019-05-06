@@ -498,8 +498,16 @@ sub ParseBegin
         }
         my $results_root_dir = $dir; 
         my %baseIds = (
-            PACKAGEROOT => Util::UrlEncodePath("file://" . Util::AdjustPath(".", $ps->{build_root_dir}, $ps->{package_root_dir}, $isWin)),
-            RESULTSROOT => Util::UrlEncodePath("file://" . $results_root_dir),
+            BUILDROOT => {
+                uri => "file://" . Util::UrlEncodePath($ps->{build_root_dir})
+            },
+            PACKAGEROOT => {
+                uri => Util::UrlEncodePath($ps->{package_root_dir}),
+                uriBaseId => "BUILDROOT"
+            },
+            RESULTSROOT => {
+                uri => "file://" . Util::UrlEncodePath($results_root_dir)
+            }
         );
         $self->{sxw}->AddOriginalUriBaseIds(\%baseIds);
         $self->{sxw}->AddInvocations($ps->{assessments});
