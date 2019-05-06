@@ -16,7 +16,8 @@ sub new
 		_beginColumn => shift,
 		_endColumn => shift,
 		_bugMessage => shift,
-		_primary => shift
+		_primary => shift,
+		noAdjustPath => shift,
 	      };
     bless $self, $class;
     return $self;

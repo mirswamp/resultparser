@@ -591,6 +591,7 @@ sub AdjustBugPath
 
     foreach my $bugLoc (@{$bug->{BugLocations}})  {
         next unless defined $bugLoc;
+        next if $bugLoc->{noAdjustPath};
         my $path = $bugLoc->{SourceFile};
         if (defined $path)  {
             $path = $self->AdjustPath($path);

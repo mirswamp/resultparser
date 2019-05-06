@@ -19,8 +19,6 @@ sub ParseFile
     my %cweHash;
     my %suggestionHash;
     my %categoryHash;
-#    my $numSourcePath = 0;
-#    my %sourcePathHash;
 
     my $commonSourceDirPrefix;
     my @sourceDirList;
@@ -134,7 +132,13 @@ sub sourceLine
 
     my $classname       = $elem->att('classname');
     my $sourceFile = $elem->att('relSourcepath');
-    $sourceFile = resolveSourcePath($sourceFile, $commonSourceDirPrefix);
+    my $noAdjustPath;
+    if (defined $sourceFile)  {
+	$sourceFile = resolveSourcePath($sourceFile, $commonSourceDirPrefix);
+    }  else  {
+	$sourceFile = $elem->att('sourcepath');
+	$noAdjustPath = 1;
+    }
     my $startLineNo = $elem->att('start');
     my $endLineNo   = $elem->att('end');
     my $startCol    = "0";
@@ -145,7 +149,8 @@ sub sourceLine
     $primary = "false" unless defined $primary;
     $bug->setBugLocation(
 	    $numSourceLine, $classname, $sourceFile, $startLineNo, $endLineNo,
-	    $startCol, $endCol, $message, $primary, (defined $sourceFile ? 'true' : 'false')
+	    $startCol, $endCol, $message, $primary, (defined $sourceFile ? 'true' : 'false',
+	    $noAdjustPath)
     );
     return $bug;
 }
@@ -174,7 +179,7 @@ sub parseClass
 	    return;
     }
     my $children;
-    my ($sourcefile, $start, $end, $classMessage);
+    my ($sourcefile, $start, $end, $classMessage, $noAdjustPath);
     if (defined $primary && $primary eq 'true')  {
 	foreach $children ($elem->children)  {
 	    my $tag = $children->gi;
@@ -182,13 +187,18 @@ sub parseClass
 		$start      = $children->att('start');
 		$end        = $children->att('end');
 		$sourcefile = $children->att('relSourcepath');
-		$sourcefile = resolveSourcePath($sourcefile, $commonSourceDirPrefix);
+		if (defined $sourcefile)  {
+		    $sourcefile = resolveSourcePath($sourcefile, $commonSourceDirPrefix);
+		}  else  {
+		    $sourcefile = $elem->att('sourcepath');
+		    $noAdjustPath = 1;
+		}
 		$classMessage = $children->first_child->text
 			if defined $children->first_child;
 	    }
 	}
     }
-    $bug->setClassAttribs($classname, $sourcefile, $start, $end, $classMessage);
+    $bug->setClassAttribs($classname, $sourcefile, $start, $end, $classMessage, $noAdjustPath);
     return $bug;
 }
 

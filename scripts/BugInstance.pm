@@ -64,7 +64,8 @@ sub AppendBugFlowToBugMsg
 sub setBugLocation
 {
     my ($self, $bugLocationId, $bugClassname, $sourceFile, $startLine,
-	    $endLine, $startColumn, $endColumn, $bugMessage, $primary, $resolvedFlag) = @_;
+	    $endLine, $startColumn, $endColumn, $bugMessage, $primary,
+	    $resolvedFlag, $noAdjustPath) = @_;
 
     my %bugLocation;
 
@@ -87,6 +88,7 @@ sub setBugLocation
     if (defined $bugMessage && $bugMessage ne "") {
         $bugLocation{Explanation} = $bugMessage;
     }
+    $bugLocation{noAdjustPath} = 1 if $noAdjustPath;
 
     push @{$self->{BugLocations}}, \%bugLocation;
 }

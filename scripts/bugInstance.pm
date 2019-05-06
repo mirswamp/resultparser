@@ -69,15 +69,15 @@ sub AppendBugFlowToBugMsg
 sub setBugLocation
 {
     my ($self, $bugLocationId, $bugClassname, $SourceFile, $startLine,
-	    $endLine, $beginColumn, $endColumn, $bugMessage, $primary, $resolvedFlag) = @_;
+	    $endLine, $beginColumn, $endColumn, $bugMessage, $primary, $resolvedFlag, $noAdjustPath) = @_;
     my $locationObject;
     if ($resolvedFlag eq 'true' or (defined $startLine && $startLine ne ""))  {
 	$locationObject = new bugLocation($bugLocationId, $bugClassname, $SourceFile, $startLine,
-		$endLine, $beginColumn, $endColumn, $bugMessage, $primary);
+		$endLine, $beginColumn, $endColumn, $bugMessage, $primary, $noAdjustPath);
     }  else  {
 	$locationObject = new bugLocation($bugLocationId, $bugClassname, $self->{_classSourceFile},
 		$self->{_classStartLine}, $self->{_classEndLine}, $beginColumn, $endColumn,
-		$self->{_classMessage}, $primary);
+		$self->{_classMessage}, $primary, $self->{noAdjustPath});
     }	
     $self->{_bugLocations}[$bugLocationId] = $locationObject;
 }
@@ -118,13 +118,14 @@ sub setClassName
 
 sub setClassAttribs
 {
-    my ($self, $classname, $sourcefile, $start, $end, $classMessage) = @_;
+    my ($self, $classname, $sourcefile, $start, $end, $classMessage, $noAdjustPath) = @_;
     #print $sourcefile, "\n";
     $self->{_classSourceFile} = $sourcefile if defined $sourcefile;
     $self->{_className} = $classname if defined $classname;
     $self->{_classStartLine} = $start if defined $start;
     $self->{_classEndLine} = $end if defined $end;
     $self->{_classMessage} = $classMessage if defined $classMessage;
+    $self->{noAdjustPath} = 1 if $noAdjustPath;
 }
 
 
