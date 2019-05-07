@@ -3,7 +3,6 @@
 use strict;
 use FindBin;
 use lib $FindBin::Bin;
-use bugInstance;
 use XML::Twig;
 use Util;
 use Parser;

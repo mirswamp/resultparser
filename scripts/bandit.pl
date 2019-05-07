@@ -5,7 +5,6 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use JSON;
-use bugInstance;
 use Util;
 
 
