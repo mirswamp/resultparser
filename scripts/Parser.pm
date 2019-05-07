@@ -371,8 +371,8 @@ sub ProcessOptions
     }
 
     my $outputFormat = $options{outputFormat};
-    $options{sarifOutputfile} = undef unless $outputFormat =~ /\bsarif\b/i;
-    $options{scarfOutputfile} = undef unless $outputFormat =~ /\bscarf\b/i;
+    $options{sarifOutputFile} = undef unless $outputFormat =~ /\bsarif\b/i;
+    $options{scarfOutputFile} = undef unless $outputFormat =~ /\bscarf\b/i;
 
     if (@ARGV)  {
 	push @errs, "ERROR: non-option arguments not allowed @ARGV";
