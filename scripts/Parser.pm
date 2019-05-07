@@ -329,7 +329,7 @@ sub ProcessOptions
 	    parserFw			=> 'resultparser',
 	    parserFwVersion		=> 'unknown',
 
-	    outputFormat		=> 'scarf',
+	    outputFormat		=> 'scarf sarif',
 	    scarfOutputFile		=> undef,
 	    sarifOutputFile		=> undef,
 	    );
