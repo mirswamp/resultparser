@@ -115,7 +115,9 @@ function CreateReleaseTar
 	perl -c -I $INNERTAR_DIR $f >& /dev/null;
 	if [ $? -ne 0 ]; then
 	    echo FAILED: perl -c -I $INNERTAR_DIR $f
-	#    exit 1
+	    echo ---
+	    perl -c -I $INNERTAR_DIR $f
+	    exit 1
 	fi
     done
 

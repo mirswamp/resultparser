@@ -4,7 +4,6 @@ use strict;
 use FindBin;
 use lib $FindBin::Bin;
 use Parser;
-use bugInstance;
 use Util;
 
 use File::Copy;
