@@ -7,6 +7,7 @@ use Getopt::Long;
 # use Util;
 use XML::Twig;
 use FindBin;
+use Cwd;
 use ScarfXmlWriter;
 use SarifJsonWriter;
 use MultiobjectDispatcher;
@@ -437,6 +438,11 @@ sub ParseBegin
 {
     my ($self) = @_;
 
+    $self->{startTime} = time();
+    # Save ARGV array to write the conversion object
+    push @{$self->{argv}}, $0;
+    push @{$self->{argv}}, @ARGV;
+
     my $options = ProcessOptions();
     $self->{options} = $options;
 
@@ -531,7 +537,16 @@ sub ParseEnd
 
         $self->{sxw}->EndResults();
         $self->{sxw}->AddSummary();
-        $self->{sxw}->EndRun();
+
+        my %endData;
+        $endData{conversion}{tool}{driver}{name} = $self->{ps}{parser_fw};
+        $endData{conversion}{tool}{driver}{version} = $self->{ps}{parser_fw__version};
+        $endData{conversion}{commandLine} = BashQuoteArgList($self->{argv});
+        $endData{conversion}{args} = $self->{argv};
+        $endData{conversion}{workingDirectory} = getcwd();
+        $endData{conversion}{startTime} = $self->{startTime};
+
+        $self->{sxw}->EndRun(\%endData);
         $self->{sxw}->EndFile();
     }
 
