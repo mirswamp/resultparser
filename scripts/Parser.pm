@@ -4,6 +4,7 @@ package Parser;
 
 use strict;
 use Getopt::Long;
+use SwampUtils;
 # use Util;
 use XML::Twig;
 use FindBin;
@@ -314,6 +315,11 @@ sub ProcessOptions
     my $parserProgName = $0;
     $parserProgName =~ s/^.*\///;
 
+    my $resultParserDefaults = {};
+    if (defined $resultParserDefaultsConf)  {
+	$resultParserDefaults = SwampUtils::ReadConfFile($resultParserDefaultsConf);
+    }
+
     my %options = (
 	    input_dir			=> '.',
 	    summary_file		=> undef,
@@ -324,7 +330,6 @@ sub ProcessOptions
 	    version			=> undef,
 
 	    result_parser_defaults_conf	=> $resultParserDefaultsConf,
-	    result_parser_conf		=> undef,
 
 	    parserBin			=> $parserProgName,
 	    parserFw			=> 'resultparser',
@@ -333,6 +338,7 @@ sub ProcessOptions
 	    outputFormat		=> 'scarf sarif',
 	    scarfOutputFile		=> undef,
 	    sarifOutputFile		=> undef,
+	    %$resultParserDefaults,
 	    );
 
     my @options = (

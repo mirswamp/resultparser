@@ -62,6 +62,7 @@ function CreateReleaseTar
     local GENCONF="$UTIL_DIR/genConf.sh"
     local CONF_FILE="$INFILES_DIR/resultparser.conf"
     local VERSION_TXT="$INNERTAR_DIR/version.txt"
+    local RESULTPARSERDEFAULTSCONF="$INNERTAR_DIR/resultParserDefaults.conf"
     local INNERTAR="$INNERTAR_DIR.tar.gz"
     local MD5SUM="$INSTALL_DIR/md5sum"
 
@@ -123,6 +124,13 @@ function CreateReleaseTar
 
     rm -f $VERSION_TXT
     echo "$VER" > $VERSION_TXT
+
+    if [ -f $RESULTPARSERDEFAULTSCONF ]; then
+	echo "parserFwVersion = $VER" >> $RESULTPARSERDEFAULTSCONF
+    else
+	echo "Error: $RESULTPARSERDEFAULTSCONF not found"
+	exit 1
+    fi
 
     tar czf $INNERTAR -C $INFILES_DIR $INSTALL_DIRNAME
     if [ $? -ne 0 ]; then
