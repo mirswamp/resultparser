@@ -484,6 +484,15 @@ sub ParseBegin
             '.', $ps->{package_root_dir},
             $isWin);
 
+        # create uriBaseId for assessment_report files
+        my $results_root_dir = $ps->{build_root_dir};
+        if ($results_root_dir =~ /(.+)\/.+/) {
+            $results_root_dir = $1."/results";
+        } else {
+            die "build_root_dir is not as expected, unable to form results_root_dir";
+        }
+        $ps->{results_root_dir} = $results_root_dir;
+
         $self->{sxw}->BeginFile();
         $self->{sxw}->BeginRun($ps);
 
@@ -495,14 +504,6 @@ sub ParseBegin
         );
         $self->{sxw}->AddToolData(\%toolData);
 
-        # create uriBaseId for assessment_report files
-        my $dir = $ps->{build_root_dir};
-        if ($dir =~ /(.+)\/.+/) {
-            $dir = $1."/results";
-        } else {
-            die "build_root_dir is not as expected";
-        }
-        my $results_root_dir = $dir; 
         my %baseIds = (
             BUILDROOT => {
                 uri => "file://" . Util::UrlEncodePath($ps->{build_root_dir})
@@ -540,7 +541,7 @@ sub ParseEnd
 
         my %endData;
         $endData{conversion}{tool}{driver}{name} = $self->{ps}{parser_fw};
-        $endData{conversion}{tool}{driver}{version} = $self->{ps}{parser_fw__version};
+        $endData{conversion}{tool}{driver}{version} = $self->{ps}{parser_fw_version};
         $endData{conversion}{commandLine} = BashQuoteArgList($self->{argv});
         $endData{conversion}{args} = $self->{argv};
         $endData{conversion}{workingDirectory} = getcwd();
