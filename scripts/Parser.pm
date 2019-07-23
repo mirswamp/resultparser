@@ -418,7 +418,7 @@ sub ParseFiles
         if (!defined $fn || $fn eq '')  {
             my $summaryFn = $self->{options}{summary_file};
             my $xpath = "assessment-summary/assessment-artifacts/assessment[$assessCnt]/report";
-            my $msg = "Missing element 'report' at '$xpath' in file '$summaryFn'";
+            my $msg = "ERROR: Inavalid assessment summary file, Missing element '$xpath' in file '$summaryFn'";
             my $weaknessCountFile = $self->{options}{weakness_count_file};
             PrintWeaknessCountFile($weaknessCountFile, 0, 'FAIL', $msg);
             die $msg;
