@@ -4,7 +4,6 @@ use strict;
 use FindBin;
 use lib $FindBin::Bin;
 use Parser;
-use JSON;
 use Util;
 
 
@@ -91,8 +90,7 @@ sub ParseJson
 {
     my ($parser, $fn) = @_;
 
-    my $jsonData = Util::ReadFile($fn);
-    my $jsonObject = JSON->new->utf8->decode($jsonData);
+    my $jsonObject = Util::ReadJsonFile($fn);
 
     foreach my $warning (@{$jsonObject->{results}})  {
 	my $bug = GetBanditBugObjectFromJson($parser, $warning);

@@ -5,7 +5,6 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use Util;
-use JSON;
 
 
 sub ParseFile
@@ -21,14 +20,13 @@ sub ParseFile
 
     my $totalViols = 0;
 
-    my $jsonData = Util::ReadFile($fn);
-    my $json = JSON->new->utf8->decode($jsonData);
+    my $jsonObject = Util::ReadJsonFile($fn);
 
     die "input file $fn: missing {summary}"
-	    unless exists $json->{summary};
+	    unless exists $jsonObject->{summary};
     die "input file $fn: missing {summary}{policyViolations}"
-	    unless exists $json->{summary}{policyViolations};
-    my $viols = $json->{summary}{policyViolations};
+	    unless exists $jsonObject->{summary}{policyViolations};
+    my $viols = $jsonObject->{summary}{policyViolations};
     for my $type (qw/critical severe moderate/)  {
 	die "input file $fn: missing {summary}{policyViolations}{$type}"
 		unless exists $viols->{$type};

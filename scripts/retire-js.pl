@@ -4,7 +4,6 @@ use strict;
 use FindBin;
 use lib $FindBin::Bin;
 use Parser;
-use JSON;
 use Util;
 
 
@@ -104,13 +103,12 @@ sub GetDependencyText
 
 sub ParseFile
 {
-    my ($parser, $jsonFn) = @_;
+    my ($parser, $fn) = @_;
 
-    my $data = Util::ReadFile($jsonFn);
-    my $json = JSON->new->utf8->decode($data);
+    my $jsonObject = Util::ReadJsonFile($fn);
 
     my $num = -1;
-    foreach my $group (@$json)  {
+    foreach my $group (@$jsonObject)  {
 	++$num;
 	my $file;
 	$file = $group->{file} if exists $group->{file};
@@ -159,7 +157,7 @@ sub ParseFile
 		}
 	    }
 	}  else  {
-	    die "Error: no results in $jsonFn \$[$num]"
+	    die "Error: no results in $fn \$[$num]"
 	}
     }
 }

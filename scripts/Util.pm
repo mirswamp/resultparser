@@ -135,6 +135,29 @@ sub ReadFile
 }
 
 
+sub ReadJsonFile
+{
+    my ($filename) = @_;
+
+    my $contents;
+
+    {
+        use PerlIO::encoding;
+        use Encode qw/:fallbacks/;
+        local $PerlIO::encoding::fallback = Encode::WARN_ON_ERR;
+        open F, "< :encoding(UTF-8)", $filename or die "open $filename: $!";
+        local $/;
+        $contents = <F>;
+        close F or die "close $filename";
+    }
+
+    use JSON;
+    my $jsonObject = JSON->new->decode($contents);
+
+    return $jsonObject;
+}
+
+
 sub Trim {
     my ($string) = @_;
     $string =~ s/^ *//;

@@ -5,15 +5,13 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use Util;
-use JSON;
 
 
 sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    my $jsonData = Util::ReadFile($fn);
-    my $jsonObject = JSON->new->utf8->decode($jsonData);
+    my $jsonObject = Util::ReadJsonFile($fn);
     my $i = 0;
 
     foreach my $warning (@$jsonObject)  {

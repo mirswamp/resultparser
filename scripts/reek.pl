@@ -5,7 +5,6 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use XML::Twig;
-use JSON;
 use Util;
 
 
@@ -41,10 +40,9 @@ sub ParseJsonOutput
     my $beginLine;
     my $endLine;
     my $filename;
-    my $jsonData = Util::ReadFile($fn);
-    my $json_obj = JSON->new->utf8->decode($jsonData);
+    my $jsonObject = Util::ReadJsonFile($fn);
     my $weaknessPos = -1;
-    foreach my $warning (@{$json_obj})  {
+    foreach my $warning (@{$jsonObject})  {
 	++$weaknessPos;
 	my $bugObj = $parser->NewBugInstance();
 

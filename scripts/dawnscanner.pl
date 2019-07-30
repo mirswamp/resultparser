@@ -5,17 +5,15 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use Util;
-use JSON;
 
 
 sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    my $jsonData = Util::ReadFile($fn);
-    my $json_obj = JSON->new->utf8->decode($jsonData);
+    my $jsonObject = Util::ReadJsonFile($fn);
 
-    foreach my $warning (@{$json_obj->{"vulnerabilities"}})  {
+    foreach my $warning (@{$jsonObject->{"vulnerabilities"}})  {
 	my $bug = $parser->NewBugInstance();
 	my $name       = $warning->{"name"};
 	my $cvss_score = $warning->{"cvss_score"};
