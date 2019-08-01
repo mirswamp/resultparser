@@ -158,6 +158,66 @@ sub ReadJsonFile
 }
 
 
+sub ConvertBadXmlChar
+{
+    my ($c) = @_;
+
+    my $fixedChar = sprintf("\\u%04X",ord($c));
+
+    print STDERR "WARNING: bad XML char in input converting to '$fixedChar'\n";
+
+    return $fixedChar;
+}
+
+
+# return a file handle where the input if filtered to remove invalid
+# XML 1.0 characters
+#
+sub OpenFilteredXmlInputFile
+{
+    my ($filename) = @_;
+
+    # open file to filter
+    open INFILE, "<:raw", $filename or die "open <$filename: $!";
+
+    # fork child filter process
+    my $pid = open my $filteredFile, "-|";
+
+    if (!defined $pid)  {
+	die "Failed to exec FilteredXmlInput child process: $!";
+    }
+
+    if ($pid != 0)  {
+	# in parent
+	close INFILE;
+	return $filteredFile;
+    }
+
+    binmode STDOUT;
+
+    my $sigPipe;
+    $SIG{PIPE} = sub {$sigPipe = 1;};
+
+    my $badXmlCharRe = qr/([\x00-\x08\x0b\x0c\x0e-\x1f])/;
+
+    while (1)  {
+	my $nRead = sysread INFILE, my $data, 16384;
+	die "sysread on file $filename failed: $!" unless defined $nRead;
+	last if $nRead == 0;
+
+	$data =~ s/$badXmlCharRe/ConvertBadXmlChar($1)/eg;
+
+	my $r = print $data;
+
+	# exit if there is an error printing or it generated a SIGPIPE
+	last if !$r || $sigPipe;
+    }
+
+    close INFILE or die "close $filename: $!";
+    exit 0;
+}
+
+
 sub Trim {
     my ($string) = @_;
     $string =~ s/^ *//;

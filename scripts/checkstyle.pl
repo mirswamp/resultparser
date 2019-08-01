@@ -74,7 +74,8 @@ sub ParseFile
 	    }
     );
 
-    $twig->parsefile($fn);
+    my $fh = Util::OpenFilteredXmlInputFile($fn);
+    $twig->parse($fh);
 }
 
 
