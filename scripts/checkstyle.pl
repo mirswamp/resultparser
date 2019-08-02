@@ -26,8 +26,10 @@ sub GetCheckstyleBugObject  {
     my ($parser, $violation, $filePath, $bugXpath) = @_;
 
     my $beginLine = $violation->att('line');
+    $beginLine = undef if defined $beginLine && $beginLine eq 'undefined';
     my $endLine = $beginLine;
-    my $beginColumn = (defined $violation->att('column')) ? $violation->att('column') : 0;
+    my $beginColumn = $violation->att('column');
+    $beginColumn = undef if defined $beginColumn && $beginColumn eq 'undefined';
     my $endColumn = $beginColumn;
     my $sourceRule = $violation->att('source');
     my $priority = $violation->att('severity');
