@@ -12,8 +12,8 @@ sub ParseFile
     my ($parser, $fn) = @_;
 
     if (!exists $parser->{resultParserMsg})  {
-	my $toolType = $parser->{ps}{toolType};
-	my $msg = "No SCARF file created, $toolType produces no result data.\n\n";
+	my $toolName = $parser->{ps}{tool_name};
+	my $msg = "No SCARF file created, $toolName produces no result data.\n\n";
 	$parser->{resultParserMsg} .= $msg;
 	print STDERR $msg;
     }

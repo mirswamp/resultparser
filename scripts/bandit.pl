@@ -11,7 +11,7 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    my $toolVersion = $parser->{ps}{toolVersion};
+    my $toolVersion = $parser->{ps}{tool_version};
 
     if ($toolVersion ne "8ba3536")  {
 	ParseJson($parser, $fn);
