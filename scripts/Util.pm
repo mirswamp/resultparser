@@ -180,6 +180,9 @@ sub OpenFilteredXmlInputFile
     # open file to filter
     open INFILE, "<:raw", $filename or die "open <$filename: $!";
 
+    # flush before fork to be clear (is done automatically by fork)
+    STDOUT->flush;
+
     # fork child filter process
     my $pid = open my $filteredFile, "-|";
 
@@ -214,7 +217,13 @@ sub OpenFilteredXmlInputFile
     }
 
     close INFILE or die "close $filename: $!";
-    exit 0;
+
+    # flush output before exit
+    STDOUT->flush;
+
+    # exit immediately without calling destructors
+    use POSIX;
+    POSIX::_exit 0;
 }
 
 
