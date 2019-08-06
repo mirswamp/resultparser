@@ -5,92 +5,178 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use Util;
+use 5.012;
 
 sub ParseFile
 {
     my ($parser, $fn) = @_;
 
     my %h;
+    my %seenNames;	# seenNames{sourceFile}{uniqueFuncName}
+	#   $seenNames{file}{name} = ' @lines' (no duplicates)
+	#   $seenNames{file}{name} = ''       (duplicates, add @lines)
+	#   $seenNames{file}{name@Lines} = '' (no duplicates)
+	#   $seenNames{file}{name@Lines} = N  (N duplicates, add #N)
 
-    open my $file, '<', $fn or die "open $fn: $!";
-    my @f;
-    my $counter    = 0;
-    my $state      = '0';
-    my $sourcefile = "";
-    my $fn_name    = "";
-    my $l1         = <$file>;
-    my $l2         = <$file>;
-    my $l3         = <$file>;
-    if ($l1 =~ /=*/ && $state eq '0')  {
-	#Check Line-1
-	$state = '1';
+    use PerlIO::encoding;
+    use Encode qw/:fallbacks/;
+    local $PerlIO::encoding::fallback = Encode::WARN_ON_ERR;
+    open my $file, '< :encoding(UTF-8)', $fn or die "open $fn: $!";
+
+    # verify and skip 3 header lines
+    my $line = <$file>;
+    chomp $line;
+    if (!defined $line)  {
+	die "Error:  $fn:  missing header line 1 in output file";
+    }  elsif ($line !~ /^=*$/)  {
+	die "Error:  $fn:$.:  malformed header, expected all '=', got '$line'";
     }
 
-    if ($l2 =~ /^\s+NLOC\s+CCN\s+token\s+PARAM\s+length\s+location/ && $state eq '1')  {
-	#Check Line-2
-	#@f = split /\s+/, $l2, 7;
-	$state = '2';
+    $line = <$file>;
+    chomp $line;
+    if (!defined $line)  {
+	die "Error:  $fn:  missing header line 2 in output file";
+    }  elsif ($line !~ /^\s+NLOC\s+CCN\s+token\s+PARAM\s+length\s+location/)  {
+	die "Error:  $fn:$.:  malformed header, expected NLOC CCN token PARAM length location, got $line";
     }
-    if ($l3 =~ /-*/ && $state eq '2')  {
-	#Check Line-3
-	$state = '3';
+
+    $line = <$file>;
+    chomp $line;
+    if (!defined $line)  {
+	die "Error:  $fn:  missing header line 3 in output file";
+    }  elsif ($line !~ /^-*$/)  {
+	die "Error:  $fn:$.:  malformed header, expected all '-', got '$line'";
     }
-    if ($state ne '3')  {
-	print "Invalid file! \n";
-	exit;
-    }
-    while (my $line = <$file>)  {
-	last if $line =~ /^[-=]+/;
+
+    my $lineBeginRe = qr/^\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.*)/s;
+    my $lineRe = qr/$lineBeginRe@(\d+)-(\d+)@(.*)$/s;
+
+    LINE: while (my $line = <$file>)  {
+	# skip empty lines
 	next if $line =~ /^\s*$/;
+
+	# these lines indicate end of metric data
+	last if $line =~ /^[-=]+/;
 	last if $line =~ /\d+\s+file.*analyzed\./;
-	if ($line !~ /^\s*(\d+\s+){5}/)  {
-	    print STDERR "Found invalid line: $line";
-	    last;  # FIXME should die here
-	}
-	my @v   = split /\s+/, $line, 7;
-	my $loc = $v[6];
-	my @l   = split /@/, $loc, 3;
-	my @fm  = split /-/, $l[1];
-	chomp $l[2];
-	$fn_name = $l[0];
-	my $class = "";
-	my $fn    = "";
-	my @cl_fn = split /::/, $fn_name;
-	my $fnl   = scalar @cl_fn;
 
-	if ($fnl > 1)  {
-	    #$class = $cl_fn[0];
-	    #$fn = $cl_fn[1];
-	    my $rind = rindex($fn_name, '::');
-	    $class = substr($fn_name, 0, $rind);
-	    $fn = substr($fn_name, $rind + 2);
-	}
-	my $nloc   = $v[1];
-	my $ccn    = $v[2];
-	my $token  = $v[3];
-	my $param  = $v[4];
-	my $length = $fm[1] - $fm[0] + 1;
-	$sourcefile = $l[2];
-	my @keys = keys %h;
+	chomp $line;
 
-	if (exists $h{$fn_name})  {
-		# Update uniquifier
+	# lizard can put linefeed chars in the function name, try to handle this
+	if ($line !~ $lineRe)  {
+	    my $badLineNum = $.;
+	    while ($line =~ $lineBeginRe)  {
+		# concatenate lines until valid or next line is valid on its own
+		my $nextLine = <$file>;
+		last unless defined $nextLine;
+		if ($nextLine =~ $lineRe || $nextLine =~ /^[-=]+/)  {
+		    # let outer loop handle the valid next line,
+		    # discard invalid lines
+		    my $endBadLineNum = $. - 1;
+		    $badLineNum .= "-$endBadLineNum"
+			    unless $badLineNum == $endBadLineNum;
+		    $line =~ s/\n/\\n/g;
+		    warn "Error:  $fn:$badLineNum:  invalid line discarding:  $line";
+		    $line = $nextLine;
+		    redo LINE;
+		}
+		$line .= "\n$nextLine";
+		redo LINE if $line =~ $lineRe
+	    }
+	    $badLineNum .= "-$." unless $badLineNum == $.;
+	    $line =~ s/\n/\\n/g;
+	    warn "Error:  $fn:$badLineNum:  invalid line discarding:  $line";
+	    next;
 	}
-	$h{$sourcefile}{'file-stat'} = {};
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'class'} = $class;
-	if ($fn eq '')  {
-	    $h{$sourcefile}{'func-stat'}{$fn_name}{'function'} = $fn_name;
+
+	my ($codeLines, $ccn, $numTokens, $numParams, $totalLines,
+		$fullFuncName, $startLine, $endLine, $sourceFile)
+		= ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+
+	my ($className, $funcName);
+	if ($fullFuncName =~ /^\w+(::\w+)*$/)  {
+	    ($className, $funcName) = ($fullFuncName =~ /^(?:(.*)::)?(.*)$/);
 	}  else  {
-	    $h{$sourcefile}{'func-stat'}{$fn_name}{'function'} = $fn;
+	    $funcName = $fullFuncName;
 	}
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'file'} = $sourcefile;
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'metrics'}{'token'}  = $token;
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'metrics'}{'ccn'}    = $ccn;
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'metrics'}{'params'} = $param;
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'metrics'}{'code-lines'} = $nloc;
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'metrics'}{'total-lines'} = $length;
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'location'}{'startline'} = $fm[0];
-	$h{$sourcefile}{'func-stat'}{$fn_name}{'location'}{'endline'} = $fm[1];
+	$className = '' unless defined $className;
+
+	my %metrics = (
+	    token		=> $numTokens,
+	    ccn			=> $ccn,
+	    params		=> $numParams,
+	    'code-lines'	=> $codeLines,
+	    'total-lines'	=> $totalLines,
+	);
+
+	my %location = (
+	    startline		=> $startLine,
+	    endline		=> $endLine,
+	);
+
+	my %functStat = (
+	    class		=> $className,
+	    class		=> $className,
+	    function		=> $funcName,
+	    file		=> $sourceFile,
+	    metrics		=> \%metrics,
+	    location		=> \%location,
+	);
+
+	if (!exists $h{$sourceFile})  {
+	    $h{$sourceFile} = {
+		'file-stat'	=> {},
+		'func-stat'	=> {},
+	    };
+	}
+
+	my $fileFuncStats = $h{$sourceFile}{'func-stat'};
+	my $uniqueName = $fullFuncName;
+
+	# find a unique name:
+	#   method name is unchanged, maybe it should be or add new field
+	if (exists $seenNames{$sourceFile}{$uniqueName})  {
+	    # function name seen already, add " @lines" suffix
+	    my $seenFileNames = $seenNames{$sourceFile};
+	    my $seenLoc = $seenFileNames->{$uniqueName};
+	    if ($seenLoc =~ /^\s*@/)  {
+		# first duplicate of this function name in this file
+		# move old name to new
+		my $newUniqueName = "$uniqueName$seenLoc";
+		$fileFuncStats->{$newUniqueName} = $fileFuncStats->{$uniqueName};
+		delete $fileFuncStats->{$uniqueName};
+		$seenFileNames->{$uniqueName} = '';
+		$seenFileNames->{$newUniqueName} = '';
+	    }
+
+	    $uniqueName .= " \@$startLine-$endLine";
+
+	    if (exists $seenFileNames->{$uniqueName})  {
+		# function name with these lines seen already, add " #N" suffix
+		$seenLoc = $seenFileNames->{$uniqueName};
+		if ($seenLoc eq '')  {
+		    # first duplicate of this (function name, loc) in this file
+		    # move old name to new
+		    my $num = 1;	# starting unique number suffix
+		    my $newUniqueName = "$uniqueName #$num";
+		    $seenFileNames->{$uniqueName} = $num;
+		    $fileFuncStats->{$newUniqueName} = $fileFuncStats->{$uniqueName};
+		    delete $fileFuncStats->{$uniqueName};
+		}
+
+		my $num = ++$seenFileNames->{$uniqueName};
+		$uniqueName .= " #$num";
+	    }  else  {
+		$seenFileNames->{$uniqueName} = '';
+	    }
+	}  else  {
+	    $seenNames{$sourceFile}{$uniqueName} = " \@$startLine-$endLine";
+	}
+
+	# duplicate could have happened if earlier functions had weird names
+	die "Error:  $fn:$.:  Uniqueness algorithm fail: $uniqueName"
+		if exists $fileFuncStats->{$uniqueName};
+
+	$fileFuncStats->{$uniqueName} = \%functStat;
     }
 
     $parser->WriteMetrics(\%h);
