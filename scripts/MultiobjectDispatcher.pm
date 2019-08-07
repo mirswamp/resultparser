@@ -26,7 +26,8 @@ sub AddNewObject
 }
 
 
-
+# dispatch any methods not defined to the objects
+# return the value of the last object called
 sub AUTOLOAD
 {
     my $self = shift;
@@ -41,6 +42,15 @@ sub AUTOLOAD
     }
 
     return $r
+}
+
+
+# delete the child objects so they are DESTROYed
+sub DESTROY
+{
+    my $self = shift;
+
+    $self->{objs} = ();
 }
 
 
