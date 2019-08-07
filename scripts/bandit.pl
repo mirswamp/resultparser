@@ -86,11 +86,37 @@ sub GetBanditBugObjectFromJson
 }
 
 
+sub GetBanditErrorBugObjectFromJson
+{
+    my ($parser, $error) = @_;
+
+    my $bug = $parser->NewBugInstance();
+    my $filename = $error->{filename};
+    my $reason = $error->{reason};
+
+    $bug->setBugCode('error');
+    $bug->setBugMessage($reason);
+    $bug->setBugSeverity('error');
+    $bug->setBugLocation(
+	    1, "", $filename, 0,
+	    0, "0", "0", "",
+	    'true', 'true'
+	);
+
+    return $bug;
+}
+
+
 sub ParseJson
 {
     my ($parser, $fn) = @_;
 
     my $jsonObject = Util::ReadJsonFile($fn);
+
+    foreach my $error (@{$jsonObject->{errors}})  {
+	my $bug = GetBanditErrorBugObjectFromJson($parser, $error);
+	$parser->WriteBugObject($bug);
+    }
 
     foreach my $warning (@{$jsonObject->{results}})  {
 	my $bug = GetBanditBugObjectFromJson($parser, $warning);
