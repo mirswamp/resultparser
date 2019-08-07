@@ -86,7 +86,7 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    my $majorVersion = MajorVersion($parser->{ps}{toolVersion});
+    my $majorVersion = MajorVersion($parser->{ps}{tool_version});
 
     my $getViolPath;
     my $getElDescPath;
