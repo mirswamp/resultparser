@@ -23,7 +23,8 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    open(my $fh, "<", $fn) or die "open $fn: $!\n";
+    open my $fh, "<", $fn or die "open $fn: $!";
+
     while (<$fh>)  {
 	my ($file, $lineNum, $bugCode, $bugMsg, $bugSeverity);
 	my $line = $_;
@@ -44,7 +45,8 @@ sub ParseFile
 	$bugObj->setBugSeverity($bugSeverity);
 	$parser->WriteBugObject($bugObj);
     }
-    $fh->close;
+
+    close $fh or die "close $fh: $!";
 }
 
 

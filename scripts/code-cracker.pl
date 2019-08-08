@@ -11,7 +11,8 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    open(my $fh, "<", $fn) or die "open $fn: $!\n";
+    open my $fh, "<", $fn or die "open $fn: $!";
+
     my $lineNum = 0;
     while (<$fh>)  {
 	++$lineNum;
@@ -40,7 +41,8 @@ sub ParseFile
 	}
 
     }
-    $fh->close;
+
+    close $fh or die "close $fh: $!";
 }
 
 

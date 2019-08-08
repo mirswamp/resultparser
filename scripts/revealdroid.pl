@@ -12,7 +12,7 @@ sub ParseFile
     my ($parser, $fn) = @_;
 
     if (!-f $fn)  {
-	die "ERROR: Revealdroid assessment run did not complete. $fn not found\n";
+	die "ERROR: Revealdroid assessment run did not complete. $fn not found";
     }
 
     my %data;

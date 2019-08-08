@@ -22,7 +22,7 @@ sub ParseFile
 
     close(DIR);
     my $file_count = scalar(@filelist);
-    die "ERROR!! Clang assessment run did not complete. index.html file is missing. \n"
+    die "ERROR:  Clang assessment run did not complete, missing index.html file"
 	    if ($file_count > 0 and $indexCheckFlag eq 0);
     foreach my $file (@filelist)  {
 	my $in_file1 = new IO::File("<$fn/$file") or die "open $fn/$file: $!";
