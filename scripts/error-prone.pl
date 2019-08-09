@@ -7,199 +7,220 @@ use Parser;
 use Util;
 
 
-#Initialize the counter values
-my $bugId   = 0;
-my $fileId = 0;
+sub WriteBug
+{
+    my ($parser, $path, $lineNum, $columnNum, $severity, $code, $msg,
+        $snippet, $url, $suggestion, $bugStartLine, $bugEndLine) = @_;
 
-my $prevMsg;
-my $prev_fn;
-my $prev_line;
-my $traceStartLine;
-my $suggested_message;
-my $currentLineNum;
-my $not_msg;
-my $first_report
-  ; #this variable is defined so that the first bug report of a file doesnot try to change the bug instance of its previous bug report.
-my $input_text;
-my $tempBug;
+    my $bug = $parser->NewBugInstance();
+
+    $bug->setBugLocation(1, "", $path, $lineNum, $lineNum,
+			    $columnNum, $columnNum, "", 'true', 'true');
+    $bug->setBugMessage($msg);
+    $bug->setBugGroup($severity);
+    $bug->setBugCode($code);
+    $bug->setBugSuggestion($suggestion);
+    $bug->setBugLine($bugStartLine, $bugEndLine);
+
+    $parser->WriteBugObject($bug);
+}
+
+
+# States
+# ------
+#   0    expect next warning, note or warning count                -> 1, 5, 6
+#   1    expect snippet                                            -> 2
+#   2    expect caret                                              -> 3
+#   3    expect url                                                -> 4
+#   4    expect suggestion, next warning, note or warning count    -> 0
+#   5    expect note or warning count                              -> 5, 6, 0
+#   6    expect warning count                                      -> 6, end
+#  99    error                                                     -> die
+
 
 sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    $not_msg	       = 0;
-    $prev_line         = "";
-    $first_report      = 1;
-    $suggested_message = "";
-    $currentLineNum   = 0;
-    $prevMsg          = "";
-    $prev_fn           = "";
-    $traceStartLine  = 1;
-    $input_text        = new IO::File($fn) or die "open $fn: $!";
+    use PerlIO::encoding;
+    use Encode qw/:fallbacks/;
+    local $PerlIO::encoding::fallback = Encode::WARN_ON_ERR;
+    open my $fh, "< :encoding(UTF-8)", $fn or die open "$fn: $!";
 
-    my $tempBug;
-    my $temp;
+    my ($path, $lineNum, $columnNum, $severity, $code, $msg,
+	$snippet, $url, $suggestion, $bugStartLine, $bugEndLine);
 
-  LINE:
-    while (my $line = <$input_text>)  {
-	chomp($line);
-	$currentLineNum = $.;
-	my @tokens = split(':', $line);
-	#FIXME | should be ||
-	if (($#tokens != 3 && $not_msg == 1) | (($#tokens == 3) && !($tokens[3] =~ /^\s*\[.*\]/)))  {
-	    $not_msg = 1;
-	    next;
+    my $startWarningRe = qr/^(.*):(\d+):\s+(\w+):(?:\s+\[(.*?)\])?\s+(.*?)\s*$/;
+    my $alternateWarningRe = qr/^(warning):\s+(.*)/;
+    my $columnCaret = qr/^\s*\^$/;
+    my $urlRe = qr/^\s+\(see (http.*)\)\s*$/;
+    my $suggestionRe = qr/^\s+(Did you mean .*)$/;
+    my $noteRe = qr/^Note:\s+(.*)\s*$/;
+    my $countRe = qr/^(\d+)\s+(\w*?)s?\s*$/;
+    my $endWarningRe = qr/$startWarningRe|$noteRe|$countRe|$alternateWarningRe/;
+
+    my $parseErrorMsg;
+    my $state = 0;
+    my $fileLineNum = 1;
+    my %weaknessCounts;  # number of warning entries seen
+
+    my %numWeaknesses;   # number of warnings reported in last line of output
+    my $notes = '';      # accumulated notes at end of file
+
+    while (<$fh>)  {
+	chomp;
+	if ($state == 0)  {
+	    # expect next warning, note or warning count
+
+	    if (defined $bugStartLine)  {
+		++$weaknessCounts{$severity};
+		$bugEndLine = $fileLineNum - 1;
+		WriteBug($parser, $path, $lineNum, $columnNum, $severity, $code,
+			$msg, $snippet, $url, $suggestion,
+			$bugStartLine, $bugEndLine);
+		($path, $lineNum, $columnNum, $severity, $code, $msg, $snippet,
+			$url, $suggestion, $bugStartLine, $bugEndLine) = (undef) x 11;
+	    }
+
+	    if (($path, $lineNum, $severity, $code, $msg) = ($_ =~ $startWarningRe))  {
+		$bugStartLine = $fileLineNum;
+		$state = 1;
+	    }  elsif ($_ =~ $noteRe)  {
+		$state = 5;
+		redo
+	    }  elsif ($_ =~ $countRe)  {
+		$state = 6;
+		redo
+	    }  elsif ($_ =~ $alternateWarningRe)  {
+		# handle rarely emitted single line error messages 'warning: <msg>'
+		++$weaknessCounts{$1};
+		WriteBug($parser, '', undef, undef, $1, undef,
+			$2, undef, undef, undef, $fileLineNum, $fileLineNum);
+	    }  else  {
+		$parseErrorMsg = "expected new weakness or end of weaknesses";
+		$state = 99;
+		redo;
+	    }
+	}  elsif ($state == 1)  {
+	    # expect next line as snippet
+
+	    $snippet = $_;
+	    $state = 2;
+	}  elsif ($state == 2)  {
+	    # expect next line as caret indicating column
+
+	    if ($_ =~ $columnCaret)  {
+		$columnNum = length $_;
+		$state = 3;
+	    }  else  {
+		$parseErrorMsg = "expected caret column indicator line";
+		$state = 99;
+		redo;
+	    }
+	}  elsif ($state == 3)  {
+	    # expect url, or a blank line or additional message text
+
+	    if ($_ =~ $urlRe)  {
+		$url = $1;
+		$state = 4
+	    }  elsif (/^\s*$/)  {
+		# skip blank lines
+	    }  elsif ($_ =~ $endWarningRe)  {
+		$state = 0;
+		redo;
+	    }  else  {
+		s/^\s*//;
+		$msg .= "$_";
+	    }
+	}  elsif ($state == 4)  {
+	    # expect suggestion, or end of warning indicator
+
+	    if ($_ =~ $suggestionRe)  {
+		$suggestion = $1;
+		$state = 0;
+	    }  elsif ($_ =~ $endWarningRe)  {
+		$state = 0;
+		redo;
+	    }  else  {
+		$parseErrorMsg = "expected suggestion line or end of warning";
+		$state = 99;
+		redo;
+	    }
+	}  elsif ($state == 5)  {
+	    # expect note or warning count line
+
+	    if ($_ =~ $noteRe)  {
+		$notes .= "$1\n";
+	    }  elsif ($_ =~ $countRe)  {
+		$state = 6;
+		redo;
+	    }  elsif ($_ =~ $startWarningRe)  {
+		$state = 0;
+		redo;
+	    }  else  {
+		$parseErrorMsg = "expected note, warning count line, or new weakness";
+		$state = 99;
+		redo;
+	    }
+	}  elsif ($state == 6)  {
+	    # expect warning count line or end of file
+
+	    if (my ($count, $type) = ($_ =~ $countRe))  {
+		$numWeaknesses{$type} = $1;
+	    }  else  {
+		$parseErrorMsg = "expected warning count line or end of file";
+		$state = 99;
+		redo;
+	    }
+	}  elsif ($state == 99)  {
+	    # error state, invalid line
+
+	    $parseErrorMsg = "ERROR parseErrorMsg not defined"
+		    unless defined $parseErrorMsg;
+	    die "Error parsing $fn:$fileLineNum, $parseErrorMsg, got '$_'";
 	}  else  {
-	    $not_msg = 0;
+	    die "unknown state $state";
 	}
+    }  continue  {
+	++$fileLineNum;
+    }
 
-	if ($line eq $prev_line)  {
-	    next LINE;
-	}  else  {
-	    $prev_line = $line;
+    --$fileLineNum;
+
+    # check that we are in terminal state
+    # 	state 6
+    # 	state 0 with no lines read (empty file)
+    # 	state 5 with 0 weaknesses seen
+    if (!($state == 6 || ($state == 0 && $fileLineNum == 0) || ($state == 5 && !%weaknessCounts)))  {
+	die "unexpected end of file for $fn, in state $state";
+    }
+
+    # check if the number counted matched count printed at end of file
+    foreach my $type (sort keys %weaknessCounts)  {
+	if (!exists $numWeaknesses{$type})  {
+	    my $count = $weaknessCounts{$type};
+	    my @types = keys %weaknessCounts;
+	    if ($type eq 'warning' && @types != 1)  {
+		die "Error, saw $count $type weaknesses but no count at end of file";
+	    }  else  {
+		# if there is more than one type all but 'warning' types may be omitted
+	    }
+	}  elsif ($numWeaknesses{$type} != $weaknessCounts{$type})  {
+	    die "number of warnings stated at end of file ($numWeaknesses{$type}) does not not match count seen ($weaknessCounts{$type})";
 	}
-	ParseLine($parser, $currentLineNum, $line);
-	$temp = $line;
     }
-    RegisterBugPath($parser, $currentLineNum);
+    foreach my $type (sort keys %numWeaknesses)  {
+	if (!exists $weaknessCounts{$type})  {
+	    my $count = $numWeaknesses{$type};
+	    die "Error, saw no $type weaknesses but count of $count at end of file";
+	}
+    }
+
+    close $fh or die "close $fh: $!";
+
+    # print "Notes:\n$notes" unless $notes eq '';
 }
 
-
-sub ParseLine {
-    my ($parser, $bugReportLine, $line) = @_;
-
-    my @tokens        = SplitString($line);
-    my $num_of_tokens = @tokens;
-    my ($file, $lineNum, $message, $severity, $code, $resolution_msg);
-    my $flag = 1;
-    if ($num_of_tokens eq 4 && !($line =~ m/^\s*Did you mean.*$/i))  {
-	$file     = $tokens[0];
-	$lineNum  = $tokens[1];
-	$severity = Util::Trim($tokens[2]);
-	$message  = $tokens[3];
-	$code     = $message;
-	$code =~ /^\s*\[([^]]*)\].*$/;
-	$code = $1;
-    }  elsif ($line =~ m/^\s*Did you mean.*$/i)  {
-	$resolution_msg = Util::Trim($line);
-	SetResolutionMsg($resolution_msg);
-	$flag = 0;
-    }  elsif ($line =~ m/^\s*required:.*/i)  {
-	$suggested_message = Util::Trim($line);
-	$flag              = 0;
-    }  elsif ($line =~ m/^\s*found:.*/i)  {
-	$suggested_message = $suggested_message . ", " . Util::Trim($line);
-	SetResolutionMsg($suggested_message);
-	$flag              = 0;
-	$suggested_message = "";
-    }  elsif ($line =~ m/^\s*see http:.*/i)  {
-	my $url_text = Util::Trim($line);
-	SetURLText($url_text);
-	$flag = 0;
-    }  elsif ($line =~ m/^\s*\^.*/i)  {
-	my $column = length $line;
-	$column = $column - 1;
-	$flag   = 0;
-	SetColumnNumber($column);
-    }  else  {
-	$flag = 0;
-    }
-
-    if ($flag ne 0)  {
-	$message = Util::Trim($message);
-
-	$tempBug = CreateBugObject($parser, $bugReportLine, $file, $lineNum, $message,
-		$severity, $code);
-	$first_report = 0;
-    }
-}
-
-
-sub RegisterBugPath {
-    my ($parser, $bugReportLine) = @_;
-
-    return if $first_report == 1;
-
-    if (defined $tempBug)  {#Store the information for prev bug trace
-	my ($bugLineStart, $bugLineEnd);
-	$bugLineStart = $traceStartLine;
-	$bugLineEnd   = $bugReportLine - 1;
-	$tempBug->setBugLine($bugLineStart, $bugLineEnd);
-	$traceStartLine = $bugReportLine;
-    }
-
-    if (defined $tempBug)  {
-	$parser->WriteBugObject($tempBug);
-    }
-}
-
-
-sub CreateBugObject {
-    my ($parser, $bugReportLine, $file, $lineNum, $message, $severity, $code) = @_;
-
-    #Store the information for prev bug trace
-    RegisterBugPath($parser, $bugReportLine);
-
-    #New Bug Instance
-    my $methodId   = 0;
-    my $locationId = 0;
-    my $bug = $parser->NewBugInstance();
-    $bug->setBugMessage($message);
-    if (defined $code && $code ne '')  {
-	$bug->setBugCode($code);
-    }
-    if (defined $severity && $severity ne '')  {
-	$bug->setBugSeverity($severity);
-    }
-
-    $bug->setBugLocation(++$locationId, "", $file, $lineNum, $lineNum,
-	    0, 0, "", "true", "true");
-
-    undef $tempBug;
-    return $bug;
-}
-
-
-sub SetResolutionMsg {
-    my ($res_msg) = @_;
-
-    if (defined $tempBug)  {
-	$tempBug->setBugSuggestion($res_msg);
-    }
-}
-
-
-sub SetURLText {
-    my ($url_txt) = @_;
-
-    if (defined $tempBug)  {
-	$tempBug->setURLText($url_txt);
-    }
-}
-
-
-sub SetColumnNumber {
-    my ($column) = @_;
-
-    if (defined $tempBug)  {
-	$tempBug->setBugColumn($column, $column, 1);
-    }
-}
-
-
-sub SplitString {
-    my ($str) = @_;
-
-    $str =~ s/::+/~#~/g;
-    my @tokens = split(':', $str, 4);
-    my @ret;
-    foreach $a (@tokens)  {
-	#                print $a, "\n";
-	$a =~ s/~#~/::/g;
-	push(@ret, $a);
-    }
-    return (@ret);
-}
 
 
 my $parser = Parser->new(ParseFileProc => \&ParseFile);
