@@ -78,6 +78,7 @@ sub ParseFile
 
     my $fh = Util::OpenFilteredXmlInputFile($fn);
     $twig->parse($fh);
+    close $fh or die "close OpenFilteredXmlInputFile: \$!=$! \$?=$?";
 }
 
 
