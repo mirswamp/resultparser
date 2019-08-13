@@ -61,9 +61,7 @@ sub ParseFile
 	undef($bugCode);
 	undef($line);
 	my $file = "$resultsDir/$inputFile";
-	my $filterCmd = "iconv -f ISO-8859-15 -t US-ASCII -c $file | tr -c '\\11\\12\\15\\40-\\176' ' '";
-	print "Filtering CodeSonar XML files to fix invalid XML:\n    $filterCmd\n";
-	open my $filteredInput, '-|', $filterCmd or die "open -| $filterCmd: $!";
+	my $filteredInput = Util::OpenFilteredXmlInputFile($fn);
 
 	my $twig = XML::Twig->new(
 		twig_handlers => {
@@ -102,7 +100,7 @@ sub ParseFile
 	}
 	$parser->WriteBugObject($bug);
 	%buglocation_hash = ();
-	close $filteredInput or die "close -| $filteredInput: $! (?=$?)";
+	close $filteredInput or die "close OpenFilteredXmlInputFile: \$!=$! \$?=$?";
     }
 }
 
