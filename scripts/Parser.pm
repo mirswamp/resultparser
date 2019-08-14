@@ -368,18 +368,20 @@ sub ProcessOptions
     my $scarfOutputFile = $options{scarfOutputFile};
     my $sarifOutputFile;
     if (!defined $options{sarifOutputFile})  {
-	if ($scarfOutputFile =~ /(.*)\/(.*)\.xml/)  {
-	    my ($d, $f) = ($1, $2);
-	    $sarifOutputFile = "$d/$f.sarif.json";
+	my $sarifOutputFile = $scarfOutputFile;
+	if ($sarifOutputFile =~ s/\.xml$/.sarif.json/)  {
 	    $options{sarifOutputFile} = $sarifOutputFile;
 	}  else  {
-	    push @errs, "ERROR: neither sarifOutputFile nor output_file is set"; 
+	    push @errs, "ERROR: SARIF output specified, but neither sarifOutputFile nor scarfOutputFile is set"; 
 	}
     }
 
     my $outputFormat = $options{outputFormat};
     $options{sarifOutputFile} = undef unless $outputFormat =~ /\bsarif\b/i;
     $options{scarfOutputFile} = undef unless $outputFormat =~ /\bscarf\b/i;
+
+    push @errs, "ERROR: want SCARF output, but no output file specified" if $outputFormat =~ /\bscarf\b/ && !defined $options{scarfOutputFile};
+    push @errs, "ERROR: want SARIF output, but no output file specified" if $outputFormat =~ /\bsarif\b/ && !defined $options{sarifOutputFile};
 
     if (@ARGV)  {
 	push @errs, "ERROR: non-option arguments not allowed @ARGV";
