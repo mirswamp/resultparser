@@ -61,7 +61,7 @@ sub ParseFile
 	undef($bugCode);
 	undef($line);
 	my $file = "$resultsDir/$inputFile";
-	my $filteredInput = Util::OpenFilteredXmlInputFile($fn);
+	my $filteredInput = Util::OpenFilteredXmlInputFile($file);
 
 	my $twig = XML::Twig->new(
 		twig_handlers => {
