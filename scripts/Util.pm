@@ -1,10 +1,14 @@
 #!/usr/bin/perl -w
+
 package Util;
+
 use strict;
 use XML::Twig;
 use IO qw(File);
 use Cwd qw();
 use File::Basename;
+use PerlIO::encoding;
+use Encode qw/:fallbacks decode/;
 
 my $current_dir = Cwd::cwd();
 my $script_dir = dirname(Cwd::abs_path($0)) ;
@@ -142,8 +146,6 @@ sub ReadJsonFile
     my $contents;
 
     {
-        use PerlIO::encoding;
-        use Encode qw/:fallbacks/;
         local $PerlIO::encoding::fallback = Encode::WARN_ON_ERR;
         open F, "< :encoding(UTF-8)", $filename or die "open $filename: $!";
         local $/;
@@ -162,7 +164,9 @@ sub ConvertBadXmlChar
 {
     my ($c) = @_;
 
-    my $fixedChar = sprintf("\\u%04X",ord($c));
+    my $v = ord($c);
+    my $fmt = ($v <= 0xFF) ? "\\x%02X" : "\\U%04X";
+    my $fixedChar = sprintf($fmt, $v);
 
     print STDERR "WARNING: bad XML char in input converting to '$fixedChar'\n";
 
@@ -171,14 +175,16 @@ sub ConvertBadXmlChar
 
 
 # return a file handle where the input if filtered to remove invalid
-# XML 1.0 characters
+# UTF-8 bytes and XML 1.0 characters
 #
 sub OpenFilteredXmlInputFile
 {
     my ($filename) = @_;
 
-    # open file to filter
-    open INFILE, "<:raw", $filename or die "open <$filename: $!";
+    # open file to filter as a UTF-8 stream
+    # 	(converts invalid octets to \xHH and prints warning)
+    local $PerlIO::encoding::fallback = Encode::WARN_ON_ERR;
+    open INFILE, "< :encoding(UTF-8)", $filename or die "open <$filename: $!";
 
     # flush before fork to be clear (is done automatically by fork)
     STDOUT->flush;
@@ -196,7 +202,9 @@ sub OpenFilteredXmlInputFile
 	return $filteredFile;
     }
 
-    binmode STDOUT;
+    # convert output to UTF-8 octets
+    binmode STDOUT, ":encoding(UTF-8)";
+    autoflush STDOUT;
 
     my $sigPipe;
     $SIG{PIPE} = sub {$sigPipe = 1;};
@@ -204,10 +212,11 @@ sub OpenFilteredXmlInputFile
     my $badXmlCharRe = qr/([\x00-\x08\x0b\x0c\x0e-\x1f])/;
 
     while (1)  {
-	my $nRead = sysread INFILE, my $data, 16384;
+	my $nRead = read INFILE, my $data, 16384;
 	die "sysread on file $filename failed: $!" unless defined $nRead;
 	last if $nRead == 0;
 
+	# check for and convert invalid XML characters
 	$data =~ s/$badXmlCharRe/ConvertBadXmlChar($1)/eg;
 
 	my $r = print $data;
