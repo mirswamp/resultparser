@@ -57,8 +57,20 @@ sub WriteFlowWeakness  {
 	}
     }
 
-    # make error message generic instead of including the named export
-    $bugCode =~ s/called (['"`]).*?\1/called `*`/g;
+    # make error message generic instead of including names of objects
+    $bugCode =~ s/(^| )(((empty )?string|number|boolean|(empty )?array( element)?|object|function)( literal( `\S*?`)?)?|global object|null or undefined|null|possibly uninitialized variable|statics|uninitialized variable|empty|new object|undefined|property \`\S*?\` of unknown type)/$1?/g;
+    $bugCode =~ s/\`.*?\`/?/g;
+    $bugCode =~ s/\s+\[\d+\]//g;
+    $bugCode =~ s/\s*[.:]$//;
+    $bugCode =~ s/^(Cannot resolve \w+) \?$/$1/;
+    $bugCode =~ s/^\? is //;
+    $bugCode =~ s/(Cannot call \? because): Either \? is (incompatible) with \?(\.\s+Or \? is incompatible with \?)*$/$1 $2/;
+    $bugCode =~ s/(\s+(in|with|of|using)\s+\?)*$//;
+    $bugCode =~ s/^(Cannot call) \?/$1/;
+    $bugCode =~ s/^(Cannot call because) no .*argument.*by (\?|Function).*/$1 argument count/;
+    $bugCode =~ s/ \? is//g;
+    $bugCode =~ s/an \?/a ?/g;
+    $bugCode =~ s/ \? (to|and) \?//g;
 
     $bug->setBugCode($bugCode);
     $bug->setBugMessage($bugMsg);
