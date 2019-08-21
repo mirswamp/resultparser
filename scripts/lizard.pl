@@ -5,7 +5,6 @@ use FindBin;
 use lib $FindBin::Bin;
 use Parser;
 use Util;
-use 5.012;
 
 sub ParseFile
 {
@@ -48,7 +47,7 @@ sub ParseFile
 	die "Error:  $fn:$.:  malformed header, expected all '-', got '$line'";
     }
 
-    my $lineBeginRe = qr/^\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.*)/s;
+    my $lineBeginRe = qr/^\s+(\d+)\s+(-1|\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.*)/s;
     my $lineRe = qr/$lineBeginRe@(\d+)-(\d+)@(.*)$/s;
 
     LINE: while (my $line = <$file>)  {
@@ -107,6 +106,11 @@ sub ParseFile
 	    'code-lines'	=> $codeLines,
 	    'total-lines'	=> $totalLines,
 	);
+
+	# lizard repoerts -1 CCNs for some function, remove from metrics
+	foreach my $k (keys %metrics)  {
+	    delete $metrics{$k} if $metrics{$k} == -1;
+	}
 
 	my %location = (
 	    startline		=> $startLine,
