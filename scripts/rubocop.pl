@@ -24,6 +24,7 @@ sub ParseFile
     while (<$fh>)  {
 	my $curr_line = $_;
 	chomp($curr_line);
+	my $bugGroup;
 	my ($file, $line, $column, $severity, $bugCode, $bugMsg) =
 		$curr_line =~
 			/(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*:\s*(.*?)\s*(?::\s*(.*?))?\s*:\s*(.*)/;
@@ -35,6 +36,11 @@ sub ParseFile
 	    $severity = "Unknown";
 	}
 	$bugCode = $severity unless defined $bugCode;
+	if ($bugCode =~ /^(.*?)\/(.*)$/)  {
+	    ($bugGroup, $bugCode) = ($1, $2);
+	}  else  {
+	    $bugGroup = $severity;
+	}
 
 	my $bug = $parser->NewBugInstance();
 	$bug->setBugLocation(
@@ -43,7 +49,7 @@ sub ParseFile
 	);
 	$bug->setBugMessage($bugMsg);
 	$bug->setBugSeverity($severity);
-	$bug->setBugGroup($severity);
+	$bug->setBugGroup($bugGroup);
 	$bug->setBugCode($bugCode);
 	$parser->WriteBugObject($bug);
     }
