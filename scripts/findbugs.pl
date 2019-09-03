@@ -6,7 +6,7 @@ use lib $FindBin::Bin;
 use Parser;
 use XML::Twig;
 use Util;
-
+use Data::Dumper;
 
 
 sub ParseFile
@@ -17,32 +17,24 @@ sub ParseFile
 
     my %cweHash;
     my %suggestionHash;
-    my %categoryHash;
 
     my $commonSourceDirPrefix;
     my @sourceDirList;
 
 
     my $cwe_xpath      = 'BugCollection/BugPattern';
-    my $category_xpath = 'BugCollection/BugCategory';
     my $source_xpath   = 'BugCollection/Project/SrcDir';
     my $xpath1         = 'BugCollection/BugInstance';
 
     my $twig = XML::Twig->new(
 	twig_roots    => {
 	    $cwe_xpath		=> 1,
-	    $category_xpath	=> 1,
 	    $source_xpath	=> 1,
 	},
 	twig_handlers => {
 	    $cwe_xpath		=> sub {
 		my ($twig, $e) = @_;
 		parseBugPattern($twig, $e, \%cweHash, \%suggestionHash);
-		return 1;
-	    },
-	    $category_xpath	=> sub {
-		my ($twig, $e) = @_;
-		parseBugCategory($twig, $e, \%categoryHash);
 		return 1;
 	    },
 	    $source_xpath	=> sub {
@@ -62,7 +54,7 @@ sub ParseFile
 	    $xpath1 => sub {
 		my ($twig, $e) = @_;
 		parseViolations($parser, $twig, $e, $numBugInstance,
-			\%cweHash, \%suggestionHash, \%categoryHash, $commonSourceDirPrefix);
+			\%cweHash, \%suggestionHash, $commonSourceDirPrefix);
 		++$numBugInstance;
 		return 1;
 	    },
@@ -76,29 +68,81 @@ sub ParseFile
 sub parseViolations
 {
     my ($parser, $tree, $elem, $numBugInstance,
-	    $cweHash, $suggestionHash, $categoryHash, $commonSourceDirPrefix) = @_;
+	    $cweHash, $suggestionHash, $commonSourceDirPrefix) = @_;
 
     my $bugXpath = "/BugCollection/BugInstance[$numBugInstance]";
 
-    my $bug = GetFindBugsBugObject($parser, $elem, $bugXpath,
-	    $cweHash, $suggestionHash, $categoryHash, $commonSourceDirPrefix);
+    my %bugData = (
+        sourceLines => []
+    );
+    my %splits = (
+        hasPrimary => 0,
+        bugHasSourceLineAnotherInstance => 0,
+        safeToSplit => 1,
+    );
+
+    GetFindBugsBugObject($parser, $elem, $bugXpath,
+	    $cweHash, $suggestionHash, $commonSourceDirPrefix, \%bugData, \%splits);
     $elem->purge() if defined $elem;
 
-    $parser->WriteBugObject($bug);
+    if ($splits{bugHasSourceLineAnotherInstance} && $splits{safeToSplit}) {
+        foreach my $l (@{$bugData{sourceLines}}) {
+            my $bug = $parser->NewBugInstance();
+            SetBugs($bug, \%bugData);
+
+            if ($l->{message} eq "Another occurrence") {
+                $l->{message} = "";
+            }
+
+            $bug->setBugLocation(0, $l->{classname}, $l->{sourceFile},
+                $l->{startLineNo}, $l->{endLineNo}, $l->{startCol}, $l->{endCol},
+                $l->{message}, "true", $l->{resolvedFlag}, $l->{noAdjustPath});
+            $parser->WriteBugObject($bug);
+        }
+    } else {
+        my $bug = $parser->NewBugInstance();
+        SetBugs($bug, \%bugData);
+
+        foreach my $l (@{$bugData{sourceLines}}) {
+            $bug->setBugLocation($l->{numSourceLine}, $l->{classname}, $l->{sourceFile},
+                $l->{startLineNo}, $l->{endLineNo}, $l->{startCol}, $l->{endCol},
+                $l->{message}, $l->{primary}, $l->{resolvedFlag}, $l->{noAdjustPath});
+        }
+        $parser->WriteBugObject($bug);
+    }
+
     $tree->purge();
 }
 
+sub SetBugs {
+    my ($bug, $bugData) = @_;
+
+    $bug->setBugSeverity($bugData->{BugSeverity});
+    $bug->setBugRank($bugData->{BugRank});
+    $bug->setBugPath($bugData->{BugPath});
+    $bug->setBugGroup($bugData->{BugGroup});
+    $bug->setBugMessage($bugData->{BugMessage});
+    $bug->setClassAttribs($bugData->{ClassAttribs}{classname},
+        $bugData->{ClassAttribs}{sourcefile}, $bugData->{ClassAttribs}{start},
+        $bugData->{ClassAttribs}{end}, $bugData->{ClassAttribs}{classMessage},
+        $bugData->{ClassAttribs}{noAdjustPath});
+    $bug->setCweId($bugData->{CweId});
+    $bug->setBugCode($bugData->{BugCode});
+    $bug->setBugSuggestion($bugData->{BugSuggestion});
+    foreach my $m (@{$bugData->{Methods}}) {
+        $bug->setBugMethod($m->{methodNum}, $m->{classname}, $m->{methodName}, $m->{primary});
+    }
+}
 
 sub GetFindBugsBugObject
 {
     my ($parser, $elem, $bugXpath,
-	    $cweHash, $suggestionHash, $categoryHash, $commonSourceDirPrefix) = @_;
+	    $cweHash, $suggestionHash, $commonSourceDirPrefix, $bugData, $splits) = @_;
 
-    my $bug = $parser->NewBugInstance();
-    $bug->setBugSeverity($elem->att('priority'));
-    $bug->setBugRank($elem->att('rank')) if defined $elem->att('rank');
-    $bug->setBugPath($bugXpath);
-    $bug->setBugGroup($elem->att('category'));
+    $bugData->{BugSeverity} = $elem->att('priority');
+    $bugData->{BugRank} = $elem->att('rank') if defined $elem->att('rank');
+    $bugData->{BugPath} = $bugXpath;
+    $bugData->{BugGroup} = $elem->att('category');
 
     my $numClass	= 0;
     my $numSourceLine	= 0;
@@ -107,27 +151,26 @@ sub GetFindBugsBugObject
     foreach my $element ($elem->children)  {
 	my $tag = $element->gi;
 	if ($tag eq "LongMessage")  {
-	    $bug->setBugMessage($element->text);
+            $bugData->{BugMessage} = $element->text;
 	}  elsif ($tag eq 'SourceLine')  {
-	    $bug = sourceLine($element, $bug, $numSourceLine, $commonSourceDirPrefix);
+	    sourceLine($element, $numSourceLine, $commonSourceDirPrefix, $bugData, $splits);
 	    ++$numSourceLine;
 	}  elsif ($tag eq 'Method')  {
-	    $bug = bugMethod($element, $bug, $numMethod);
+	    bugMethod($element, $numMethod, $bugData);
 	    ++$numMethod;
 	}  elsif ($tag eq 'Class')  {
-	    $bug = parseClass($element, $numClass, $bug, $commonSourceDirPrefix);
+	    parseClass($element, $numClass, $commonSourceDirPrefix, $bugData);
 	    ++$numClass
 	}
     }
-    $bug = bugCweId($elem->att('type'), $bug, $cweHash);
-    $bug = bugSuggestion($elem->att('type'), $bug, $suggestionHash);
-    return $bug;
+    bugCweId($elem->att('type'), $cweHash, $bugData);
+    bugSuggestion($elem->att('type'), $suggestionHash, $bugData);
 }
 
 
 sub sourceLine
 {
-    my ($elem, $bug, $numSourceLine, $commonSourceDirPrefix) = @_;
+    my ($elem, $numSourceLine, $commonSourceDirPrefix, $bugData, $splits) = @_;
 
     my $classname       = $elem->att('classname');
     my $sourceFile = $elem->att('relSourcepath');
@@ -143,34 +186,82 @@ sub sourceLine
     my $startCol    = "0";
     my $endCol      = "0";
     my $message     = $elem->first_child->text if defined $elem->first_child;
+
+    my $filename = $elem->att('sourcefile');
+    if (defined $startLineNo && defined $endLineNo) {
+        if ($startLineNo == $endLineNo) {
+            if ($message =~ /^At \Q$filename\E:\[line \Q$startLineNo\E\]$/) {
+                $message = "";
+            } elsif ($message =~ /^Another occurrence at \Q$filename\E:\[line \Q$startLineNo\E\]$/) {
+                $message =~ s/ at \Q$filename\E:\[line \Q$startLineNo\E\]//;
+            }
+        } else {
+            if ($message =~ /^At \Q$filename\E:\[lines \Q$startLineNo\E-\Q$endLineNo\E\]$/) {
+                $message = "";
+            } elsif ($message =~ /^Another occurrence at \Q$filename\E:\[lines \Q$startLineNo\E-\Q$endLineNo\E\]$/) {
+                $message =~ s/ at \Q$filename\E:\[lines \Q$startLineNo\E-\Q$endLineNo\E\]//;
+            }
+        }
+    } else {
+        if ($message =~ /^In \Q$filename\E$/) {
+            $message = "";
+        }
+    }
+
     my $primary     = $elem->att('primary');
 
+    if ($primary) {
+        if (!$splits->{hasPrimary}) {
+            $splits->{hasPrimary} = 1;
+        } else {
+            $splits->{safeToSplit} = 0;
+        }
+    } else {
+        if ($elem->att('role') && $elem->att('role') eq 'SOURCE_LINE_ANOTHER_INSTANCE') {
+            $splits->{bugHasSourceLineAnotherInstance} = 1;
+        } else {
+            $splits->{safeToSplit} = 0;
+        }
+    }
+
     $primary = "false" unless defined $primary;
-    $bug->setBugLocation(
-	    $numSourceLine, $classname, $sourceFile, $startLineNo, $endLineNo,
-	    $startCol, $endCol, $message, $primary, (defined $sourceFile ? 'true' : 'false',
-	    $noAdjustPath)
-    );
-    return $bug;
+
+    push @{$bugData->{sourceLines}}, {
+        numSourceLine => $numSourceLine,
+        classname => $classname,
+        sourceFile => $sourceFile,
+        startLineNo => $startLineNo,
+        endLineNo => $endLineNo,
+        startCol => $startCol,
+        endCol => $endCol,
+        message => $message,
+        primary => $primary,
+        resolvedFlag => (defined $sourceFile ? 'true' : 'false'),
+        noAdjustPath => $noAdjustPath,
+    };
 }
 
 
 sub bugMethod
 {
-    my ($elem, $bug, $methodNum) = @_;
+    my ($elem, $methodNum, $bugData) = @_;
 
     my $classname  = $elem->att('classname');
     my $methodName = $elem->att('name');
     my $primary    = $elem->att('primary');
     $primary = "false" unless defined $primary;
-    $bug->setBugMethod($methodNum, $classname, $methodName, $primary);
-    return $bug;
+    push @{$bugData->{Methods}}, {
+        methodNum => $methodNum,
+        classname => $classname,
+        methodName => $methodName,
+        primary => $primary
+    };
 }
 
 
 sub parseClass
 {
-    my ($elem, $classNum, $bug, $commonSourceDirPrefix) = @_;
+    my ($elem, $classNum, $commonSourceDirPrefix, $bugData) = @_;
 
     my $classname = $elem->att('classname');
     my $primary   = $elem->att('primary');
@@ -197,8 +288,15 @@ sub parseClass
 	    }
 	}
     }
-    $bug->setClassAttribs($classname, $sourcefile, $start, $end, $classMessage, $noAdjustPath);
-    return $bug;
+
+    $bugData->{ClassAttribs} = {
+        classname => $classname,
+        sourcefile => $sourcefile,
+        start => $start,
+        end => $end,
+        classMessage => $classMessage,
+        noAdjustPath => $noAdjustPath
+    };
 }
 
 sub resolveSourcePath
@@ -231,23 +329,6 @@ sub parseBugPattern
     $tree->purge();
 }
 
-
-sub parseBugCategory
-{
-    my ($tree, $elem, $categoryHash) = @_;
-
-    my $category = $elem->att('category');
-    my $description;
-    my $element;
-    foreach $element ($elem->children)  {
-	my $tag = $element->gi;
-	if ($tag eq "Description")  {
-	    $description = $element->text;
-	}
-    }
-    $categoryHash->{$category} = $description;
-    $tree->purge();
-}
 
 
 sub CommonDirPrefix
@@ -292,28 +373,25 @@ sub parseSourceDir
 
 sub bugCweId
 {
-    my ($type, $bug, $cweHash) = @_;
+    my ($type, $cweHash, $bugData) = @_;
 
     if (defined $type)  {
-	my $cweId = $cweHash->{$type};
-	$bug->setCweId($cweId);
-	$bug->setBugCode($type);
+	$bugData->{CweId} = $cweHash->{$type};
+	$bugData->{BugCode} = $type;
     }
-    return $bug;
 }
 
 
 sub bugSuggestion
 {
-    my ($type, $bug, $suggestionHash) = @_;
+    my ($type, $suggestionHash, $bugData) = @_;
 
     if (defined $type)  {
 	my $suggestion = $suggestionHash->{$type};
 	$suggestion =~ s/(^ *)|( *$)//g;
 	$suggestion =~ s/\n|\r/ /g;
-	$bug->setBugSuggestion($suggestion);
+    	$bugData->{BugSuggestion} = $suggestion;
     }
-    return $bug;
 }
 
 
