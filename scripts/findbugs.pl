@@ -6,7 +6,6 @@ use lib $FindBin::Bin;
 use Parser;
 use XML::Twig;
 use Util;
-use Data::Dumper;
 
 
 sub ParseFile
@@ -95,8 +94,8 @@ sub parseViolations
             }
 
             $bug->setBugLocation(0, $l->{classname}, $l->{sourceFile},
-                $l->{startLineNo}, $l->{endLineNo}, $l->{startCol}, $l->{endCol},
-                $l->{message}, "true", $l->{resolvedFlag}, $l->{noAdjustPath});
+                    $l->{startLineNo}, $l->{endLineNo}, $l->{startCol}, $l->{endCol},
+                    $l->{message}, "true", $l->{resolvedFlag}, $l->{noAdjustPath});
             $parser->WriteBugObject($bug);
         }
     } else {
@@ -105,8 +104,8 @@ sub parseViolations
 
         foreach my $l (@{$bugData{sourceLines}}) {
             $bug->setBugLocation($l->{numSourceLine}, $l->{classname}, $l->{sourceFile},
-                $l->{startLineNo}, $l->{endLineNo}, $l->{startCol}, $l->{endCol},
-                $l->{message}, $l->{primary}, $l->{resolvedFlag}, $l->{noAdjustPath});
+                    $l->{startLineNo}, $l->{endLineNo}, $l->{startCol}, $l->{endCol},
+                    $l->{message}, $l->{primary}, $l->{resolvedFlag}, $l->{noAdjustPath});
         }
         $parser->WriteBugObject($bug);
     }
@@ -122,10 +121,11 @@ sub SetBugs {
     $bug->setBugPath($bugData->{BugPath});
     $bug->setBugGroup($bugData->{BugGroup});
     $bug->setBugMessage($bugData->{BugMessage});
-    $bug->setClassAttribs($bugData->{ClassAttribs}{classname},
-        $bugData->{ClassAttribs}{sourcefile}, $bugData->{ClassAttribs}{start},
-        $bugData->{ClassAttribs}{end}, $bugData->{ClassAttribs}{classMessage},
-        $bugData->{ClassAttribs}{noAdjustPath});
+
+    my $classAttribs = $bugData->{ClassAttribs};
+    $bug->setClassAttribs($classAttribs->{classname}, $classAttribs->{sourcefile},
+            $classAttribs->{start}, $classAttribs->{end}, $classAttribs->{classMessage},
+            $classAttribs->{noAdjustPath});
     $bug->setCweId($bugData->{CweId});
     $bug->setBugCode($bugData->{BugCode});
     $bug->setBugSuggestion($bugData->{BugSuggestion});
