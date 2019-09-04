@@ -187,7 +187,7 @@ sub ParseFile
 		},
 		$flowViolXpath	=> sub {
 		    my ($twig, $e) = @_;
-		    ++$stdViolNum;
+		    ++$flowViolNum;
 		    my $xpath = "$flowViolXpath\[$flowViolNum]";
 		    BeginFlowViol($parser, $twig, $e, $xpath, \%curViol, $getViolPath);
 		    return 1;

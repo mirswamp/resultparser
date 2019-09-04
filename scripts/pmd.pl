@@ -13,8 +13,8 @@ sub ParseFile
     my ($parser, $fn) = @_;
 
     my $fileName;
-    my $numFile = -1;
-    my $numViolation = -1;
+    my $numFile = 0;
+    my $numViolation = 0;
 
     my $twig = XML::Twig->new(
 	    twig_roots         => {'file'  => 1},

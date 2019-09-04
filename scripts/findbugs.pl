@@ -53,9 +53,9 @@ sub ParseFile
 	twig_handlers => {
 	    $xpath1 => sub {
 		my ($twig, $e) = @_;
+		++$numBugInstance;
 		parseViolations($parser, $twig, $e, $numBugInstance,
 			\%cweHash, \%suggestionHash, $commonSourceDirPrefix);
-		++$numBugInstance;
 		return 1;
 	    },
 	}

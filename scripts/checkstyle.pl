@@ -51,7 +51,7 @@ sub ParseFile
 {
     my ($parser, $fn) = @_;
 
-    my $numFile = -1;
+    my $numFile = 0;
     my $numError = 0;
     my $filePath;
 
@@ -69,8 +69,8 @@ sub ParseFile
 	    twig_handlers      => {
 		'error' => sub {
 		    my ($twig, $e) = @_;
-		    ParseViolations($parser, $twig, $e, $filePath, $numFile, $numError);
 		    ++$numError;
+		    ParseViolations($parser, $twig, $e, $filePath, $numFile, $numError);
 		    return 1;
 		}
 	    }

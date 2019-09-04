@@ -70,8 +70,8 @@ sub ParseFile
 	    twig_handlers => {
 		'error'  => sub {
 		    my ($twig, $e) = @_;
-		    parseViolations($parser, $twig, $e, $numError);
 		    ++$numError;
+		    parseViolations($parser, $twig, $e, $numError);
 		    return 1;
 		}
 	    }
