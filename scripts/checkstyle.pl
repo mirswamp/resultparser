@@ -32,15 +32,16 @@ sub GetCheckstyleBugObject  {
     $beginColumn = undef if defined $beginColumn && $beginColumn eq 'undefined';
     my $endColumn = $beginColumn;
     my $sourceRule = $violation->att('source');
-    my $priority = $violation->att('severity');
+    my $severity = $violation->att('severity');
+    $severity = $violation->att('severty') unless defined $severity;  # work around typo bug in csslint
     my $message = $violation->att('message');
     my $bug = $parser->NewBugInstance();
 
     $bug->setBugLocation(1, "", $filePath, $beginLine, $endLine,
 	    $beginColumn, 0, "", 'true', 'true');
     $bug->setBugMessage($message);
-    $bug->setBugSeverity($priority);
-    $bug->setBugGroup($priority);
+    $bug->setBugSeverity($severity);
+    $bug->setBugGroup($severity);
     $bug->setBugCode($sourceRule);
     $bug->setBugPath($bugXpath);
     return $bug;
