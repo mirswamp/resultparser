@@ -13,7 +13,7 @@ use Parser;
 sub parseViolations {
     my ($parser, $tree, $elem, $numError) = @_;
 
-    my $bugXpath = "results/errors/error[$numError]";
+    my $bugXpath = "/results/errors/error[$numError]";
     getCppCheckBugObject($parser, $elem, $bugXpath);
 
     $elem->purge() if defined $elem;
