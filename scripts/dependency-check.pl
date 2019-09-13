@@ -50,7 +50,7 @@ sub ParseDependency {
 		push @identifiers, \%ident;
 	    }
 	}
-	my $vulnNum = -1;
+	my $vulnNum = 0;
 	foreach my $v (@vulnerabilities)  {
 	    ++$vulnNum;
 	    my $name = $v->first_child('name')->text();

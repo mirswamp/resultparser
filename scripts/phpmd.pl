@@ -22,7 +22,7 @@ sub ParseFile
 		'file'  => sub {
 		    my ($twig, $e) = @_;
 		    ++$numFile;
-		    $numViolation = -1;
+		    $numViolation = 0;
 		    $fileName = $e->att('name');
 		    return 1;
 		},
