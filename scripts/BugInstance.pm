@@ -33,16 +33,20 @@ sub AppendBugFlowToBugMsg
 	++$locCount;
 	$firstLoc = $loc if $locCount == 1;
 
-	my ($file, $line, $msg, $primary)
-		= @$loc{qw/SourceFile StartLine Explanation primary/};
+	my ($file, $line, $column, $msg, $primary)
+		= @$loc{qw/SourceFile StartLine StartColumn Explanation primary/};
 
-	$m .= "*** $file";
-	$m .= ":$line" if defined $line;
-	$m .= " ***";
+	if (defined $file)  {
+	    $m .= "*** $file";
+	    $m .= ":$line" if defined $line;
+	    $m .= ":$column" if defined $column;
+	    $m .= " ***";
+	}  else  {
+	    $m .= "*** <no-file-information> ***";
+	}
 	$m .= "*** Primary Bug Location" if $primary eq 'true';
 	if (defined $msg)  {
 	    $msg =~ s/^/  /mg;
-            $msg =~ s/\n/\n  /g;
 	    $m .= "\n$msg";
 	}
         $m .= "\n";
