@@ -134,9 +134,9 @@ sub GetGroupCodeFromLocation
 
     my ($group, $code, $message) = @{$loc}{qw/severity code message/};
 
-    $message =~ s/\n.*//s;				# discard all but first line
+    $message =~ s/\n.*//s;						# discard all but first line
 
-    undef $code if $code eq 'enabled by default';	# synthesize instead 'enabled by default'
+    undef $code if defined $code && $code eq 'enabled by default';	# synthesize if 'enabled by default'
 
     warn "GetGroupCodeFromLocation called with severity 'note'" if $group eq 'note';
 
@@ -219,9 +219,13 @@ sub GetLocMessage
 		my ($functionName, $line, $column) = @{$inlinedFrom}{qw/functionName startline startColumn/};
 		my $file = $parser->AdjustPath($inlinedFrom->{file});
 
-		$message .= "\n  from '$functionName' at $file";
-		$message .= ":$line" if defined $line;
-		$message .= ":$column" if defined $column;
+		$message .= "\n";
+		$message .= " from '$functionName'" if defined $functionName;
+		if (defined $file)  {
+		    $message .= " at $file";
+		    $message .= ":$line" if defined $line;
+		    $message .= ":$column" if defined $column;
+		}
 	    }
 	}
 
