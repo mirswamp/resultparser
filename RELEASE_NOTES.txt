@@ -1,4 +1,46 @@
 -----------------------------------------------------
+resultparser version 3.2.0 (Sep 23, 2019)
+-----------------------------------------------------
+- all JSON native result files are read by a single function that will warn on
+  invalid UTF-8 sequences and convert the characters to U+FFFD (replacement
+  character)
+- handle tools (checkstyle, csslint, eslint, jshint, php_codesniffer) that
+  produce XML 1.0 files that contain invalid characters (spawns a filter process
+  that replaces invalid XML character with \uXXXX the returned stream and
+  writes the corrected stream that is then read by the XML reader)
+- fixed tools that had a typo in hash keys they used (sonatype-ahc, bandit,
+  ps-ctest, ps-jtest)
+- fixed checkstyle parsing to handle "undefined" for a column value
+- improved bandit parsing to include "errors" along with "results"
+- improved rubocop BugGroup and BugCodes
+- improved spotbugs and findbugs parser messages and eliminate uesless messages
+- improved spotbugs and findbugs parser to not require the original source code
+  to be present at the orginal path
+- fixed off by 1 errors in xpath values of location in the tool's raw XML
+- fixed xpath value of cppcheck results be an absolute
+- fixed csslint parsing of empty file; value used for buggroup is misspelled
+- rewrote lizard parser to deal with duplicate function names, duplicate
+  function/line names, function names with "@" in them, function names with
+  new lines, and handle non-ascii characters correctly
+- synthesized BugCodes for flow
+- rewrote gcc-warn parser of gcc warning/error output to properly capture all
+  data present
+- rewrote error-prone parser to completely and accurately capture all warnings
+  in the file.  Also now includes column information.
+- improved gt-csonar parser to not require iconv and tr external programs
+- added --result_parser_conf option
+- switch SCARF generation to swamp-scarf-io package
+- support SARIF generation via swamp-sarif-io package
+- add support to generate both SCARF and SARIF output files
+- fix SCARF XML output to not output characters that are invalid in XML 1.0
+  (invalid codes are converted to \uXXXX)
+- added additional SCARF and SARIF output configuration options
+- improved release script
+- removed deprecated options
+- removed unused and never used tools from release
+- removed old BugInstance and related classes
+
+-----------------------------------------------------
 resultparser version 3.1.11 (Apr  1, 2019)
 -----------------------------------------------------
 - bug fix for findbugs and spotbug parsers to use the attribute relSourcepath
