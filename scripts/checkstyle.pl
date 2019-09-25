@@ -18,7 +18,7 @@ sub ParseViolations
 
     $tree->purge() if defined $tree;
 
-    $parser->WriteBugObject($bug);
+    $parser->WriteBugObject($bug) if defined $bug;
 }
 
 
@@ -37,12 +37,27 @@ sub GetCheckstyleBugObject  {
     my $message = $violation->att('message');
     my $bug = $parser->NewBugInstance();
 
+    my $code = $sourceRule;
+    # synthesize eslint code if missing
+    $code = 'syntax' if $code eq '' && $message =~ /^Parsing error:/;
+    $code = 'file-ignored' if $code eq '' && $message =~ /^File ignored because of a matching ignore pattern. Use "--no-ignore" to override\.$/;
+ 
+    # synthesize csslint code if missing
+    $code = 'empty-file' if $code eq '' && $message =~ /^Could not read file data. Is the file empty\?$/;
+    $code = 'fatal-error' if $code eq '' && $message =~ /^Fatal error, /;
+
+    # remove code from message text, if present
+    my $parenCode;
+    if (($parenCode) = ($code =~ /^eslint\.rules\.(.*)/))  {
+	$message =~ s/\s+\($parenCode\)$//;
+    }
+
     $bug->setBugLocation(1, "", $filePath, $beginLine, $endLine,
 	    $beginColumn, 0, "", 'true', 'true');
     $bug->setBugMessage($message);
     $bug->setBugSeverity($severity);
     $bug->setBugGroup($severity);
-    $bug->setBugCode($sourceRule);
+    $bug->setBugCode($code);
     $bug->setBugPath($bugXpath);
     return $bug;
 }
