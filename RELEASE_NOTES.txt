@@ -1,4 +1,10 @@
 -----------------------------------------------------
+resultparser version 3.2.1 (Sep 25, 2019)
+-----------------------------------------------------
+- synthesize missing bugCodes for eslint and csslint
+- remove bug code from BugMessage text for eslint
+
+-----------------------------------------------------
 resultparser version 3.2.0 (Sep 23, 2019)
 -----------------------------------------------------
 - all JSON native result files are read by a single function that will warn on
