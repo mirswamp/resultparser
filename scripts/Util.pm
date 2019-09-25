@@ -211,8 +211,10 @@ sub OpenFilteredXmlInputFile
 
     my $badXmlCharRe = qr/([\x00-\x08\x0b\x0c\x0e-\x1f])/;
 
+    my $readSize = 16384;
     while (1)  {
-	my $nRead = read INFILE, my $data, 16384;
+	my $data;
+	my $nRead = read INFILE, $data, $readSize;
 	die "sysread on file $filename failed: $!" unless defined $nRead;
 	last if $nRead == 0;
 
