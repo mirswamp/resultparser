@@ -1,4 +1,11 @@
 -----------------------------------------------------
+resultparser version 3.2.2 (Sep 26, 2019)
+-----------------------------------------------------
+- improve synthesized bugCodes for tidy-html5
+- synthesize missing bugCodes for error-prone errors
+- fix multiline message for error-prone (new-line was missing)
+
+-----------------------------------------------------
 resultparser version 3.2.1 (Sep 25, 2019)
 -----------------------------------------------------
 - synthesize missing bugCodes for eslint and csslint
