@@ -12,8 +12,8 @@ sub ParseFile
     my ($parser, $fn) = @_;
 
     my $startBug = 0;
-    open my $fh, "<", $fn
-	    or die "unable to open the input file $fn";
+    open my $fh, "<", $fn or die "open $fn: $!";
+
     my $lineNum = 0;
     while (<$fh>)  {
 	my $line = $_;
@@ -22,14 +22,23 @@ sub ParseFile
 	++$lineNum;
 
 	if ($line =~ /^\s*(.+?)\s*:\s*(\d+)\s*:\s*(\d+)\s*:\s*(.+?)\s*:\s*(.*?)\s*$/)  {
-	    my ($file, $line, $col, $bugGroup, $bugMsg) = ($1, $2, $3, $4, $5);
+	    my ($file, $lineNum, $col, $bugGroup, $bugMsg) = ($1, $2, $3, $4, $5);
 	    my $path = $file;
 	    my $bugLocId = 1;
 	    my $bugCode = $bugMsg;
-	    $bugCode =~ s/\s*(<.*?>|(['"`]).*?\2)\s*/ /g;
-	    $bugCode =~ s/\+ \+|U\+[0-9a-f]+//ig;
-	    $bugCode =~ s/^\s+//;
-	    $bugCode =~ s/\s+$//;
+
+	    # synthesize bugCode from message
+	    $bugCode =~ s/(\s|^)\(value=".*?"\)(\s|$)/$1$2/g;
+	    $bugCode =~ s/(\s|^)(['"]).*?\2(\s|$)/$1$3/g;
+	    $bugCode =~ s/(\s|^)\(char\. code U\+[0-9a-fA-F]{4}\)(\s|$)/$1$2/g;
+	    $bugCode =~ s/(\s|^)\<\w[-:.\w]*?\>(\s|$)/$1start tag$2/g;
+	    $bugCode =~ s/(\s|^)\<\/\w[-:.\w]*?\>(\s|$)/$1end tag$2/g;
+	    $bugCode =~ s/(\s|^)\<\w[-:.\w]*?\/\>(\s|$)/$1empty tag$2/g;
+	    $bugCode =~ s/start tag elements?/element/g;
+	    $bugCode =~ s/(\+\s)+//g;
+	    $bugCode =~ s/\s+/ /g;
+	    $bugCode =~ s/^\s//;
+	    $bugCode =~ s/\s$//;
 
 	    my $bug = $parser->NewBugInstance();
 
@@ -37,14 +46,14 @@ sub ParseFile
 	    $bug->setBugCode($bugCode);
 	    $bug->setBugMessage($bugMsg);
 	    # set $lineNum
-	    $bug->setBugLocation($bugLocId, '', $path, $line, $line, $col, $col, $bugMsg, 'true', 'true');
+	    $bug->setBugLocation($bugLocId, '', $path, $lineNum, $lineNum, $col, $col, $bugMsg, 'true', 'true');
 
 	    $parser->WriteBugObject($bug);
 	}  else  {
-	    print STDERR "$0: bad line at $fn:$lineNum\n";
+	    print STDERR "$0: skipping bad line ($line) at $fn:$lineNum\n";
 	}
     }
-    close($fh);
+    close $fh or die "close $fn: $!";
 }
 
 
