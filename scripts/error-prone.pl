@@ -14,6 +14,39 @@ sub WriteBug
 
     my $bug = $parser->NewBugInstance();
 
+    if (!defined $code || $code eq '')  {
+	# synthesize code
+	if ($msg =~ /^unmappable character \(.*?\) for encoding/)  {
+	    $code = 'unmappable-char-for-encoding';
+	}  elsif ($msg =~ /^cannot find symbol/)  {
+	    $code = 'cannot-find-symbol';
+	}  elsif ($msg =~ /^as of release 9, '_' is a keyword/)  {
+	    $code = 'underscore-is-keyword';
+	}  elsif ($msg =~ /^unreachable catch clause/)  {
+	    $code = 'unreachable-catch-clause';
+	}  elsif ($msg =~ /^reference to .* is ambiguous/)  {
+	    $code = 'reference-is-ambiguous';
+	}  elsif ($msg =~ /^Supported source version '.*' from annotation processor '.*' less than -source/)  {
+	    $code = 'annotation-processor-version';
+	}  elsif ($msg =~ /^cannot access .* file .* not found/s)  {
+	    $code = 'file-not-found';
+	}  elsif ($msg =~ /cannot be converted/)  {
+	    $code = 'conversion';
+	}  elsif ($msg =~ /^method does not override or implement a method from a supertype/)  {
+	    $code = 'method-does-not-override-or-implement';
+	}  elsif ($msg =~ /cannot be applied to given types/)  {
+	    $code = 'cannot-be-applied';
+	}  elsif ($msg =~ /cannot implement.* method does not throw/)  {
+	    $code = 'does-not-throw';
+	}  elsif ($msg =~ /cannot implement/)  {
+	    $code = 'cannot-implement';
+	}  else  {
+	    $code = 'uncategorized';
+	    my $fn = $parser->CurrentResultFile();
+	    print STDERR "WARNING: failed to synthesize code, using 'uncategorized', at $fn:$bugStartLine for message ($msg)\n";
+	}
+    }
+
     $bug->setBugLocation(1, "", $path, $lineNum, $lineNum,
 			    $columnNum, $columnNum, "", 'true', 'true');
     $bug->setBugMessage($msg);
@@ -75,35 +108,6 @@ sub ParseFile
 	    if (defined $bugStartLine)  {
 		++$weaknessCounts{$severity};
 		$bugEndLine = $fileLineNum - 1;
-		if (!defined $code || $code eq '')  {
-		    # synthesize code
-		    if ($msg =~ /^unmappable character \(.*?\) for encoding/)  {
-			$code = 'unmappable-char-for-encoding';
-		    }  elsif ($msg =~ /^cannot find symbol/)  {
-			$code = 'cannot-find-symbol';
-		    }  elsif ($msg =~ /^as of release 9, '_' is a keyword/)  {
-			$code = 'underscore-is-keyword';
-		    }  elsif ($msg =~ /^unreachable catch clause/)  {
-			$code = 'unreachable-catch-clause';
-		    }  elsif ($msg =~ /^reference to .* is ambiguous/)  {
-			$code = 'reference-is-ambiguous';
-		    }  elsif ($msg =~ /^Supported source version '.*' from annotation processor '*.' less than -source/)  {
-			$code = 'annotation-processor-version';
-		    }  elsif ($msg =~ /^cannot access .* file .* not found/s)  {
-			$code = 'file-not-found';
-		    }  elsif ($msg =~ /cannot be converted/)  {
-			$code = 'conversion';
-		    }  elsif ($msg =~ /^method does not override or implement a method from a supertype/)  {
-			$code = 'method-does-not-override-or-implement';
-		    }  elsif ($msg =~ /cannot be applied to given types/)  {
-			$code = 'cannot-be-applied';
-		    }  elsif ($msg =~ /cannot implement.* method does not throw/)  {
-			$code = 'does-not-throw';
-		    }  else  {
-			$code = 'uncategorized';
-			print STDERR "WARNING: failed to synthesize code using uncategorized at $fn:$bugStartLine for message ($msg)\n";
-		    }
-		}
 		WriteBug($parser, $path, $lineNum, $columnNum, $severity, $code,
 			$msg, $snippet, $url, $suggestion,
 			$bugStartLine, $bugEndLine);

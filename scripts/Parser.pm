@@ -574,6 +574,14 @@ sub NewBugInstance
 }
 
 
+sub CurrentResultFile
+{
+    my ($self) = @_;
+
+    return $self->{curAssess}{report};
+}
+
+
 sub AdjustPath
 {
     my ($self, $path) = @_;
