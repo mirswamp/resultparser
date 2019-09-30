@@ -39,6 +39,8 @@ sub ParseFile
 	    $bugCode =~ s/\s+/ /g;
 	    $bugCode =~ s/^\s//;
 	    $bugCode =~ s/\s$//;
+	    $bugCode =~ s/^(replacing unexpected )[-:.\w]+? (with )/$1$2/;
+	    $bugCode =~ s/^(entity doesn't end in)/$1 semicolon/;
 
 	    my $bug = $parser->NewBugInstance();
 
