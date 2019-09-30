@@ -1,4 +1,9 @@
 -----------------------------------------------------
+resultparser version 3.2.3 (Sep 26, 2019)
+-----------------------------------------------------
+- improved 2 synthesized bugCodes for tidy-html5
+
+-----------------------------------------------------
 resultparser version 3.2.2 (Sep 26, 2019)
 -----------------------------------------------------
 - improved synthesized bugCodes for tidy-html5
