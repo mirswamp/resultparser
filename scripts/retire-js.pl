@@ -108,7 +108,39 @@ sub ParseFile
     my $jsonObject = Util::ReadJsonFile($fn);
 
     my $num = -1;
-    foreach my $group (@$jsonObject)  {
+
+    ## OK, need to key off of perl type, not json type, which would
+    ## be more useful
+
+    my $ref_type = ref( $jsonObject );
+
+    my $new_format;
+
+    ## JSON:  string	number	object	array	boolean	null
+    ## PERL:  ...,	...,	HASH	ARRAY	...	...
+    if ($ref_type eq "HASH") {
+	$new_format = 1;
+    }
+    elsif ($ref_type eq "ARRAY") {
+        $new_format = 0;
+    }
+    else {
+	die "Error: $ref_type: unexpected JSON -> PERL data type."
+    } 
+
+    ## key for new format is
+    ## version + start + data + errors + time
+    ## make sure it has the component
+    if ($new_format) {
+	    if (!  exists($jsonObject->{data}) ) {
+		die "Error: new format data: component missing";
+	    } 
+    }
+
+    ## skipping new info for now, just try auto detect each format
+    my $json_results = $new_format ? $jsonObject->{data} : $jsonObject;
+
+    foreach my $group ( @{$json_results} )  {
 	++$num;
 	my $file;
 	$file = $group->{file} if exists $group->{file};
