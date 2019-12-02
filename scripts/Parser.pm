@@ -170,6 +170,11 @@ sub ParseSummaryFile {
                 $curAssess->{exitCode} = GetElemText($e);
                 return 1;
             },
+            "$assess/execution-successful"      => sub {
+                my ($twig, $e) = @_;
+                $curAssess->{executionSuccessful} = GetElemText($e);
+                return 1;
+            },
             "$assess/start-ts"                  => sub {
                 my ($twig, $e) = @_;
                 $curAssess->{startTime} = GetElemText($e);
