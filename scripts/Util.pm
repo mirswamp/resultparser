@@ -13,6 +13,18 @@ use Encode qw/:fallbacks decode/;
 my $current_dir = Cwd::cwd();
 my $script_dir = dirname(Cwd::abs_path($0)) ;
 
+# Takes a string and figures out if it represents true or false
+# False: Not defined, an empty string, "0" or "false"
+sub StringToBool
+{
+    my ($s) = @_;
+
+    if (!defined $s || $s eq '' || $s eq "0" || $s =~ /false/i) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
 
 sub UrlEncodePath
 {

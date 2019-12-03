@@ -172,7 +172,7 @@ sub ParseSummaryFile {
             },
             "$assess/execution-successful"      => sub {
                 my ($twig, $e) = @_;
-                $curAssess->{executionSuccessful} = GetElemText($e);
+                $curAssess->{executionSuccessful} = Util::StringToBool(GetElemText($e));
                 return 1;
             },
             "$assess/start-ts"                  => sub {
