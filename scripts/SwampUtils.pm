@@ -503,4 +503,32 @@ sub ReadConfFile
 }
 
 
+sub WriteConfFile
+{
+    my ($filename, $confKeys) = @_;
+
+    open CONFFILE, ">", $filename or die "open > $filename: $!";
+    foreach my $k (sort keys %$confKeys)  {
+        my $v = $confKeys->{$k};
+        die "leading whitespace in key: filename='$filename' k='$k' v='$v'" if $k =~ /^\s/;
+        die "trailing whitespace in key: filename='$filename' k='$k' v='$v'" if $k =~ /\s$/;
+        die "'=' in key: filename='$filename' k='$k' v='$v'" if $k =~ /=/;
+
+        my $numLines = ($v =~ tr/\n//) + 1;
+        my $sep;
+
+        if ($numLines != 1)  {
+            $sep = ":${numLines}L=";
+        }  elsif ($v =~ /^\s+|\s+$/)  {
+            $sep = ":=";
+        }  else  {
+            $sep = "= ";
+        }
+
+        print CONFFILE "$k $sep$v\n";
+    }
+    close CONFFILE or die "close $filename";
+}
+
+
 1;
