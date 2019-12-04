@@ -323,8 +323,8 @@ Options:
     --scarf_output_file=<PATH>			path to SCARF output file
     --sarif_output_file=<PATH>			path to main SARIF output file
     --weakness_count_file=<PATH>		path to weakness count file
-    --services_conf=<PATH>			path to services.conf file
-    --parsed_results_data_conf=<PATH>		path to ressult parser data file to create
+    --services_conf_file=<PATH>			path to services.conf file
+    --parsed_results_data_conf_file=<PATH>	path to ressult parser data file to create
     --output_format=<scarf|sarif|scarf,sarif>	output files type(s)
     --output_pretty=<0|1>
     --output_error_level=<0|1|2>
@@ -406,26 +406,26 @@ sub ProcessOptions
     }
 
     my %options = (
-	    input_dir			=> '.',
-	    summary_file		=> undef,
-	    output_file			=> undef,
-	    tool_name			=> undef,
-	    weakness_count_file		=> undef,
-	    help			=> undef,
-	    version			=> undef,
+	    input_dir				=> '.',
+	    summary_file			=> undef,
+	    output_file				=> undef,
+	    scarf_output_file			=> undef,
+	    sarif_output_file			=> undef,
+	    tool_name				=> undef,
+	    weakness_count_file			=> undef,
+	    help				=> undef,
+	    version				=> undef,
 
-	    services_conf		=> undef,
-	    parsed_results_data_conf	=> undef,
+	    services_conf_file			=> undef,
+	    parsed_results_data_conf_file	=> undef,
 
-	    result_parser_defaults_conf	=> $resultParserDefaultsConf,
+	    result_parser_defaults_conf_file	=> $resultParserDefaultsConf,
 
-	    parserBin			=> $parserProgName,
-	    parserFw			=> 'resultparser',
-	    parserFwVersion		=> 'unknown',
+	    parserBin				=> $parserProgName,
+	    parserFw				=> 'resultparser',
+	    parserFwVersion			=> 'unknown',
 
-	    output_format		=> 'scarf sarif',
-	    scarf_output_file		=> undef,
-	    sarif_output_file		=> undef,
+	    output_format			=> 'scarf sarif',
 	    %$resultParserDefaults,
 	    );
 
@@ -435,14 +435,15 @@ sub ProcessOptions
 	    "tool_name|tool-name=s",
 	    "summary_file|summary-file=s",
 	    "weakness_count_file|weakness-count-file=s",
-	    "services_conf|services-conf=s",
-	    "result_parser_defaults_conf|result-parser-defaults-conf=s",
+	    "services_conf_file|services-conf-file=s",
+	    "parsed_results_data_conf_file|parsed-results-data-conf-file=s",
 	    "output_format|output-format=s",
 	    "scarf_output_file|scarf-output-file=s",
 	    "sarif_output_file|sarif-output-file=s",
 	    "help|h!",
 	    "version|v!",
 	    );
+	    # "result_parser_defaults_conf_file|result-parser-defaults-conf-file=s",
 
     my @externalizable = [
 	"addresses",
@@ -488,9 +489,9 @@ sub ProcessOptions
     Getopt::Long::Configure(qw/require_order ignore_case no_auto_abbrev/);
     my $ok = GetOptions(\%options, @options);
 
-    if (defined $options{services_conf})  {
+    if (defined $options{services_conf_file})  {
 	my %servicesConfOptNameToOptName = map { "resultparser_output_" . lc($_) => $_ } keys %writerOptionsData;
-	my $servicesConf = SwampUtils::ReadConfFile($options{services_conf});
+	my $servicesConf = SwampUtils::ReadConfFile($options{services_conf_file});
 	foreach my $k (keys %$servicesConf)  {
 	    my $v = $servicesConf->{$k};
 	    $k =~ s/-/_/g;
@@ -733,7 +734,7 @@ sub ParseEnd
     }
 
     my $weaknessCountFile = $self->{options}{weakness_count_file};
-    my $parsedResultsDataConfFile = $self->{options}{parsed_results_data_conf};
+    my $parsedResultsDataConfFile = $self->{options}{parsed_results_data_conf_file};
 
     PrintWeaknessCountFile($weaknessCountFile, $count, $state, $msg);
     my %extraAttrs = (
