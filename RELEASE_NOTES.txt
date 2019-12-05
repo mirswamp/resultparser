@@ -1,4 +1,18 @@
 -----------------------------------------------------
+resultparser version 3.3.0 (Dec 05, 2019)
+-----------------------------------------------------
+- added --services_conf_file option support setting writer options
+  all options starting with resultparser_output_* are mapped to option output_*
+  for boolean values, all strings are true except: '0', 'false', and empty
+- added --parsed_results_data_conf_file to include number of weaknesses
+  ('wekanesses'), metrics ('metrics'), filename of SCARF file ('scarf-file' and
+  deprecated 'parsed-results-file'), SARIF output file ('sarif-file'), and
+  SARIF external files ('sarif-<EXTERNAL_TYPE>-file' or
+  'sarif-<EXTERNAL_TYPE>-<N>-file')
+- added support for execution-successful tags in assessment_summary.xml
+- added support for output_format options (use --help to see complete list)
+
+-----------------------------------------------------
 resultparser version 3.2.3 (Sep 26, 2019)
 -----------------------------------------------------
 - improved 2 synthesized bugCodes for tidy-html5
