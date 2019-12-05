@@ -294,10 +294,8 @@ sub CreateParsedResultsDataFile
     my %h;
     while (my ($k, $v) = each %$attrs)  {
 	next unless defined $v;
-	if ($v =~ /-file$/)  {
-	    $v = Util::AdjustPath('.', $fnDir, $v, $isWin);
-	}
-	$h{$k} = $v
+	$v = Util::AdjustPath($fnDir, '', $v, $isWin) if $k =~ /-file$/;
+	$h{$k} = $v;
     }
 
     SwampUtils::WriteConfFile($fn, \%h);
