@@ -653,7 +653,7 @@ sub ParseBegin
     $ps->{parser_fw} = $self->{options}{parserFw};
     $ps->{parser_fw_version} = $self->{options}{parserFwVersion};
     $self->{ps} = $ps;
-    
+
     my $isWin = $ps->{platform_name} =~ /^windows/i;
     $self->{isWin} = $isWin;
 
@@ -744,6 +744,7 @@ sub ParseEnd
 	$endData{conversion}{args} = $self->{argv};
 	$endData{conversion}{workingDirectory} = getcwd();
 	$endData{conversion}{startTime} = $self->{startTime};
+	$endData{conversion}{executionSuccessful} = 1;
 
 	$self->{sxw}->EndRun(\%endData);
 	$self->{sxw}->EndFile();
