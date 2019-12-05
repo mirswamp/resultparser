@@ -508,6 +508,7 @@ sub ProcessOptions
 	    my $v = $servicesConf->{$k};
 	    $k =~ s/-/_/g;
 	    $k = lc $k;
+	    $options{output_format} = $v if $k eq 'resultparser_output_format';
 	    next unless exists $servicesConfOptNameToOptName{$k};
 	    my $name = $servicesConfOptNameToOptName{$k};
 	    $options{$name} = $v;
@@ -536,6 +537,7 @@ sub ProcessOptions
     $options{sarif_output_file} = undef unless $outputFormat =~ /\bsarif\b/i;
     $options{scarf_output_file} = undef unless $outputFormat =~ /\bscarf\b/i;
 
+    push @errs, "Error: output_format ($outputFormat) contains neither scarf nor sarif" unless $outputFormat =~ /\b(scarf|sarif)\b/;
     push @errs, "Error: want SCARF output, but no output file specified" if $outputFormat =~ /\bscarf\b/ && !defined $options{scarf_output_file};
     push @errs, "Error: want SARIF output, but no output file specified" if $outputFormat =~ /\bsarif\b/ && !defined $options{sarif_output_file};
     push @errs, "Error: non-option arguments not allowed @ARGV" if @ARGV;
