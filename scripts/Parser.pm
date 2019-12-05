@@ -395,7 +395,7 @@ sub ExternalizeOpt
     my $ext = '.sarif-external-properties';
     my %external;
     foreach my $prop (@$externalProperties)  {
-	$external{$prop}{$name} = "$base-$prop$ext$jsonExt";
+	$external{$prop}{name} = "$base-$prop$ext$jsonExt";
     }
 
     return ($k, \%external);
