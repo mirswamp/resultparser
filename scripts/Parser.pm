@@ -286,12 +286,18 @@ sub PrintWeaknessCountFile
 
 sub CreateParsedResultsDataFile
 {
-    my ($fn, $extraAttrs) = @_;
+    my ($self, $fn, $attrs) = @_;
     return unless defined $fn;
 
+    my $isWin = $self->{isWin};
+    my $fnDir = Util::DirName($fn, $isWin);
     my %h;
-    while (my ($k, $v) = each %$extraAttrs)  {
-	$h{$k} = $v if defined $v;
+    while (my ($k, $v) = each %$attrs)  {
+	next unless defined $v;
+	if ($v =~ /-file$/)  {
+	    $v = Util::AdjustPath('.', $fnDir, $v, $isWin);
+	}
+	$h{$k} = $v
     }
 
     SwampUtils::WriteConfFile($fn, \%h);
@@ -317,32 +323,38 @@ sub PrintUsage
 Usage: $prog [options]...
 
 Options:
-    --input_dir=<PATH>				directory containing results
-    --summary_file=<PATH>			path to assessment_summary.xml
-    --output_file=<PATH>			path to scarf file
-    --scarf_output_file=<PATH>			path to SCARF output file
-    --sarif_output_file=<PATH>			path to main SARIF output file
-    --weakness_count_file=<PATH>		path to weakness count file
-    --services_conf_file=<PATH>			path to services.conf file
-    --parsed_results_data_conf_file=<PATH>	path to ressult parser data file to create
-    --output_format=<scarf|sarif|scarf,sarif>	output files type(s)
-    --output_pretty=<0|1>
-    --output_error_level=<0|1|2>
-    --output_addArtifacts=<0|1>
-    --output_addArtifactsNoLocation=<0|1>
-    --output_addProvenance=<0|1>
-    --output_artifactHashes=<0|1>
-    --output_sortKeys=<0|1>
-    --output_addSnippets=<0|1>
-    --output_extraSnippets=<NUM_LINES>
-    --output_externalized=<EXTERNAL_ITEM>,... 
-    --help	  -v				print this message and exit
-    --version	  -h				print the version number
+    --input_dir=<PATH>                         directory containing results
+    --summary_file=<PATH>                      path to assessment_summary.xml
+    --output_file=<PATH>                       path to scarf file
+    --scarf_output_file=<PATH>                 path to SCARF output file
+    --sarif_output_file=<PATH>                 path to main SARIF output file
+    --weakness_count_file=<PATH>               path to weakness count file
+    --services_conf_file=<PATH>                path to services.conf file
+    --parsed_results_data_conf_file=<PATH>     path to ressult parser data file to create
+    --output_format=<scarf|sarif|scarf,sarif>  output files type(s)
+    --[no]output_pretty                        set pretty output (default: true)
+    --output_error_level=<LEVEL>               internal validation level (0-2)
+    --[no]output_addArtifacts                  SARIF: include artifact checksums
+    --[no]output_addArtifactsNoLocation        SARIF: do not include path and id (default: true)
+    --[no]output_addProvenance                 SARIF: include provenance (default: true)
+    --[no]output_artifactHashes                SARIF: include artifact hashs (default: true)
+    --[no]output_sortKeys                      SARIF: sort JSON property keys
+    --[no]output_addSnippets                   SARIF: include result snippets
+    --output_extraSnippets=<NUM_LINES>         SARIF: size of result snippets
+    --output_externalize=<EXTERNAL_FILE>,...   SARIF: external property files:
+                                                   addresses, artifacts, graphs,
+                                                   invocations, logicalLocations,
+                                                   policies, webRequests, webResponses,
+                                                   results, taxonomies,
+                                                   threadFlowLocations, translations
+    --help        -v                           print this message and exit
+    --version     -h                           print the version number
 EOF
 }
 
 
-sub WriterOptionToGetOptString	{
+sub WriterOptionToGetOptString
+{
     my ($name, $attrs) = @_;
     my %typeToSpecifier = ( b => '!', s => '=s', i => '=i', f => '=f' );
     my $type = $attrs->{type};
@@ -352,11 +364,12 @@ sub WriterOptionToGetOptString	{
 	    unless exists $typeToSpecifier{$type};
     my $specifier = $typeToSpecifier{$type};
     $name = "output_$name";
+    my $optString = $name;
     my $altName = $name;
     $altName =~ s/_/-/g;
-    $name .= "|$altName" unless $name eq $altName;
-    $name .= $specifier;
-    return $name;
+    $optString .= "|$altName" unless $name eq $altName;
+    $optString .= $specifier;
+    return ($name, $optString);
 }
 
 
@@ -370,10 +383,10 @@ sub NormalizeOptValue
 
 sub ExternalizeOpt
 {
-    my ($name, $options) = @_;
+    my ($name, $optName, $options) = @_;
 
-    return unless exists $options->{$name};
-    my $externalProperties = $options->{$name};
+    return unless exists $options->{$optName};
+    my $externalProperties = $options->{$optName};
     return unless @$externalProperties;
 
     return unless exists $options->{sarif_output_file} && $options->{sarif_output_file} ne '';
@@ -425,7 +438,7 @@ sub ProcessOptions
 	    parserFw				=> 'resultparser',
 	    parserFwVersion			=> 'unknown',
 
-	    output_format			=> 'scarf sarif',
+	    output_format			=> 'scarf',
 	    %$resultParserDefaults,
 	    );
 
@@ -445,7 +458,7 @@ sub ProcessOptions
 	    );
 	    # "result_parser_defaults_conf_file|result-parser-defaults-conf-file=s",
 
-    my @externalizable = [
+    my @externalizable = (
 	"addresses",
 	"artifacts",
 	"graphs",
@@ -458,23 +471,24 @@ sub ProcessOptions
 	"taxonomies",
 	"threadFlowLocations",
 	"translations",
-    ];
+    );
     my %writerOptionsData = (
 	    pretty			=> {type => 'b', default => 1},
-	    error_level			=> {type => 'i', default => 0,	validValues => [0, 1, 2]},
+	    error_level			=> {type => 'i', default => 0,	 validValues => [0, 1, 2]},
 	    addArtifacts		=> {type => 'b'},
 	    addArtifactsNoLocation	=> {type => 'b', default => 1},
 	    addProvenance		=> {type => 'b', default => 1},
-	    artifactHashes		=> {type => 'b'},
+	    artifactHashes		=> {type => 'b', default => 1},
 	    sortKeys			=> {type => 'b'},
 	    addSnippets			=> {type => 'b'},
 	    extraSnippets		=> {type => 'i'},
-	    externalized		=> {type => 's@', default => '', validValues => \@externalizable, fnct => \&ExternalizeOpt},
+	    externalize			=> {type => 's@', default => '', validValues => \@externalizable, fnct => \&ExternalizeOpt},
     );
 
     foreach my $name (keys %writerOptionsData)	{
 	my $attrs = $writerOptionsData{$name};
-	push @options, WriterOptionToGetOptString($name, $attrs);
+	my ($optName, $optString) = WriterOptionToGetOptString($name, $attrs);
+	push @options, $optString;
 	my $default;
 	if (exists $attrs->{default})  {
 	    $default = $attrs->{default};
@@ -483,14 +497,14 @@ sub ProcessOptions
 	}  elsif ($attrs->{type} =~ /^s/)  {
 	    $default = '';
 	}
-	$options{$name} = $default;
+	$options{$optName} = $default;
     }
 
     Getopt::Long::Configure(qw/require_order ignore_case no_auto_abbrev/);
     my $ok = GetOptions(\%options, @options);
 
     if (defined $options{services_conf_file})  {
-	my %servicesConfOptNameToOptName = map { "resultparser_output_" . lc($_) => $_ } keys %writerOptionsData;
+	my %servicesConfOptNameToOptName = map { "resultparser_output_" . lc($_) => "output_$_" } keys %writerOptionsData;
 	my $servicesConf = SwampUtils::ReadConfFile($options{services_conf_file});
 	foreach my $k (keys %$servicesConf)  {
 	    my $v = $servicesConf->{$k};
@@ -513,7 +527,7 @@ sub ProcessOptions
 
     my $outputFile = $options{output_file};
     $options{scarf_output_file} = $outputFile unless defined $options{scarf_output_file};
-    if (!defined $options{sarif_output_file})  {
+    if (!defined $options{sarif_output_file} && defined $options{scarf_output_file})  {
 	my $sarifOutputFile = $options{scarf_output_file};
 	if ($sarifOutputFile =~ s/\.xml$/.sarif.json/)	{
 	    $options{sarif_output_file} = $sarifOutputFile;
@@ -524,35 +538,36 @@ sub ProcessOptions
     $options{sarif_output_file} = undef unless $outputFormat =~ /\bsarif\b/i;
     $options{scarf_output_file} = undef unless $outputFormat =~ /\bscarf\b/i;
 
-    push @errs, "ERROR: want SCARF output, but no output file specified" if $outputFormat =~ /\bscarf\b/ && !defined $options{scarf_output_file};
-    push @errs, "ERROR: want SARIF output, but no output file specified" if $outputFormat =~ /\bsarif\b/ && !defined $options{sarif_output_file};
-    push @errs, "ERROR: non-option arguments not allowed @ARGV" if @ARGV;
+    push @errs, "Error: want SCARF output, but no output file specified" if $outputFormat =~ /\bscarf\b/ && !defined $options{scarf_output_file};
+    push @errs, "Error: want SARIF output, but no output file specified" if $outputFormat =~ /\bsarif\b/ && !defined $options{sarif_output_file};
+    push @errs, "Error: non-option arguments not allowed @ARGV" if @ARGV;
 
     my %writerOptions;
     $options{writerOptions} = \%writerOptions;
 
     # Normalize option values, convert to array if necessary, and validate values
     foreach my $name (keys %writerOptionsData)	{
-	next unless exists $options{$name};
-	my $v = $options{$name};
+	my $optName = "output_$name";
+	next unless exists $options{$optName};
+	my $v = $options{$optName};
 	my $type = $writerOptionsData{$name}{type};
 
 	# normalize
 	my @values;
 	if ($type =~ /[@]$/)  {
 	    @values = map {NormalizeOptValue($_, $type)} split /[,;:\s]+/, $v;
-	    $options{$name} = \@values;
+	    $options{$optName} = \@values;
 	}  else  {
 	    push @values, NormalizeOptValue($v, $type);
-	    $options{$name} = $values[0];
+	    $options{$optName} = $values[0];
 	}
 
 	# store in writerOptions
 	if (exists $writerOptionsData{$name}{fnct})  {
-	    my ($newKey, $newValue) = $writerOptionsData{$name}{fnct}->($name, \%options);
+	    my ($newKey, $newValue) = $writerOptionsData{$name}{fnct}->($name, $optName, \%options);
 	    $writerOptions{$newKey} = $newValue if defined $newKey;
 	}  else  {
-	    $writerOptions{$name} = $options{$name};
+	    $writerOptions{$name} = $options{$optName};
 	}
 
 	# validate
@@ -562,7 +577,8 @@ sub ProcessOptions
 
 	foreach my $value (@values)  {
 	    if (!exists $validValues{$value})  {
-		push @errs, "ERROR: WriterOption '$name' value '$value' invalid, valid:  " . @$validValues;
+		push @errs, "Error: WriterOption '$name' value '$value' invalid.  valid values:  @{$validValues}";
+		$ok = 0;
 	    }
 	}
     }
@@ -599,7 +615,7 @@ sub ParseFiles
 	if (!defined $fn || $fn eq '')	{
 	    my $summaryFn = $self->{options}{summary_file};
 	    my $xpath = "assessment-summary/assessment-artifacts/assessment[$assessCnt]/report";
-	    my $msg = "ERROR: Inavalid assessment summary file, Missing element '$xpath' in file '$summaryFn'";
+	    my $msg = "Error: Inavalid assessment summary file, Missing element '$xpath' in file '$summaryFn'";
 	    my $weaknessCountFile = $self->{options}{weakness_count_file};
 	    PrintWeaknessCountFile($weaknessCountFile, 0, 'FAIL', $msg);
 	    die $msg;
@@ -743,7 +759,7 @@ sub ParseEnd
 	    state	=> $state,
 	);
     $self->{sxw}->GetWriterAttrs(\%extraAttrs);
-    CreateParsedResultsDataFile($parsedResultsDataConfFile, \%extraAttrs);
+    $self->CreateParsedResultsDataFile($parsedResultsDataConfFile, \%extraAttrs);
 }
 
 sub NewBugInstance

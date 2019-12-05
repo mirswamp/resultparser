@@ -78,6 +78,25 @@ sub IsAbsolutePath
 }
 
 
+# DirName - return the dirname of the given path
+sub DirName
+{
+    my ($p, $isWin) = @_;
+
+    if (!$isWin)  {
+	if ($p !~ s/\/.*?$//)  {
+	    $p = '.'
+	}
+    }  else  {
+	if ($p !~ s/[\/\\].*?$//)  {
+	    if ($p !~ s/^([a-z]:).*/$1./)  {
+		$p = '.';
+	    }
+	}
+    }
+}
+
+
 # AdjustPath - take a path that is relative to curDir and make it relative
 #              to baseDir.  If the path is not in baseDir, do not modify.
 #
