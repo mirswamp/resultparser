@@ -332,8 +332,8 @@ Options:
     --output_format=<scarf|sarif|scarf,sarif>  output files type(s)
     --[no]output_pretty                        set pretty output (default: true)
     --output_error_level=<LEVEL>               internal validation level (0-2, default: 2)
-    --[no]output_addArtifacts                  SARIF: include artifact checksums
-    --[no]output_addArtifactsNoLocation        SARIF: do not include path and id (default: true)
+    --[no]output_addArtifacts                  SARIF: include artifact checksums (default: true)
+    --[no]output_preferOnlyArtifactIndex       SARIF: prefer only the artifact index (default: true)
     --[no]output_addProvenance                 SARIF: include provenance (default: true)
     --[no]output_artifactHashes                SARIF: include artifact hashs (default: true)
     --[no]output_sortKeys                      SARIF: sort JSON property keys
@@ -473,8 +473,8 @@ sub ProcessOptions
     my %writerOptionsData = (
 	    pretty			=> {type => 'b', default => 1},
 	    error_level			=> {type => 'i', default => 2,	 validValues => [0, 1, 2]},
-	    addArtifacts		=> {type => 'b'},
-	    addArtifactsNoLocation	=> {type => 'b', default => 1},
+	    addArtifacts		=> {type => 'b', default => 1},
+	    preferOnlyArtifactIndex	=> {type => 'b', default => 1},
 	    addProvenance		=> {type => 'b', default => 1},
 	    artifactHashes		=> {type => 'b', default => 1},
 	    sortKeys			=> {type => 'b'},
