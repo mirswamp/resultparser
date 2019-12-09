@@ -966,9 +966,15 @@ sub new
     my $self = { @_ };
     bless($self, $class);
 
-    $self->ParseBegin();
+    eval {
+	$self->ParseBegin();
 
-    $self->ParseFiles() if ($self->{ParseFileProc});
+	$self->ParseFiles() if ($self->{ParseFileProc});
+    };
+    if ($@)  {
+	$self->ParseEnd(undef, 'FAIL', $@);
+	die $@;
+    }
 
     $self->ParseEnd();
 
