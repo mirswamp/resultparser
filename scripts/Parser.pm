@@ -331,7 +331,7 @@ Options:
     --parsed_results_data_conf_file=<PATH>     path to ressult parser data file to create
     --output_format=<scarf|sarif|scarf,sarif>  output files type(s)
     --[no]output_pretty                        set pretty output (default: true)
-    --output_error_level=<LEVEL>               internal validation level (0-2, default: 2)
+    --output_error_level=<LEVEL>               internal validation level (0-2, default: 1)
     --[no]output_addArtifacts                  SARIF: include artifact checksums (default: true)
     --[no]output_preferOnlyArtifactIndex       SARIF: prefer only the artifact index (default: true)
     --[no]output_addProvenance                 SARIF: include provenance (default: true)
@@ -472,7 +472,7 @@ sub ProcessOptions
     );
     my %writerOptionsData = (
 	    pretty			=> {type => 'b', default => 1},
-	    error_level			=> {type => 'i', default => 2,	 validValues => [0, 1, 2]},
+	    error_level			=> {type => 'i', default => 1,	 validValues => [0, 1, 2]},
 	    addArtifacts		=> {type => 'b', default => 1},
 	    preferOnlyArtifactIndex	=> {type => 'b', default => 1},
 	    addProvenance		=> {type => 'b', default => 1},
