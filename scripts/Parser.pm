@@ -754,10 +754,11 @@ sub ParseEnd
     my $parsedResultsDataConfFile = $self->{options}{parsed_results_data_conf_file};
 
     PrintWeaknessCountFile($weaknessCountFile, $count, $state, $msg);
+    $state = 'PASS' unless defined $state;
     my %extraAttrs = (
 	    weaknesses	=> $count,
 	    metrics	=> $metricCount,
-	    state	=> $state,
+	    status	=> $state,
 	);
     $self->{sxw}->GetWriterAttrs(\%extraAttrs);
     $self->CreateParsedResultsDataFile($parsedResultsDataConfFile, \%extraAttrs);
