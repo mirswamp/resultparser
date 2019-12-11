@@ -1,5 +1,5 @@
 -----------------------------------------------------
-resultparser version 3.3.0 (Dec 05, 2019)
+resultparser version 3.3.0 (Dec 10, 2019)
 -----------------------------------------------------
 - added --services_conf_file option support setting writer options
   all options starting with resultparser_output_* are mapped to option output_*
@@ -9,8 +9,14 @@ resultparser version 3.3.0 (Dec 05, 2019)
   deprecated 'parsed-results-file'), SARIF output file ('sarif-file'), and
   SARIF external files ('sarif-<EXTERNAL_TYPE>-file' or
   'sarif-<EXTERNAL_TYPE>-<N>-file')
+- parsed_results.conf now contains data from parsed_results_data.conf, along
+  with 'status', 'parsed-results-archive' and 'parsed-results-dir'.
 - added support for execution-successful tags in assessment_summary.xml
 - added support for output_format options (use --help to see complete list)
+- display warnings on data validation failures (error_level=1)
+- updated io libraries to fix validation warning for no primary if there are
+  no locations
+- updated io libraries to improve diagnostic error reporting on API usage
 
 -----------------------------------------------------
 resultparser version 3.2.3 (Sep 26, 2019)
