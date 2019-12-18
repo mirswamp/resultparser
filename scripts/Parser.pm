@@ -269,13 +269,16 @@ sub PrintWeaknessCountFile
 
     if (defined $fn)  {
 	open WFILE, ">", $fn or die "open $fn: $!";
-	print WFILE "weaknesses: $weaknessCount\n";
+	print WFILE "weaknesses: $weaknessCount" if defined $weaknessCount;
+	print WFILE "\n";
+	undef $longMsg if $longMsg =~ /^\s*$/;
+	$status = 'PASS' unless defined $status;
+	undef $status if $status eq 'PASS' && !defined $longMsg;
 	if (defined $status)  {
-	    die "unknown status type '$status'"
-	    unless $status =~ /^(PASS|FAIL|SKIP|NOTE)$/;
+	    die "unknown status type '$status'" unless $status =~ /^(PASS|FAIL|SKIP|NOTE)$/;
 	    print WFILE "$status\n";
 	}
-	if (defined $longMsg && $longMsg !~ /^\s*$/)  {
+	if (defined $longMsg)  {
 	    $longMsg =~ s/\n*$//;
 	    print WFILE "-----\n$longMsg\n";
 	}
@@ -729,8 +732,9 @@ sub ParseEnd
     $state = $self->{resultParserState} unless defined $state;
     $msg   = $self->{resultParserMsg} unless defined $msg;
     my $metricCount;
+    my %extraAttrs;
 
-    if (!$self->GetBoolParam('NoScarfFile'))  {
+    if (!$self->GetBoolParam('NoScarfFile') && defined $self->{sxw})  {
 	$count = $self->{sxw}->GetNumBugs() unless defined $count;
 	$metricCount = $self->{sxw}->GetNumMetrics() unless defined $metricCount;
 
@@ -748,19 +752,21 @@ sub ParseEnd
 
 	$self->{sxw}->EndRun(\%endData);
 	$self->{sxw}->EndFile();
+
+	$state = 'PASS' unless defined $state;
+	%extraAttrs = (
+		weaknesses	=> $count,
+		metrics		=> $metricCount,
+		status		=> $state,
+	    );
+
+	$self->{sxw}->GetWriterAttrs(\%extraAttrs);
     }
 
     my $weaknessCountFile = $self->{options}{weakness_count_file};
     my $parsedResultsDataConfFile = $self->{options}{parsed_results_data_conf_file};
 
     PrintWeaknessCountFile($weaknessCountFile, $count, $state, $msg);
-    $state = 'PASS' unless defined $state;
-    my %extraAttrs = (
-	    weaknesses	=> $count,
-	    metrics	=> $metricCount,
-	    status	=> $state,
-	);
-    $self->{sxw}->GetWriterAttrs(\%extraAttrs);
     $self->CreateParsedResultsDataFile($parsedResultsDataConfFile, \%extraAttrs);
 }
 
