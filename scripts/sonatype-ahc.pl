@@ -35,7 +35,7 @@ sub ParseFile
 	$parser->{resultParserMsg} .= "$type violations: $violCount\n";
     }
 
-    $parser->{resultParserState} = 'SKIP';
+    $parser->{resultParserStatus} = 'SKIP';
     $parser->{weaknessCount} += $totalViols
 }
 

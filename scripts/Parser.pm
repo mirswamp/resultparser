@@ -726,10 +726,10 @@ sub ParseBegin
 
 sub ParseEnd
 {
-    my ($self, $count, $state, $msg) = @_;
+    my ($self, $count, $status, $msg) = @_;
 
     $count = $self->{weaknessCount} unless defined $count;
-    $state = $self->{resultParserState} unless defined $state;
+    $status = $self->{resultParserStatus} unless defined $status;
     $msg   = $self->{resultParserMsg} unless defined $msg;
     my $metricCount;
     my %extraAttrs;
@@ -753,11 +753,11 @@ sub ParseEnd
 	$self->{sxw}->EndRun(\%endData);
 	$self->{sxw}->EndFile();
 
-	$state = 'PASS' unless defined $state;
+	$status = 'PASS' unless defined $status;
 	%extraAttrs = (
 		weaknesses	=> $count,
 		metrics		=> $metricCount,
-		status		=> $state,
+		status		=> $status,
 	    );
 
 	$self->{sxw}->GetWriterAttrs(\%extraAttrs);
@@ -766,7 +766,7 @@ sub ParseEnd
     my $weaknessCountFile = $self->{options}{weakness_count_file};
     my $parsedResultsDataConfFile = $self->{options}{parsed_results_data_conf_file};
 
-    PrintWeaknessCountFile($weaknessCountFile, $count, $state, $msg);
+    PrintWeaknessCountFile($weaknessCountFile, $count, $status, $msg);
     $self->CreateParsedResultsDataFile($parsedResultsDataConfFile, \%extraAttrs);
 }
 
