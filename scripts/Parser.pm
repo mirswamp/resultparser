@@ -271,7 +271,7 @@ sub PrintWeaknessCountFile
 	open WFILE, ">", $fn or die "open $fn: $!";
 	print WFILE "weaknesses: $weaknessCount" if defined $weaknessCount;
 	print WFILE "\n";
-	undef $longMsg if $longMsg =~ /^\s*$/;
+	undef $longMsg if defined $longMsg && $longMsg =~ /^\s*$/;
 	$status = 'PASS' unless defined $status;
 	undef $status if $status eq 'PASS' && !defined $longMsg;
 	if (defined $status)  {
