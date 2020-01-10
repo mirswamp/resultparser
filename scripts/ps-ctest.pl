@@ -257,7 +257,7 @@ sub GetElDesc
 
     # columns seem to be 0-based, adjust them to be 1-based end column is one
     # passed the end 0-based, so leaving it makes it point to the end 1-based
-    ++$startCol unless $startCol == 0 && $endCol == 0;
+    ++$startCol unless $startCol == 0 && $endCol == 0 && $startCol < $endCol;
 
     # lines seem to be 1-based, but if there is no column information, then the
     # end line is one past the end, so adjust it to point to the end line
