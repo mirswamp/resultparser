@@ -165,6 +165,7 @@ sub ParseFile
     my $flowViolXpath	= "$stdViolsXpath/FlowViol";
     my $elDescXpath	= "ElDesc";
     my $propXpath	= "$elDescXpath/Props/Prop";
+    my $annXpath	= "$elDescXpath/Anns/Ann";
 
     my %curViol;
     my %locHash;
@@ -183,6 +184,12 @@ sub ParseFile
 		    my ($twig, $e) = @_;
 		    my $props = $curViol{openElDescs}->[-1]{props};
 		    ProcessProps($twig, $e, $props);
+		    return 1;
+		},
+		$annXpath	=> sub {
+		    my ($twig, $e) = @_;
+		    my $anns = $curViol{openElDescs}->[-1]{anns};
+		    ProcessAnns($twig, $e, $anns);
 		    return 1;
 		},
 		$flowViolXpath	=> sub {
@@ -242,10 +249,21 @@ sub GetElDesc
     my $startCol = $e->att('srcRngStartPos');
     my $endLine = $e->att('srcRngEndLn');
     $endLine = $e->att('eLn') unless defined $endLine;
-    --$endLine if defined $endLine && $endLine > 0;
     my $endCol = $e->att('srcRngEndPos');
-    # XXX subtract from 1 from endCol???
-    --$endCol if defined $endCol && $endCol > 0;
+
+    # set defaults for columns if not defined
+    $startCol = 0 unless defined $startCol;
+    $endCol = $startCol unless defined $endCol;
+
+    # columns seem to be 0-based, adjust them to be 1-based end column is one
+    # passed the end 0-based, so leaving it makes it point to the end 1-based
+    ++$startCol unless $startCol == 0 && $endCol == 0;
+
+    # lines seem to be 1-based, but if there is no column information, then the
+    # end line is one past the end, so adjust it to point to the end line
+    --$endLine if defined $endLine && $startCol == 0 && $endLine > $startLine;
+
+    # set endLine to startLine there no endLine defined
     $endLine = $startLine unless defined $endLine;
 
     my %elDesc = (
@@ -253,11 +271,14 @@ sub GetElDesc
 	type		=> $type,
 	startLine	=> $startLine,
 	endLine		=> $endLine,
+	startCol	=> $startCol,
+	endCol		=> $endCol,
 	isCause		=> scalar($type =~ /C/),
 	isViolPoint	=> scalar($type =~ /P/),
 	isImportant	=> scalar($type =~ /\!/),
 	isThrow		=> scalar($type =~ /E/),
 	props		=> {},
+	anns		=> [],
 	);
 
     $elDesc{startCol} = defined $startCol ? $startCol : 0;
@@ -276,6 +297,17 @@ sub ProcessProps
 
     die "Duplicate key for props seen '$k: $v'" if exists $props->{$k};
     $props->{$k} = $v;
+}
+
+
+sub ProcessAnns
+{
+    my ($twig, $e, $anns) = @_;
+
+    my $kind = $e->att('kind');
+    my $msg = $e->att('msg');
+
+    push @$anns, {kind => $kind, msg => $msg};
 }
 
 
@@ -385,6 +417,14 @@ sub BeginFlowViol
 }
 
 
+my %annKindToText = (
+	    var		=> 'var',
+	    point	=> 'Violation Point',
+	    cause	=> 'Violation Cause',
+	    except	=> 'Throws Exception',
+	);
+
+
 sub EndFlowViol
 {
     my ($parser, $twig, $e, $viol) = @_;
@@ -396,14 +436,33 @@ sub EndFlowViol
 	# do not output this, if there is no path, warning already printed
 	next unless defined $loc->{file};
 
-	my ($props, $isImportant, $isCause, $isViolPoint)
-		= @$loc{qw/props isImportant isCause isViolPoint/};
-	next unless %$props || $isImportant || $isCause || $isViolPoint;
+	my ($props, $anns, $isImportant, $isCause, $isViolPoint)
+		= @$loc{qw/props anns isImportant isCause isViolPoint/};
+	next unless %$props || @$anns || $isImportant || $isCause || $isViolPoint;
 	my @msg;
-	push @msg, "Important" if $isImportant;
-	push @msg, "Violation Cause" if $isCause;
-	push @msg, "Violation Point" if $isViolPoint;
-	push @msg, "Throws Exception" if $loc->{isThrow};
+	push @msg, "[Important]" if $isImportant;
+	if (@$anns)  {
+	    foreach my $ann (@$anns)  {
+		my ($kind, $msg) = @$ann{qw/kind msg/};
+		if ($kind eq 'cause')  {
+		    $isCause = 0;
+		}  elsif ($kind eq 'var')  {
+		    delete $props->{'Tracked variables'};
+		}  elsif ($kind eq 'point')  {
+		    $isViolPoint = 0;
+		}  elsif ($kind eq 'except')  {
+		    delete $loc->{isThrow};
+		}
+
+		my $kindText = exists $annKindToText{$kind} ? $annKindToText{$kind} : $kind;
+		$msg =~ s/^Point where (the )?//;
+
+		push @msg, "[$kindText] $msg";
+	    }
+	}
+	push @msg, "[$annKindToText{cause}]" if $isCause;
+	push @msg, "[$annKindToText{point}]" if $isViolPoint;
+	push @msg, "[$annKindToText{except}]" if $loc->{isThrow};
 	push @msg, map {"$_: $props->{$_}"} sort keys %$props;
 	my $msg = join "; ", @msg;
 
