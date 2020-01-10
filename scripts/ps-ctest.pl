@@ -419,9 +419,12 @@ sub BeginFlowViol
 
 my %annKindToText = (
 	    var		=> 'var',
-	    point	=> 'Violation Point',
-	    cause	=> 'Violation Cause',
-	    except	=> 'Throws Exception',
+	    point	=> 'point',
+	    cause	=> 'cause',
+	    except	=> 'except',
+	    comment	=> 'comment',
+	    condEval	=> 'condEval',
+	    info	=> 'info',
 	);
 
 
