@@ -24,7 +24,7 @@ sub ExecParser
     my $perlPath = $^X;
 
     my @execString = ($perlPath, $toolScript, @args);
-    print STDERR "\n", join(' ', @execString), "\n\n";
+    print "---\n", join(' ', @execString), "\n---\n";
     if ($^O !~ /mswin/i)  {
 	exec {$perlPath} @execString or die "failed to exec @execString: $!";
     }  else  {
