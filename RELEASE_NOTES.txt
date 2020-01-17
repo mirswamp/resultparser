@@ -1,4 +1,14 @@
 -----------------------------------------------------
+resultparser version 3.3.1 (Jan 17, 2020)
+-----------------------------------------------------
+- update swamp-sarif-io library to correct assertions
+- update swamp-scarf-io library to elimnate validation of cweIds
+  since this field is used to also represent other taxonomy types
+- update ps-ctest and ps-jtest parsers
+  - correct line and column values to be inclusive and 1-based
+  - incorporate better location messages if available
+
+-----------------------------------------------------
 resultparser version 3.3.0 (Dec 10, 2019)
 -----------------------------------------------------
 - added --services_conf_file option support setting writer options
