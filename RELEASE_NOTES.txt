@@ -1,4 +1,10 @@
 -----------------------------------------------------
+resultparser version 3.3.2 (Jan 24, 2020)
+-----------------------------------------------------
+- update retire-js parser to support version retire-js 2.x output
+  including errors and messages, and vulnerable vesrion ranges
+
+-----------------------------------------------------
 resultparser version 3.3.1 (Jan 17, 2020)
 -----------------------------------------------------
 - update swamp-sarif-io library to correct assertions
