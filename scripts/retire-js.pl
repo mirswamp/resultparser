@@ -55,8 +55,8 @@ sub GetIdData
 	my $ids = $v->{identifiers};
 	my @nonSummaryTypes = grep {!/summary/} sort keys %$ids;
 
+	# find best matching identifier type for BugCode
 	my @types = (qw/CVE issue bug advisory commit release/, @nonSummaryTypes);
-
 	foreach my $type (@types)  {
 	    if (exists $ids->{$type})  {
 		my $id = $ids->{$type};
@@ -101,54 +101,21 @@ sub GetDependencyText
 }
 
 
-sub ParseFile
+sub ProcessKnownWeaknesses
 {
-    my ($parser, $fn) = @_;
-
-    my $jsonObject = Util::ReadJsonFile($fn);
+    my ($parser, $jsonObject, $jsonPathPrefix) = @_;
 
     my $num = -1;
-
-    ## OK, need to key off of perl type, not json type, which would
-    ## be more useful
-
-    my $ref_type = ref( $jsonObject );
-
-    my $new_format;
-
-    ## JSON:  string	number	object	array	boolean	null
-    ## PERL:  ...,	...,	HASH	ARRAY	...	...
-    if ($ref_type eq "HASH") {
-	$new_format = 1;
-    }
-    elsif ($ref_type eq "ARRAY") {
-        $new_format = 0;
-    }
-    else {
-	die "Error: $ref_type: unexpected JSON -> PERL data type."
-    } 
-
-    ## key for new format is
-    ## version + start + data + errors + time
-    ## make sure it has the component
-    if ($new_format) {
-	    if (!  exists($jsonObject->{data}) ) {
-		die "Error: new format data: component missing";
-	    } 
-    }
-
-    ## skipping new info for now, just try auto detect each format
-    my $json_results = $new_format ? $jsonObject->{data} : $jsonObject;
-
-    foreach my $group ( @{$json_results} )  {
+    foreach my $group (@$jsonObject)  {
 	++$num;
 	my $file;
 	$file = $group->{file} if exists $group->{file};
+	my $groupJsonPath = "$jsonPathPrefix\[$num]";
 	if (exists $group->{results})  {
 	    my $resultNum = -1;
 	    foreach my $r (@{$group->{results}})  {
 		++$resultNum;
-		my $resultJsonPath = "\$[$num].results[$resultNum]";
+		my $resultJsonPath = "$groupJsonPath.results[$resultNum]";
 		my $component = GetValueIfExists($r, 'component');
 		my $version = GetValueIfExists($r, 'version');
 		my $detection = GetValueIfExists($r, 'detection');
@@ -161,18 +128,30 @@ sub ParseFile
 			my $severity = GetValueIfExists($v, 'severity');
 			my $info = GetValueIfExists($v, 'info');
 			$info = [] unless defined $info;
+			my ($firstVulnVersion, $firstFixedVersion);
+			$firstVulnVersion = $v->{atOrAbove} if exists $v->{atOrAbove};
+			$firstFixedVersion = $v->{below} if exists $v->{below};
 			my $bugGroup = 'Known-Vuln';
 			my ($bugCode, $summary, $idText) = GetIdData($component, $v);
-			my $msg = "Known vulnerabilities in component $component version $version";
-			$msg .= "\n(detected by $detection)" if defined $detection;
-			$msg .= ":";
+
+			my $msg = "Known vulnerabilities in component $component version $version:";
 			$msg .= "\n\n$summary" if defined $summary;
 			$msg .= "\n\nIdentifiers:\n\n$idText" if $idText;
+			if (defined $firstVulnVersion || defined $firstFixedVersion)  {
+			    $msg .= "\n\nVulnerable Versions:\n\n";
+			    $msg .= " beginning with '$firstVulnVersion'" if defined $firstVulnVersion;
+			    if (defined $firstFixedVersion)  {
+				$msg .= " and" if defined $firstVulnVersion;
+				$msg .= " prior to '$firstFixedVersion'";
+			    }
+			}
 			$msg .= "\n\nDependencies:\n\n$dependencyText" if $dependencyText;
 			if (exists $v->{info} && @{$v->{info}})  {
-			    $msg .= "\n\nMore Inforation:\n\n";
+			    $msg .= "\n\nMore Information:\n\n";
 			    $msg .= join "\n", map {" - $_"} @{$v->{info}};
 			}
+
+			$msg .= "\n\ndetected by $detection" if defined $detection;
 
 			my $bug = $parser->NewBugInstance();
 			$bug->setBugGroup($bugGroup);
@@ -189,7 +168,75 @@ sub ParseFile
 		}
 	    }
 	}  else  {
-	    die "Error: no results in $fn \$[$num]"
+	    die "Error: Required attribute does not exist at $groupJsonPath.results"
+	}
+    }
+}
+
+
+sub ParseFile
+{
+    my ($parser, $fn) = @_;
+
+    my $jsonObject = Util::ReadJsonFile($fn);
+
+    if (ref $jsonObject eq 'ARRAY')  {
+	# version 1.x format
+	ProcessKnownWeaknesses($parser, $jsonObject, '$');
+    }  else  {
+	# version 2.x format
+	ProcessKnownWeaknesses($parser, $jsonObject->{data}, '$.data');
+
+	my $errorNum = -1;
+	if (exists $jsonObject->{errors})  {
+	    for my $errMsg (@{$jsonObject->{errors}})  {
+		++$errorNum;
+		my $jsonPath = "\$.errors[$errorNum]";
+
+		my ($file, $bugCode);
+		if ($errMsg =~ /^Could not parse file:\s+(.*)$/)  {
+		    $bugCode = 'parse error';
+		    $file = $1;
+		}  elsif ($errMsg =~ /^Missing version for /)  {
+		    $bugCode = 'missing version';
+		}  else  {
+		    $bugCode = 'unknown';
+		}
+
+		my $bug = $parser->NewBugInstance();
+		$bug->setBugGroup('error');
+		$bug->setBugCode($bugCode);
+		$bug->setBugPath($jsonPath);
+		$bug->setBugMessage($errMsg);
+		$bug->setBugLocation(0, '', $file, undef, undef,
+			'0', '0', '', 'true', 'true') if defined $file;
+		$parser->WriteBugObject($bug);
+		undef $bug;
+	    }
+	}
+
+	my $msgNum = -1;
+	if (exists $jsonObject->{messages})  {
+	    for my $msg (@{$jsonObject->{messages}})  {
+		++$msgNum;
+		my $jsonPath = "\$.messages[$msgNum]";
+
+		my $msg;
+		if (ref $msg eq '')  {
+		    $msg = $msg;
+		}  else  {
+		    $msg = to_json($msg, {pretty => 1});
+		    print STDERR "WARNING: Expected a string at $jsonPath, but found:\n$msg\n";
+		}
+
+		my $bug = $parser->NewBugInstance();
+		$bug->setBugGroup('info');
+		$bug->setBugCode('message');
+		$bug->setBugPath($jsonPath);
+		$bug->setBugMessage($msg);
+		$parser->WriteBugObject($bug);
+		undef $bug;
+	    }
 	}
     }
 }
