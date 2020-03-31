@@ -1,4 +1,9 @@
 -----------------------------------------------------
+resultparser version 3.3.3 (Mar 31, 2020)
+-----------------------------------------------------
+- update dependencies for newer versions of current platforms
+
+-----------------------------------------------------
 resultparser version 3.3.2 (Jan 24, 2020)
 -----------------------------------------------------
 - update retire-js parser to support version retire-js 2.x output
