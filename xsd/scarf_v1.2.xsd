@@ -52,8 +52,8 @@
               <xs:element name="BugTrace" minOccurs="0">
                 <xs:complexType>
                   <xs:sequence>
-                    <xs:element type="xs:string" name="BuildId"/>
-                    <xs:element type="xs:string" name="AssessmentReportFile"/>
+                    <xs:element type="xs:string" name="BuildId" minOccurs="0"/>
+                    <xs:element type="xs:string" name="AssessmentReportFile" minOccurs="0"/>
                     <xs:element name="InstanceLocation" minOccurs="0">
                       <xs:complexType mixed="true">
                         <xs:sequence>
