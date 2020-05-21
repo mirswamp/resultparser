@@ -772,9 +772,9 @@ sub ParseEnd
 
 sub NewBugInstance
 {
-    my ($self) = @_;
+    my $self = shift;
 
-    my $bug = new BugInstance();
+    my $bug = new BugInstance(@_);
 
     return $bug;
 }
@@ -860,7 +860,7 @@ sub WriteBugObject
 
     $bug->setBugBuildId($self->{curAssess}{"build-artifact-id"});
     $bug->setBugReportPath($self->{curAssess}{report})
-    unless defined $bug->getBugReportPath();
+	    unless defined $bug->getBugReportPath();
 
     $self->AdjustBugPath($bug);
 
@@ -875,7 +875,8 @@ sub WriteBugObject
     foreach my $location (@{$bug->{BugLocations}}) {
 	next unless defined $location;
 
-	$foundPrimary = 1 if $location->{primary} eq 'true';
+	$foundPrimary = 1 if defined $location->{primary}
+				&& $location->{primary} eq 'true';
 	--$elementsRemaining;
 	my $forcePrimary = !($elementsRemaining || $foundPrimary);
 	if ($forcePrimary) {

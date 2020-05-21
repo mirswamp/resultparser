@@ -5,9 +5,10 @@ use strict;
 use Data::Dumper;
 
 sub new {
-    my ($class) = @_;
+    my ($class, $data) = @_;
 
     my $self = {};
+    $self = $data if defined $data;
     
     bless $self, $class;
     return $self;
@@ -44,7 +45,7 @@ sub AppendBugFlowToBugMsg
 	}  else  {
 	    $m .= "*** <no-file-information> ***";
 	}
-	$m .= "*** Primary Bug Location" if $primary eq 'true';
+	$m .= "*** Primary Bug Location" if defined $primary && $primary eq 'true';
 	if (defined $msg)  {
 	    $msg =~ s/^/  /mg;
 	    $m .= "\n$msg";
