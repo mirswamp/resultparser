@@ -1,4 +1,9 @@
 -----------------------------------------------------
+resultparser version 3.3.4 (May 20, 2020)
+-----------------------------------------------------
+- add support for parsing CryptoGuard SCARF output
+
+-----------------------------------------------------
 resultparser version 3.3.3 (Mar 31, 2020)
 -----------------------------------------------------
 - update dependencies for newer versions of current platforms

@@ -34,6 +34,7 @@ UTIL_DIR="$CURRENT_DIR"
 SCARF_XML_LIB_DIR="$SRC_DIR/swamp-scarf-io"
 SARIF_JSON_LIB_DIR="$SRC_DIR/swamp-sarif-io"
 SCARF_XML_LIB_FILES="$SCARF_XML_LIB_DIR/perl/ScarfXmlWriter.pm"
+SCARF_XML_LIB_FILES+=" $SCARF_XML_LIB_DIR/perl/ScarfXmlReader.pm $SCARF_XML_LIB_DIR/perl/SwampXML.pm"
 SARIF_JSON_LIB_FILES="$SARIF_JSON_LIB_DIR/SarifJsonWriter.pm"
 
 function CreateReleaseTar
